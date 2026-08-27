@@ -332,6 +332,7 @@ select:focus {
 .primary-button:disabled,
 .secondary-button:disabled,
 input:disabled,
+textarea:disabled,
 select:disabled {
   cursor: not-allowed;
   opacity: 0.52;
@@ -540,6 +541,10 @@ select:disabled {
   grid-template-columns: 1fr 1fr;
 }
 
+.source-actions.single-action {
+  grid-template-columns: 1fr;
+}
+
 .analysis-state {
   background: var(--amber-100);
   border: 1px solid #ecd28d;
@@ -669,8 +674,90 @@ select:disabled {
   margin-bottom: 0;
 }
 
-.page-selector select {
+.page-select {
+  position: relative;
   width: 100%;
+}
+
+.page-select-trigger {
+  align-items: center;
+  background: #fbfcfa;
+  border: 1px solid #cfd8ce;
+  border-radius: 6px;
+  color: var(--foreground);
+  display: flex;
+  font-weight: 800;
+  gap: 10px;
+  height: 40px;
+  justify-content: space-between;
+  line-height: 1.2;
+  padding: 0 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.page-select-trigger:focus,
+.page-select.open .page-select-trigger {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 3px rgb(47 107 66 / 13%);
+}
+
+.page-select-trigger span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-select-arrow {
+  color: var(--green-900);
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.page-select-menu {
+  background: #ffffff;
+  border: 1px solid #cfd8ce;
+  border-radius: 8px;
+  box-shadow: 0 16px 36px rgb(24 32 24 / 18%);
+  display: grid;
+  gap: 2px;
+  left: -12px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 6px;
+  position: absolute;
+  right: 10px;
+  top: calc(100% + 6px);
+  z-index: 10;
+}
+
+.page-select-option {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--foreground);
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  padding: 9px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.page-select-option:hover,
+.page-select-option.selected {
+  background: var(--green-100);
+  color: var(--green-900);
+}
+
+.page-select-option span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .page-selector > span {
@@ -808,9 +895,17 @@ select:disabled {
   cursor: pointer;
 }
 
+.event-table tbody tr.empty-row {
+  cursor: default;
+}
+
 .event-table tbody tr:hover,
 .event-table tbody tr.selected {
   background: #f1f8ef;
+}
+
+.event-table tbody tr.empty-row:hover {
+  background: #ffffff;
 }
 
 .event-table td {

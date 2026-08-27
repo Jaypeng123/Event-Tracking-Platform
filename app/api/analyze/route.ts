@@ -319,7 +319,7 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
       analysisScope: requestBody.source?.nodeId ? "node" : normalizeScope(requestBody.scope),
       figmaInspection: figmaContext,
       requiredOutputRules: [
-        "若讀不到任何可判斷的功能或畫面內容，events 可回傳空陣列。",
+        "只要 figmaInspection.nodeCount 或 textCount 大於 0，就至少產出 6 筆第一階段追蹤事件；只有完全讀不到畫面內容時，events 才可回傳空陣列。",
         "page 與 area 必須自行命名，名稱要來自 Figma 節點、頁面、畫面文字或可合理推論的功能區塊。",
         "不要使用未命名頁面、未命名區塊、track_event_1、使用者完成主要互動時、衡量此功能是否被實際使用等占位內容。",
         "每一筆事件都要對應不同的使用行為或分析問題，避免多筆事件只有編號不同。",
@@ -629,6 +629,135 @@ function normalizeAnalysisProcess(value: unknown) {
   return value.map((item) => String(item).trim()).filter(Boolean).slice(0, 6);
 }
 
+function inferEventType(label: string, index: number): EventType {
+  const normalized = label.toLowerCase();
+
+  if (/錯誤|失敗|驗證|必填|error|invalid|required/.test(normalized)) {
+    return "Validation";
+  }
+
+  if (/送出|提交|完成|建立|新增|儲存|save|submit|create|complete/.test(normalized)) {
+    return "Flow";
+  }
+
+  if (/搜尋|篩選|排序|匯出|下載|頁籤|tab|search|filter|sort|export|download/.test(normalized)) {
+    return "Click";
+  }
+
+  if (/列表|詳情|總覽|儀表|dashboard|detail|list|overview/.test(normalized) || index === 0) {
+    return "View";
+  }
+
+  return index % 3 === 0 ? "Feature" : "Click";
+}
+
+function eventFieldSet(eventType: EventType, area: string) {
+  switch (eventType) {
+    case "View":
+      return {
+        properties: "page_name; area_name; user_role; entry_source",
+        propertyDefinitions: "頁面名稱; 區塊名稱; 使用者角色; 進入來源",
+        dataTypes: "string; string; string; string",
+        sampleValues: `patient_dashboard; ${area}; doctor; sidebar`,
+      };
+    case "Validation":
+      return {
+        properties: "page_name; area_name; validation_type; user_role",
+        propertyDefinitions: "頁面名稱; 區塊名稱; 驗證或錯誤類型; 使用者角色",
+        dataTypes: "string; string; string; string",
+        sampleValues: `patient_dashboard; ${area}; required_field; nurse`,
+      };
+    case "Flow":
+      return {
+        properties: "page_name; flow_name; result_status; user_role",
+        propertyDefinitions: "頁面名稱; 流程名稱; 完成或失敗狀態; 使用者角色",
+        dataTypes: "string; string; string; string",
+        sampleValues: `patient_dashboard; ${area}; success; doctor`,
+      };
+    case "Feature":
+      return {
+        properties: "page_name; feature_name; action_result; user_role",
+        propertyDefinitions: "頁面名稱; 功能名稱; 操作結果; 使用者角色",
+        dataTypes: "string; string; string; string",
+        sampleValues: `patient_dashboard; ${area}; opened; nurse`,
+      };
+    case "Click":
+    default:
+      return {
+        properties: "page_name; area_name; button_name; user_role",
+        propertyDefinitions: "頁面名稱; 區塊名稱; 按鈕或入口名稱; 使用者角色",
+        dataTypes: "string; string; string; string",
+        sampleValues: `patient_dashboard; ${area}; primary_action; doctor`,
+      };
+  }
+}
+
+function buildFallbackEvents(figmaContext: FigmaContext): TrackingEvent[] {
+  const page = derivePageName(figmaContext);
+  const readableNames = extractReadableNodeNames(figmaContext)
+    .filter((name) => name !== page)
+    .filter((name) => !/^[\W_|\-—–=]+$/.test(name))
+    .filter((name) => !/^\d+$/.test(name));
+  const derivedAreas = Array.from(new Set(readableNames)).slice(0, 10);
+  const areas = derivedAreas.length
+    ? derivedAreas
+    : ["主要內容", "搜尋與篩選", "資料列表", "詳情查看", "狀態更新", "匯出資料"];
+  const events: TrackingEvent[] = [];
+
+  function createEvent(areaLabel: string, eventType: EventType, index: number): TrackingEvent {
+    const area = areaLabel.includes(page) ? truncate(areaLabel, 48) : truncate(`${page} / ${areaLabel}`, 48);
+    const fieldSet = eventFieldSet(eventType, areaLabel);
+
+    return {
+      id: `AI_${String(index + 1).padStart(3, "0")}`,
+      page,
+      area,
+      eventName: deriveEventName(page, area, eventType, index),
+      eventType,
+      trigger: deriveTrigger(page, area, eventType),
+      purpose: derivePurpose(page, area, eventType),
+      analysisValue: deriveAnalysisValue(area, eventType),
+      properties: fieldSet.properties,
+      propertyDefinitions: fieldSet.propertyDefinitions,
+      dataTypes: fieldSet.dataTypes,
+      sampleValues: fieldSet.sampleValues,
+      priority: index < 6 ? "P0" : "P1",
+      status: "AI 補強",
+    };
+  }
+
+  events.push(createEvent("頁面載入", "View", 0));
+
+  areas.forEach((area, index) => {
+    events.push(createEvent(area, inferEventType(area, index + 1), index + 1));
+  });
+
+  return events.slice(0, 12);
+}
+
+function ensureUsefulEvents(events: TrackingEvent[], figmaContext: FigmaContext) {
+  const minimumEventCount = figmaContext.nodeCount > 8 || figmaContext.textCount > 4 ? 6 : 3;
+
+  if (events.length >= minimumEventCount) {
+    return events;
+  }
+
+  const fallbackEvents = buildFallbackEvents(figmaContext);
+  const seen = new Set(events.map((event) => `${event.page}|${event.area}|${event.eventName}`));
+  const combined = [...events];
+
+  fallbackEvents.forEach((event) => {
+    const key = `${event.page}|${event.area}|${event.eventName}`;
+
+    if (!seen.has(key) && combined.length < Math.max(minimumEventCount, Math.min(fallbackEvents.length, 10))) {
+      combined.push(event);
+      seen.add(key);
+    }
+  });
+
+  return combined;
+}
+
 async function analyzeWithOpenAI(requestBody: AnalyzeRequest, figmaContext: FigmaContext, openAIKey: string) {
   const model = process.env.OPENAI_MODEL?.trim() || "gpt-5-mini";
   const response = await fetch(OPENAI_RESPONSES_URL, {
@@ -663,11 +792,12 @@ async function analyzeWithOpenAI(requestBody: AnalyzeRequest, figmaContext: Figm
   }
 
   const parsed = parseModelJson(payload, "OpenAI");
-  const events = Array.isArray(parsed.events)
+  const normalizedEvents = Array.isArray(parsed.events)
     ? parsed.events
         .map((event, index) => normalizeEvent(event, index, figmaContext))
         .filter((event): event is TrackingEvent => Boolean(event))
     : [];
+  const events = ensureUsefulEvents(normalizedEvents, figmaContext);
 
   return {
     model,
@@ -754,11 +884,12 @@ async function analyzeWithGemini(requestBody: AnalyzeRequest, figmaContext: Figm
   }
 
   const parsed = parseModelJson({ output_text: extractGeminiOutputText(payload) }, "Gemini");
-  const events = Array.isArray(parsed.events)
+  const normalizedEvents = Array.isArray(parsed.events)
     ? parsed.events
         .map((event, index) => normalizeEvent(event, index, figmaContext))
         .filter((event): event is TrackingEvent => Boolean(event))
     : [];
+  const events = ensureUsefulEvents(normalizedEvents, figmaContext);
 
   return {
     model: `Gemini ${model}`,

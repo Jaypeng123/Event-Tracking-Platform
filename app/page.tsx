@@ -182,10 +182,6 @@ function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
   }
 }
 
-function escapeCsv(value: string) {
-  return `"${value.replace(/"/g, '""')}"`;
-}
-
 function escapeXml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -304,15 +300,6 @@ async function readFigmaPagesResponse(response: Response): Promise<FigmaPagesRes
   };
 }
 
-function toCsv(rows: TrackingEvent[]) {
-  const header = exportColumns.map((column) => escapeCsv(column.label)).join(",");
-  const body = rows
-    .map((row) => exportColumns.map((column) => escapeCsv(String(row[column.key]))).join(","))
-    .join("\n");
-
-  return `\uFEFF${header}\n${body}`;
-}
-
 function toExcelXml(rows: TrackingEvent[]) {
   const header = exportColumns
     .map(
@@ -383,9 +370,9 @@ function toExcelXml(rows: TrackingEvent[]) {
 export default function Home() {
   const [draftFigmaUrl, setDraftFigmaUrl] = useState("");
   const [appliedFigmaUrl, setAppliedFigmaUrl] = useState("");
-  const [isEditingSource, setIsEditingSource] = useState(true);
   const [loadedPages, setLoadedPages] = useState<FigmaPage[]>([]);
   const [selectedPageId, setSelectedPageId] = useState("");
+  const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
   const [hasImportedPages, setHasImportedPages] = useState(false);
   const [isLoadingPages, setIsLoadingPages] = useState(false);
   const [pageLoadError, setPageLoadError] = useState("");
@@ -409,15 +396,16 @@ export default function Home() {
 
   const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
   const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
-  const activeInputInfo = isEditingSource ? draftInfo : figmaInfo;
+  const hasDraftSource = Boolean(draftFigmaUrl.trim());
   const hasAppliedSource = Boolean(appliedFigmaUrl && figmaInfo.mode !== "invalid" && figmaInfo.mode !== "unsupported");
+  const activeInputInfo = hasAppliedSource ? figmaInfo : draftInfo;
   const pageOptions = hasImportedPages ? loadedPages : [];
   const selectedPage = pageOptions.find((page) => page.id === selectedPageId) ?? null;
-  const needsPageSelection = hasAppliedSource && figmaInfo.mode === "file";
+  const needsPageSelection = hasAppliedSource;
   const canShowPageSelector =
     hasAppliedSource && (needsPageSelection || isLoadingPages || Boolean(pageOptions.length) || Boolean(pageLoadError));
   const canAnalyzeCurrentSource =
-    hasAppliedSource && !isLoadingPages && (!needsPageSelection || (hasImportedPages && Boolean(selectedPage)));
+    hasAppliedSource && !isLoadingPages && hasImportedPages && Boolean(selectedPage);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -535,14 +523,6 @@ export default function Home() {
     setIsDetailOpen(true);
   }
 
-  function handleExportRowsCsv(rows: TrackingEvent[], filename: string) {
-    if (!rows.length) {
-      return;
-    }
-
-    download(filename, toCsv(rows), "text/csv;charset=utf-8");
-  }
-
   function handleExportRowsExcel(rows: TrackingEvent[], filename: string) {
     if (!rows.length) {
       return;
@@ -632,13 +612,12 @@ export default function Home() {
 
       setLoadedPages(pages);
       setSelectedPageId("");
+      setIsPageMenuOpen(false);
       setHasImportedPages(true);
       setPageLoadError(pages.length ? "" : "這份 Figma 檔案沒有讀到可分析的 Page");
       setAnalysisState(
         pages.length
-          ? nextInfo.mode === "file"
-            ? "已匯入 Figma，請在 AI 分析區選擇要分析的 Page"
-            : "已匯入 Figma，可直接分析目前連結或改選 Page"
+          ? "已匯入 Figma，請在 AI 分析區選擇要分析的 Page"
           : "這份 Figma 檔案沒有讀到可分析的 Page",
       );
     } catch (error) {
@@ -646,6 +625,7 @@ export default function Home() {
 
       setLoadedPages([]);
       setSelectedPageId("");
+      setIsPageMenuOpen(false);
       setHasImportedPages(false);
       setPageLoadError(message);
       setAnalysisState(message);
@@ -674,36 +654,25 @@ export default function Home() {
 
     setAppliedFigmaUrl(nextInfo.normalizedUrl);
     setDraftFigmaUrl(nextInfo.normalizedUrl);
-    setIsEditingSource(false);
     setLoadedPages([]);
     setSelectedPageId("");
+    setIsPageMenuOpen(false);
     setHasImportedPages(false);
     setPageLoadError("");
     resetAnalysisResult();
     setFilter("All");
     setQuery("");
-    setAnalysisState("正在匯入 Figma Page 清單");
+    setAnalysisState("正在讀取Figma稿件");
 
     await loadFigmaPages(nextInfo);
-  }
-
-  function handleReplaceSource() {
-    setDraftFigmaUrl(appliedFigmaUrl);
-    setIsEditingSource(true);
-    setLoadedPages([]);
-    setSelectedPageId("");
-    setHasImportedPages(false);
-    setPageLoadError("");
-    resetAnalysisResult();
-    setAnalysisState("請輸入要匯入的 Figma 連結");
   }
 
   function handleClearSource() {
     setDraftFigmaUrl("");
     setAppliedFigmaUrl("");
-    setIsEditingSource(true);
     setLoadedPages([]);
     setSelectedPageId("");
+    setIsPageMenuOpen(false);
     setHasImportedPages(false);
     setPageLoadError("");
     setFilter("All");
@@ -714,14 +683,25 @@ export default function Home() {
 
   function handleSelectPage(pageId: string) {
     setSelectedPageId(pageId);
+    setIsPageMenuOpen(false);
     resetAnalysisResult();
-    setAnalysisState(pageId || !needsPageSelection ? "" : "請先選擇要分析的 Page");
+    setAnalysisState(pageId ? "" : "請先選擇要分析的 Page");
   }
 
   async function handleAnalyze() {
     if (!canAnalyzeCurrentSource) {
+      if (!hasAppliedSource) {
+        setAnalysisState("請先匯入 Figma 連結");
+        return;
+      }
+
+      if (isLoadingPages) {
+        setAnalysisState("正在讀取Figma稿件");
+        return;
+      }
+
       if (needsPageSelection && !hasImportedPages) {
-        setAnalysisState(isLoadingPages ? "正在匯入 Figma Page 清單" : "請先匯入 Figma Page 清單");
+        setAnalysisState("請先匯入 Figma Page 清單");
         return;
       }
 
@@ -730,7 +710,7 @@ export default function Home() {
         return;
       }
 
-      setAnalysisState("請先套用 Figma 連結");
+      setAnalysisState("請先選擇要分析的 Page");
       return;
     }
 
@@ -814,10 +794,6 @@ export default function Home() {
     handleExportRowsExcel(visibleRows, "慢病醫療人員_UX_第一階段埋點計畫.xls");
   }
 
-  function handleExportCsv() {
-    handleExportRowsCsv(visibleRows, "慢病醫療人員_UX_第一階段埋點計畫.csv");
-  }
-
   const isWaitingForPageImport = needsPageSelection && !hasImportedPages && !isLoadingPages && !pageLoadError;
   const isWaitingForPageSelection = needsPageSelection && hasImportedPages && Boolean(pageOptions.length) && !selectedPage;
   const hasNoImportedPages = needsPageSelection && hasImportedPages && !pageOptions.length;
@@ -837,7 +813,7 @@ export default function Home() {
     : analysisError
       ? "分析未完成"
       : isLoadingPages
-        ? "正在匯入 Figma Page"
+        ? "正在讀取 Figma 稿件"
         : isWaitingForPageImport
           ? "請先匯入 Figma Page"
           : pageLoadError
@@ -854,11 +830,11 @@ export default function Home() {
                       ? "尚未產生埋點建議"
                       : "尚未套用 Figma 來源";
   const tableEmptyDescription = isAnalyzing
-    ? "正在讀取 Figma 結構並呼叫模型。"
+    ? "正在讀取Figma稿件"
     : analysisError
       ? analysisError
       : isLoadingPages
-        ? "這一步只讀取 Page 清單，不會呼叫模型。"
+        ? "正在讀取Figma稿件"
         : isWaitingForPageImport
           ? "整份檔案需要先匯入 Page 清單，選擇單一 Page 後才會分析。"
           : pageLoadError
@@ -897,9 +873,6 @@ export default function Home() {
           <h1>埋點分析建立工具</h1>
         </div>
         <div className="topbar-actions" aria-label="匯出工具">
-          <button className="secondary-button" type="button" onClick={handleExportCsv} disabled={!visibleRows.length}>
-            CSV
-          </button>
           <button className="secondary-button library-button" type="button" onClick={() => setIsLibraryOpen(true)}>
             追蹤事件庫
             <span>{libraryRows.length}</span>
@@ -924,14 +897,6 @@ export default function Home() {
             </div>
 
             <div className="library-panel-actions">
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => handleExportRowsCsv(libraryRows, "追蹤事件庫.csv")}
-                disabled={!libraryRows.length}
-              >
-                匯出 CSV
-              </button>
               <button
                 className="primary-button"
                 type="button"
@@ -1065,69 +1030,70 @@ export default function Home() {
               <h2>Figma 來源</h2>
             </div>
 
-            {isEditingSource ? (
-              <div className="source-editor">
-                <label className="field-label" htmlFor="figma-url">
-                  Figma 連結
-                </label>
-                <textarea
-                  id="figma-url"
-                  value={draftFigmaUrl}
-                  onChange={(event) => setDraftFigmaUrl(event.target.value)}
-                  placeholder="貼上 Figma design/file 連結"
-                  rows={5}
-                />
-                {activeInputInfo.mode === "empty" ? (
-                  <div className="source-empty">
-                    <strong>尚未匯入來源</strong>
-                    <span>貼上 Figma 連結後按下匯入，系統會先讀取可分析的頁面範圍。</span>
-                  </div>
-                ) : (
-                  <div className={`source-empty source-${activeInputInfo.mode}`}>
-                    <strong>
-                      {activeInputInfo.mode === "node"
-                        ? "將匯入目前連結"
-                        : activeInputInfo.mode === "file"
-                          ? "將匯入整份檔案"
-                          : activeInputInfo.mode === "unsupported"
-                            ? "目前不支援這種 Figma 來源"
-                            : "這看起來不是有效的 Figma 連結"}
-                    </strong>
-                    <span>
-                      {activeInputInfo.mode === "file"
-                        ? "匯入後會列出 Page，請先選定一頁再進行 AI 分析。"
-                        : activeInputInfo.mode === "node"
-                          ? "匯入後會顯示 AI 分析區，可直接分析目前連結，也可改選已讀到的 Page。"
-                          : "請改貼 Figma design/file 連結。"}
-                    </span>
-                  </div>
-                )}
-                <div className="source-actions">
-                  <button className="primary-button" type="button" onClick={handleApplySource}>
-                    匯入
-                  </button>
-                  <button className="secondary-button" type="button" onClick={handleClearSource}>
-                    清空
-                  </button>
+            <div className="source-editor">
+              <label className="field-label" htmlFor="figma-url">
+                Figma 連結
+              </label>
+              <textarea
+                id="figma-url"
+                value={draftFigmaUrl}
+                onChange={(event) => setDraftFigmaUrl(event.target.value)}
+                placeholder="貼上 Figma design/file 連結"
+                rows={5}
+                disabled={hasAppliedSource || isLoadingPages}
+              />
+              {hasAppliedSource ? (
+                <div className="source-empty source-locked">
+                  <strong>已匯入來源</strong>
+                  <span>{figmaInfo.fileName}。若要更換連結，請先清空目前連結。</span>
                 </div>
-              </div>
-            ) : (
-              <div className="source-card">
-                <div>
-                  <span>已套用來源</span>
-                  <strong>{figmaInfo.fileName}</strong>
-                  <code>{figmaInfo.normalizedUrl}</code>
+              ) : activeInputInfo.mode === "empty" ? (
+                <div className="source-empty">
+                  <strong>尚未匯入來源</strong>
+                  <span>貼上 Figma 連結後按下匯入，系統會先讀取可分析的頁面範圍。</span>
                 </div>
-                <div className="source-actions">
-                  <button className="secondary-button" type="button" onClick={handleReplaceSource}>
-                    匯入
-                  </button>
+              ) : (
+                <div className={`source-empty source-${activeInputInfo.mode}`}>
+                  <strong>
+                    {activeInputInfo.mode === "node"
+                      ? "將匯入這份 Figma 稿件"
+                      : activeInputInfo.mode === "file"
+                        ? "將匯入整份檔案"
+                        : activeInputInfo.mode === "unsupported"
+                          ? "目前不支援這種 Figma 來源"
+                          : "這看起來不是有效的 Figma 連結"}
+                  </strong>
+                  <span>
+                    {activeInputInfo.mode === "file" || activeInputInfo.mode === "node"
+                      ? "匯入後會列出 Page，請選定一頁再進行 AI 分析。"
+                      : "請改貼 Figma design/file 連結。"}
+                  </span>
+                </div>
+              )}
+              <div className={`source-actions ${hasAppliedSource || !hasDraftSource ? "single-action" : ""}`}>
+                {hasAppliedSource ? (
                   <button className="secondary-button danger-button" type="button" onClick={handleClearSource}>
-                    清空
+                    清空連結
                   </button>
-                </div>
+                ) : (
+                  <>
+                    <button
+                      className="primary-button"
+                      type="button"
+                      onClick={handleApplySource}
+                      disabled={!hasDraftSource || isLoadingPages}
+                    >
+                      匯入
+                    </button>
+                    {hasDraftSource ? (
+                      <button className="secondary-button" type="button" onClick={handleClearSource}>
+                        清空
+                      </button>
+                    ) : null}
+                  </>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {hasAppliedSource ? (
@@ -1154,25 +1120,42 @@ export default function Home() {
                 </div>
                 {isLoadingPages ? (
                   <div className="source-empty">
-                    <strong>正在匯入 Page 清單</strong>
-                    <span>這一步只讀 Figma 檔案結構，不會呼叫模型。</span>
+                    <strong>正在讀取 Figma 稿件</strong>
+                    <span>正在讀取Figma稿件</span>
                   </div>
                 ) : pageOptions.length ? (
                   <>
-                    <select
-                      id="figma-page"
-                      value={selectedPageId}
-                      onChange={(event) => handleSelectPage(event.target.value)}
-                    >
-                      <option value="">
-                        {figmaInfo.mode === "node" ? "使用目前連結指定範圍" : "請選擇 Page"}
-                      </option>
-                      {pageOptions.map((page) => (
-                        <option key={page.id} value={page.id}>
-                          {page.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className={`page-select ${isPageMenuOpen ? "open" : ""}`} id="figma-page">
+                      <button
+                        className="page-select-trigger"
+                        type="button"
+                        onClick={() => setIsPageMenuOpen((current) => !current)}
+                        disabled={!pageOptions.length || isAnalyzing}
+                        aria-expanded={isPageMenuOpen}
+                        aria-haspopup="listbox"
+                      >
+                        <span>{selectedPage?.name ?? "請選擇 Page"}</span>
+                        <span className="page-select-arrow" aria-hidden="true">
+                          ▾
+                        </span>
+                      </button>
+                      {isPageMenuOpen ? (
+                        <div className="page-select-menu" role="listbox" aria-label="分析 Page">
+                          {pageOptions.map((page) => (
+                            <button
+                              className={page.id === selectedPageId ? "page-select-option selected" : "page-select-option"}
+                              key={page.id}
+                              type="button"
+                              role="option"
+                              aria-selected={page.id === selectedPageId}
+                              onClick={() => handleSelectPage(page.id)}
+                            >
+                              <span>{page.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                     <span>
                       已載入 {pageOptions.length} 個 Page；選定 Page 後只會分析該頁，避免一次分析整份檔案。
                     </span>
@@ -1203,7 +1186,7 @@ export default function Home() {
                   分析中
                 </span>
               ) : isLoadingPages ? (
-                "匯入 Page 中"
+                "讀取中"
               ) : needsPageSelection && !selectedPage ? (
                 "請先選擇 Page"
               ) : (
@@ -1317,7 +1300,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {visibleRows.length === 0 ? (
-                  <tr>
+                  <tr className="empty-row">
                     <td colSpan={9}>
                       <div className="table-empty">
                         {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
