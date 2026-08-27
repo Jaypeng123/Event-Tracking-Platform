@@ -470,7 +470,7 @@ function extractGeminiError(payload: Record<string, unknown>, fallback: string) 
 }
 
 async function analyzeWithGemini(requestBody: AnalyzeRequest, figmaContext: FigmaContext, geminiKey: string) {
-  const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
   const response = await fetch(`${GEMINI_GENERATE_CONTENT_BASE_URL}/models/${encodeURIComponent(model)}:generateContent`, {
     method: "POST",
     headers: {
