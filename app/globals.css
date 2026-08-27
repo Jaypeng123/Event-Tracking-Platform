@@ -273,8 +273,82 @@ select:focus {
   color: var(--green-900);
 }
 
+.danger-button {
+  border-color: #e0b4a7;
+  color: var(--red-700);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
 .full-width {
   width: 100%;
+}
+
+.source-editor,
+.source-card {
+  display: grid;
+  gap: 10px;
+}
+
+.source-card {
+  background: #fbfcfa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.source-card > div:first-child {
+  display: grid;
+  gap: 6px;
+}
+
+.source-card span,
+.source-empty span,
+.scope-empty span,
+.detail-empty span,
+.table-empty span,
+.page-picker span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.source-card strong,
+.source-empty strong,
+.scope-empty strong,
+.detail-empty strong,
+.table-empty strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.source-card code {
+  max-height: 68px;
+  overflow: hidden;
+}
+
+.source-empty,
+.scope-empty,
+.detail-empty,
+.table-empty {
+  background: #f7faf6;
+  border: 1px dashed #bfcebd;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.source-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
 }
 
 .analysis-state {
@@ -286,6 +360,41 @@ select:focus {
   line-height: 1.5;
   margin: 10px 0 0;
   padding: 10px;
+}
+
+.muted-state {
+  background: #f7faf6;
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.source-invalid,
+.source-unsupported {
+  background: var(--red-100);
+  border-color: #efb8a5;
+}
+
+.figma-meta.compact {
+  margin-top: 0;
+}
+
+.page-picker {
+  background: #fbfcfa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 12px;
+  padding: 10px;
+}
+
+.page-picker.active {
+  background: var(--green-100);
+  border-color: #9fc89e;
+}
+
+.page-picker select {
+  width: 100%;
 }
 
 .reference-visual img {
@@ -419,6 +528,12 @@ select:focus {
   color: var(--muted);
   display: block;
   margin-top: 4px;
+}
+
+.table-empty {
+  margin: 20px auto;
+  max-width: 420px;
+  text-align: center;
 }
 
 .row-id {

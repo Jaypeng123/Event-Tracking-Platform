@@ -22,17 +22,51 @@ type TrackingEvent = {
 
 type Scope = "file" | "page" | "node";
 type EventFilter = "All" | TrackingEvent["eventType"];
+type FigmaSourceMode = "empty" | "file" | "node" | "unsupported" | "invalid";
+
+type FigmaPage = {
+  id: string;
+  name: string;
+  relatedEventPages: string[];
+};
+
+type FigmaSourceInfo = {
+  mode: FigmaSourceMode;
+  fileKey: string;
+  fileName: string;
+  nodeId: string;
+  nodeName: string;
+  pages: FigmaPage[];
+  normalizedUrl: string;
+};
 
 const events = trackingEvents as TrackingEvent[];
 
-const DEFAULT_FIGMA_URL =
-  "https://www.figma.com/design/YxOzcNURPPgfDq9qiXj1uk/%E5%8F%B0%E7%81%A3_%E6%85%A2%E7%97%85_%E9%86%AB%E7%99%82%E4%BA%BA%E5%93%A1_UX_V7.9.0?node-id=11575-278819&t=7045CWobqjzr4MW6-1";
+const EMPTY_FIGMA_SOURCE: FigmaSourceInfo = {
+  mode: "empty",
+  fileKey: "",
+  fileName: "",
+  nodeId: "",
+  nodeName: "",
+  pages: [],
+  normalizedUrl: "",
+};
 
-const scopeOptions: Array<{ value: Scope; label: string; meta: string }> = [
-  { value: "file", label: "整份檔案", meta: "全站功能使用率" },
-  { value: "page", label: "指定 Page", meta: "專案封面" },
-  { value: "node", label: "指定節點", meta: "慢病管理-個案詳情" },
-];
+const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
+  YxOzcNURPPgfDq9qiXj1uk: {
+    name: "台灣 慢病 醫療人員 UX V7.9.0",
+    pages: [
+      {
+        id: "0:1",
+        name: "專案封面",
+        relatedEventPages: ["個案詳情", "健康計畫", "CoDoctor Watch：血壓"],
+      },
+    ],
+    nodes: {
+      "11575:278819": "慢病管理-個案詳情",
+    },
+  },
+};
 
 const filterOptions: Array<{ value: EventFilter; label: string }> = [
   { value: "All", label: "全部" },
@@ -66,19 +100,59 @@ const typeLabels: Record<TrackingEvent["eventType"], string> = {
   Validation: "驗證",
 };
 
-function parseFigmaUrl(url: string) {
-  const fileKey = url.match(/figma\.com\/(?:design|file)\/([^/?#]+)/)?.[1] ?? "未解析";
-  let nodeId = "未指定";
+function normalizeUrl(rawUrl: string) {
+  const trimmed = rawUrl.trim();
 
-  try {
-    const parsed = new URL(url);
-    nodeId = parsed.searchParams.get("node-id")?.replace("-", ":") ?? "未指定";
-  } catch {
-    const fallbackNode = url.match(/node-id=([^&#]+)/)?.[1];
-    nodeId = fallbackNode ? fallbackNode.replace("-", ":") : "未指定";
+  if (!trimmed) {
+    return "";
   }
 
-  return { fileKey, nodeId };
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+function normalizeNodeId(value: string) {
+  return decodeURIComponent(value).replace(/-/g, ":");
+}
+
+function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
+  const normalizedUrl = normalizeUrl(rawUrl);
+
+  if (!normalizedUrl) {
+    return EMPTY_FIGMA_SOURCE;
+  }
+
+  try {
+    const parsed = new URL(normalizedUrl);
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    const fileType = pathParts[0];
+    const fileKey = pathParts[1] ?? "";
+
+    if (parsed.hostname !== "www.figma.com" && parsed.hostname !== "figma.com") {
+      return { ...EMPTY_FIGMA_SOURCE, mode: "invalid", normalizedUrl };
+    }
+
+    if (!["design", "file"].includes(fileType) || !fileKey) {
+      return { ...EMPTY_FIGMA_SOURCE, mode: "unsupported", normalizedUrl };
+    }
+
+    const knownFile = knownFigmaFiles[fileKey];
+    const nodeId = parsed.searchParams.get("node-id")
+      ? normalizeNodeId(parsed.searchParams.get("node-id") ?? "")
+      : "";
+    const fileName = knownFile?.name ?? decodeURIComponent(pathParts[2] ?? "Figma design file");
+
+    return {
+      mode: nodeId ? "node" : "file",
+      fileKey,
+      fileName,
+      nodeId,
+      nodeName: nodeId ? knownFile?.nodes[nodeId] ?? "指定節點" : "",
+      pages: knownFile?.pages ?? [],
+      normalizedUrl,
+    };
+  } catch {
+    return { ...EMPTY_FIGMA_SOURCE, mode: "invalid", normalizedUrl };
+  }
 }
 
 function escapeCsv(value: string) {
@@ -182,22 +256,37 @@ function toExcelXml(rows: TrackingEvent[]) {
 }
 
 export default function Home() {
-  const [figmaUrl, setFigmaUrl] = useState(DEFAULT_FIGMA_URL);
-  const [scope, setScope] = useState<Scope>("node");
+  const [draftFigmaUrl, setDraftFigmaUrl] = useState("");
+  const [appliedFigmaUrl, setAppliedFigmaUrl] = useState("");
+  const [isEditingSource, setIsEditingSource] = useState(true);
+  const [scope, setScope] = useState<Scope>("file");
+  const [selectedPageId, setSelectedPageId] = useState("");
   const [filter, setFilter] = useState<EventFilter>("All");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(events[0].id);
-  const [analysisState, setAnalysisState] = useState("已套用 Figma 節點命名與第一階段追蹤策略");
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [analysisState, setAnalysisState] = useState("尚未提供 Figma 連結");
 
-  const figmaInfo = useMemo(() => parseFigmaUrl(figmaUrl), [figmaUrl]);
+  const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
+  const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
+  const activeInputInfo = isEditingSource ? draftInfo : figmaInfo;
+  const hasAppliedSource = Boolean(appliedFigmaUrl && figmaInfo.mode !== "invalid" && figmaInfo.mode !== "unsupported");
+  const hasPageSwitcher = figmaInfo.mode === "file" && figmaInfo.pages.length > 1;
+  const selectedPage = figmaInfo.pages.find((page) => page.id === selectedPageId) ?? figmaInfo.pages[0];
 
   const visibleRows = useMemo(() => {
+    if (!hasAppliedSource || !hasAnalyzed) {
+      return [];
+    }
+
     const normalizedQuery = query.trim().toLowerCase();
+    const allowedEventPages =
+      scope === "page" && selectedPage?.relatedEventPages.length ? selectedPage.relatedEventPages : null;
 
     return events.filter((row) => {
       const scopeMatch =
         scope === "file" ||
-        (scope === "page" && row.page !== "全站") ||
+        (scope === "page" && (allowedEventPages ? allowedEventPages.includes(row.page) : row.page !== "全站")) ||
         (scope === "node" && row.page !== "全站");
       const typeMatch = filter === "All" || row.eventType === filter;
       const queryMatch =
@@ -218,9 +307,9 @@ export default function Home() {
 
       return scopeMatch && typeMatch && queryMatch;
     });
-  }, [filter, query, scope]);
+  }, [filter, hasAnalyzed, hasAppliedSource, query, scope, selectedPage]);
 
-  const selectedRow = visibleRows.find((row) => row.id === selectedId) ?? visibleRows[0] ?? events[0];
+  const selectedRow = visibleRows.find((row) => row.id === selectedId) ?? visibleRows[0];
 
   const summary = useMemo(() => {
     const p0Count = visibleRows.filter((row) => row.priority === "P0").length;
@@ -235,13 +324,82 @@ export default function Home() {
     ];
   }, [visibleRows]);
 
-  function handleAnalyze() {
+  function getScopeLabel() {
+    if (scope === "node") {
+      return figmaInfo.nodeName || "指定節點";
+    }
+
+    if (scope === "page") {
+      return selectedPage?.name ?? "指定 Page";
+    }
+
+    return "整份檔案";
+  }
+
+  function handleApplySource() {
+    const nextInfo = parseFigmaUrl(draftFigmaUrl);
+
+    if (nextInfo.mode === "empty") {
+      setAnalysisState("請先貼上 Figma 設計檔連結");
+      return;
+    }
+
+    if (nextInfo.mode === "invalid") {
+      setAnalysisState("這看起來不是有效的 Figma 連結");
+      return;
+    }
+
+    if (nextInfo.mode === "unsupported") {
+      setAnalysisState("目前請提供 Figma design/file 連結；簡報 deck 可作欄位參考，但不作頁面分析");
+      return;
+    }
+
+    setAppliedFigmaUrl(nextInfo.normalizedUrl);
+    setDraftFigmaUrl(nextInfo.normalizedUrl);
+    setIsEditingSource(false);
+    setHasAnalyzed(false);
+    setScope(nextInfo.mode === "node" ? "node" : "file");
+    setSelectedPageId(nextInfo.pages[0]?.id ?? "");
+    setFilter("All");
+    setQuery("");
+    setSelectedId(events[0].id);
     setAnalysisState(
-      scope === "file"
-        ? "已產生整份檔案的第一層功能使用率事件"
-        : scope === "page"
-          ? "已聚焦指定 Page 的頁面、點擊與流程事件"
-          : "已聚焦慢病管理-個案詳情節點的健康計畫與病患數據事件",
+      nextInfo.mode === "node"
+        ? "已套用指定節點，Page 選擇已隱藏"
+        : nextInfo.pages.length > 1
+          ? "已套用整份檔案，可切換 Page 或分析整份檔案"
+          : "已套用整份檔案，未偵測到多個可切換 Page",
+    );
+  }
+
+  function handleReplaceSource() {
+    setDraftFigmaUrl(appliedFigmaUrl);
+    setIsEditingSource(true);
+    setAnalysisState("正在替換 Figma 來源，套用後會重置分析結果");
+  }
+
+  function handleClearSource() {
+    setDraftFigmaUrl("");
+    setAppliedFigmaUrl("");
+    setIsEditingSource(true);
+    setScope("file");
+    setSelectedPageId("");
+    setFilter("All");
+    setQuery("");
+    setSelectedId(events[0].id);
+    setHasAnalyzed(false);
+    setAnalysisState("尚未提供 Figma 連結");
+  }
+
+  function handleAnalyze() {
+    if (!hasAppliedSource) {
+      setAnalysisState("請先套用 Figma 連結");
+      return;
+    }
+
+    setHasAnalyzed(true);
+    setAnalysisState(
+      `已產生「${getScopeLabel()}」的第一階段埋點建議`,
     );
   }
 
@@ -281,21 +439,87 @@ export default function Home() {
               <span className="section-index">01</span>
               <h2>Figma 來源</h2>
             </div>
-            <label className="field-label" htmlFor="figma-url">
-              Figma 連結
-            </label>
-            <textarea
-              id="figma-url"
-              value={figmaUrl}
-              onChange={(event) => setFigmaUrl(event.target.value)}
-              rows={5}
-            />
-            <div className="figma-meta">
-              <span>File key</span>
-              <strong>{figmaInfo.fileKey}</strong>
-              <span>Node</span>
-              <strong>{figmaInfo.nodeId}</strong>
-            </div>
+
+            {isEditingSource ? (
+              <div className="source-editor">
+                <label className="field-label" htmlFor="figma-url">
+                  Figma 連結
+                </label>
+                <textarea
+                  id="figma-url"
+                  value={draftFigmaUrl}
+                  onChange={(event) => setDraftFigmaUrl(event.target.value)}
+                  placeholder="貼上 Figma design/file 連結"
+                  rows={5}
+                />
+                {activeInputInfo.mode === "empty" ? (
+                  <div className="source-empty">
+                    <strong>尚未套用來源</strong>
+                    <span>貼上連結後會解析 file key、node-id 與可切換範圍。</span>
+                  </div>
+                ) : (
+                  <div className={`figma-meta source-${activeInputInfo.mode}`}>
+                    <span>File key</span>
+                    <strong>{activeInputInfo.fileKey || "未解析"}</strong>
+                    <span>類型</span>
+                    <strong>
+                      {activeInputInfo.mode === "node"
+                        ? "指定節點"
+                        : activeInputInfo.mode === "file"
+                          ? "整份檔案"
+                          : activeInputInfo.mode === "unsupported"
+                            ? "不支援"
+                            : "格式錯誤"}
+                    </strong>
+                    {activeInputInfo.nodeId ? (
+                      <>
+                        <span>Node</span>
+                        <strong>{activeInputInfo.nodeId}</strong>
+                      </>
+                    ) : null}
+                  </div>
+                )}
+                <div className="source-actions">
+                  <button className="primary-button" type="button" onClick={handleApplySource}>
+                    套用連結
+                  </button>
+                  <button className="secondary-button" type="button" onClick={handleClearSource}>
+                    清空
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="source-card">
+                <div>
+                  <span>已套用來源</span>
+                  <strong>{figmaInfo.fileName}</strong>
+                  <code>{figmaInfo.normalizedUrl}</code>
+                </div>
+                <div className="figma-meta compact">
+                  <span>File key</span>
+                  <strong>{figmaInfo.fileKey}</strong>
+                  {figmaInfo.nodeId ? (
+                    <>
+                      <span>Node</span>
+                      <strong>{figmaInfo.nodeId}</strong>
+                    </>
+                  ) : (
+                    <>
+                      <span>Pages</span>
+                      <strong>{figmaInfo.pages.length > 1 ? `${figmaInfo.pages.length} pages` : "無需切換"}</strong>
+                    </>
+                  )}
+                </div>
+                <div className="source-actions">
+                  <button className="secondary-button" type="button" onClick={handleReplaceSource}>
+                    替換連結
+                  </button>
+                  <button className="secondary-button danger-button" type="button" onClick={handleClearSource}>
+                    清空
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="panel-section">
@@ -303,24 +527,84 @@ export default function Home() {
               <span className="section-index">02</span>
               <h2>分析範圍</h2>
             </div>
-            <div className="scope-list" role="radiogroup" aria-label="分析範圍">
-              {scopeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  className={scope === option.value ? "scope-option active" : "scope-option"}
-                  type="button"
-                  onClick={() => setScope(option.value)}
-                  aria-pressed={scope === option.value}
+            {!hasAppliedSource ? (
+              <div className="scope-empty">
+                <strong>等待來源</strong>
+                <span>套用 Figma 連結後才會顯示可分析範圍。</span>
+              </div>
+            ) : (
+              <div className="scope-list" role="radiogroup" aria-label="分析範圍">
+                {figmaInfo.mode === "file" ? (
+                  <button
+                    className={scope === "file" ? "scope-option active" : "scope-option"}
+                    type="button"
+                    onClick={() => {
+                      setScope("file");
+                      setHasAnalyzed(false);
+                      setAnalysisState("已切換為整份檔案，請重新分析頁面內容");
+                    }}
+                    aria-pressed={scope === "file"}
+                  >
+                    <span>整份檔案</span>
+                    <small>第一層功能使用率</small>
+                  </button>
+                ) : null}
+
+                {hasPageSwitcher ? (
+                  <button
+                    className={scope === "page" ? "scope-option active" : "scope-option"}
+                    type="button"
+                    onClick={() => {
+                      setScope("page");
+                      setHasAnalyzed(false);
+                      setAnalysisState("已切換為指定 Page，請重新分析頁面內容");
+                    }}
+                    aria-pressed={scope === "page"}
+                  >
+                    <span>指定 Page</span>
+                    <small>{selectedPage?.name ?? "請選擇 Page"}</small>
+                  </button>
+                ) : null}
+
+                {figmaInfo.mode === "node" ? (
+                  <button className="scope-option active" type="button" aria-pressed="true">
+                    <span>指定節點</span>
+                    <small>{figmaInfo.nodeName || figmaInfo.nodeId}</small>
+                  </button>
+                ) : null}
+              </div>
+            )}
+
+            {hasPageSwitcher ? (
+              <label className={scope === "page" ? "page-picker active" : "page-picker"}>
+                <span>Page</span>
+                <select
+                  value={selectedPageId}
+                  onChange={(event) => {
+                    setSelectedPageId(event.target.value);
+                    setScope("page");
+                    setHasAnalyzed(false);
+                    setAnalysisState("已切換 Page，請重新分析頁面內容");
+                  }}
                 >
-                  <span>{option.label}</span>
-                  <small>{option.meta}</small>
-                </button>
-              ))}
-            </div>
-            <button className="primary-button full-width" type="button" onClick={handleAnalyze}>
+                  {figmaInfo.pages.map((page) => (
+                    <option key={page.id} value={page.id}>
+                      {page.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            <button
+              className="primary-button full-width"
+              type="button"
+              onClick={handleAnalyze}
+              disabled={!hasAppliedSource}
+            >
               分析頁面內容
             </button>
-            <p className="analysis-state">{analysisState}</p>
+            <p className={hasAppliedSource ? "analysis-state" : "analysis-state muted-state"}>{analysisState}</p>
           </div>
 
           <div className="reference-visual">
@@ -354,11 +638,13 @@ export default function Home() {
                 placeholder="搜尋事件、頁面或屬性"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
+                disabled={!hasAnalyzed}
               />
               <select
                 aria-label="事件類型篩選"
                 value={filter}
                 onChange={(event) => setFilter(event.target.value as EventFilter)}
+                disabled={!hasAnalyzed}
               >
                 {filterOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -384,10 +670,20 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
+                {visibleRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={8}>
+                      <div className="table-empty">
+                        <strong>{hasAppliedSource ? "尚未產生埋點建議" : "尚未套用 Figma 來源"}</strong>
+                        <span>{hasAppliedSource ? "按下分析頁面內容後會列出事件。" : "左側套用連結後再開始分析。"}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
                 {visibleRows.map((row) => (
                   <tr
                     key={row.id}
-                    className={selectedRow.id === row.id ? "selected" : ""}
+                    className={selectedRow?.id === row.id ? "selected" : ""}
                     onClick={() => setSelectedId(row.id)}
                   >
                     <td>
@@ -422,39 +718,48 @@ export default function Home() {
         </section>
 
         <aside className="detail-panel" aria-label="事件詳情">
-          <div className="detail-header">
-            <span className={`priority-pill priority-${selectedRow.priority.toLowerCase()}`}>
-              {selectedRow.priority}
-            </span>
-            <code>{selectedRow.eventName}</code>
-          </div>
-          <h2>{selectedRow.area}</h2>
-          <dl className="detail-list">
-            <div>
-              <dt>追蹤目的</dt>
-              <dd>{selectedRow.purpose}</dd>
+          {selectedRow ? (
+            <>
+              <div className="detail-header">
+                <span className={`priority-pill priority-${selectedRow.priority.toLowerCase()}`}>
+                  {selectedRow.priority}
+                </span>
+                <code>{selectedRow.eventName}</code>
+              </div>
+              <h2>{selectedRow.area}</h2>
+              <dl className="detail-list">
+                <div>
+                  <dt>追蹤目的</dt>
+                  <dd>{selectedRow.purpose}</dd>
+                </div>
+                <div>
+                  <dt>事件定義</dt>
+                  <dd>{selectedRow.trigger}</dd>
+                </div>
+                <div>
+                  <dt>數據分析意義</dt>
+                  <dd>{selectedRow.analysisValue}</dd>
+                </div>
+                <div>
+                  <dt>屬性參數</dt>
+                  <dd>{selectedRow.properties}</dd>
+                </div>
+                <div>
+                  <dt>屬性定義</dt>
+                  <dd>{selectedRow.propertyDefinitions}</dd>
+                </div>
+                <div>
+                  <dt>Sample Values</dt>
+                  <dd>{selectedRow.sampleValues}</dd>
+                </div>
+              </dl>
+            </>
+          ) : (
+            <div className="detail-empty">
+              <strong>尚未選取事件</strong>
+              <span>分析完成後，點擊表格中的事件即可查看屬性與追蹤目的。</span>
             </div>
-            <div>
-              <dt>事件定義</dt>
-              <dd>{selectedRow.trigger}</dd>
-            </div>
-            <div>
-              <dt>數據分析意義</dt>
-              <dd>{selectedRow.analysisValue}</dd>
-            </div>
-            <div>
-              <dt>屬性參數</dt>
-              <dd>{selectedRow.properties}</dd>
-            </div>
-            <div>
-              <dt>屬性定義</dt>
-              <dd>{selectedRow.propertyDefinitions}</dd>
-            </div>
-            <div>
-              <dt>Sample Values</dt>
-              <dd>{selectedRow.sampleValues}</dd>
-            </div>
-          </dl>
+          )}
           <div className="privacy-note">
             <strong>資料邊界</strong>
             <p>第一階段建議使用去識別化事件屬性，不把病患姓名、身分證、病歷號或完整聯絡資訊放入事件 payload。</p>
