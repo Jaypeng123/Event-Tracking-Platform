@@ -386,6 +386,7 @@ export default function Home() {
   const [isEditingSource, setIsEditingSource] = useState(true);
   const [loadedPages, setLoadedPages] = useState<FigmaPage[]>([]);
   const [selectedPageId, setSelectedPageId] = useState("");
+  const [hasImportedPages, setHasImportedPages] = useState(false);
   const [isLoadingPages, setIsLoadingPages] = useState(false);
   const [pageLoadError, setPageLoadError] = useState("");
   const [filter, setFilter] = useState<EventFilter>("All");
@@ -410,10 +411,11 @@ export default function Home() {
   const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
   const activeInputInfo = isEditingSource ? draftInfo : figmaInfo;
   const hasAppliedSource = Boolean(appliedFigmaUrl && figmaInfo.mode !== "invalid" && figmaInfo.mode !== "unsupported");
-  const pageOptions = loadedPages.length ? loadedPages : figmaInfo.pages;
+  const pageOptions = hasImportedPages ? loadedPages : [];
   const selectedPage = pageOptions.find((page) => page.id === selectedPageId) ?? null;
   const needsPageSelection = hasAppliedSource && figmaInfo.mode === "file";
-  const canAnalyzeCurrentSource = hasAppliedSource && !isLoadingPages && (!needsPageSelection || Boolean(selectedPage));
+  const canAnalyzeCurrentSource =
+    hasAppliedSource && !isLoadingPages && (!needsPageSelection || (hasImportedPages && Boolean(selectedPage)));
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -523,6 +525,14 @@ export default function Home() {
     setIsDetailOpen(true);
   }
 
+  function handleOpenDetailPanel() {
+    if (!selectedId && visibleRows[0]) {
+      setSelectedId(visibleRows[0].id);
+    }
+
+    setIsDetailOpen(true);
+  }
+
   function handleExportRowsCsv(rows: TrackingEvent[], filename: string) {
     if (!rows.length) {
       return;
@@ -588,6 +598,7 @@ export default function Home() {
     if (nextInfo.mode !== "file") {
       setLoadedPages([]);
       setSelectedPageId("");
+      setHasImportedPages(false);
       setPageLoadError("");
       return;
     }
@@ -595,6 +606,7 @@ export default function Home() {
     setIsLoadingPages(true);
     setLoadedPages([]);
     setSelectedPageId("");
+    setHasImportedPages(false);
     setPageLoadError("");
 
     try {
@@ -617,14 +629,16 @@ export default function Home() {
       const pages = Array.isArray(result.pages) ? result.pages : [];
 
       setLoadedPages(pages);
-      setSelectedPageId(pages[0]?.id ?? "");
+      setSelectedPageId("");
+      setHasImportedPages(true);
       setPageLoadError(pages.length ? "" : "這份 Figma 檔案沒有讀到可分析的 Page");
-      setAnalysisState(pages.length ? "已匯入 Page 清單，可切換後分析目前選取的 Page" : "這份 Figma 檔案沒有讀到可分析的 Page");
+      setAnalysisState(pages.length ? "已匯入 Page 清單，請選擇要分析的 Page" : "這份 Figma 檔案沒有讀到可分析的 Page");
     } catch (error) {
       const message = error instanceof Error ? error.message : "無法讀取 Figma Page 清單";
 
-      setLoadedPages(nextInfo.pages);
-      setSelectedPageId(nextInfo.pages[0]?.id ?? "");
+      setLoadedPages([]);
+      setSelectedPageId("");
+      setHasImportedPages(false);
       setPageLoadError(message);
       setAnalysisState(message);
     } finally {
@@ -653,13 +667,14 @@ export default function Home() {
     setAppliedFigmaUrl(nextInfo.normalizedUrl);
     setDraftFigmaUrl(nextInfo.normalizedUrl);
     setIsEditingSource(false);
-    setLoadedPages(nextInfo.pages);
-    setSelectedPageId(nextInfo.mode === "file" ? nextInfo.pages[0]?.id ?? "" : "");
+    setLoadedPages([]);
+    setSelectedPageId("");
+    setHasImportedPages(false);
     setPageLoadError("");
     resetAnalysisResult();
     setFilter("All");
     setQuery("");
-    setAnalysisState(nextInfo.mode === "file" ? "正在讀取 Figma Page 清單" : "");
+    setAnalysisState(nextInfo.mode === "file" ? "正在匯入 Figma Page 清單" : "");
 
     await loadFigmaPages(nextInfo);
   }
@@ -669,6 +684,7 @@ export default function Home() {
     setIsEditingSource(true);
     setLoadedPages([]);
     setSelectedPageId("");
+    setHasImportedPages(false);
     setPageLoadError("");
     resetAnalysisResult();
     setAnalysisState("正在替換 Figma 來源，套用後會重置分析結果");
@@ -680,6 +696,7 @@ export default function Home() {
     setIsEditingSource(true);
     setLoadedPages([]);
     setSelectedPageId("");
+    setHasImportedPages(false);
     setPageLoadError("");
     setFilter("All");
     setQuery("");
@@ -695,8 +712,13 @@ export default function Home() {
 
   async function handleAnalyze() {
     if (!canAnalyzeCurrentSource) {
+      if (needsPageSelection && !hasImportedPages) {
+        setAnalysisState(isLoadingPages ? "正在匯入 Figma Page 清單" : "請先匯入 Figma Page 清單");
+        return;
+      }
+
       if (needsPageSelection && !selectedPage) {
-        setAnalysisState(isLoadingPages ? "正在讀取 Figma Page 清單" : "請先選擇要分析的 Page");
+        setAnalysisState("請先選擇要分析的 Page");
         return;
       }
 
@@ -789,30 +811,62 @@ export default function Home() {
     handleExportRowsCsv(visibleRows, "慢病醫療人員_UX_第一階段埋點計畫.csv");
   }
 
-  const hasNoAnalysisRows = hasAppliedSource && hasAnalyzed && !analysisRows.length && !analysisError;
+  const isWaitingForPageImport = needsPageSelection && !hasImportedPages && !isLoadingPages && !pageLoadError;
+  const isWaitingForPageSelection = needsPageSelection && hasImportedPages && Boolean(pageOptions.length) && !selectedPage;
+  const hasNoImportedPages = needsPageSelection && hasImportedPages && !pageOptions.length;
+  const hasVisibleRows = Boolean(visibleRows.length);
+  const workspaceDetailClass = !hasVisibleRows ? "detail-hidden" : isDetailOpen ? "detail-open" : "detail-collapsed";
+  const hasNoAnalysisRows =
+    hasAppliedSource &&
+    hasAnalyzed &&
+    !analysisRows.length &&
+    !analysisError &&
+    !isWaitingForPageImport &&
+    !isWaitingForPageSelection &&
+    !hasNoImportedPages;
   const hasNoFilteredRows = hasAppliedSource && hasAnalyzed && Boolean(analysisRows.length) && !visibleRows.length;
   const tableEmptyTitle = isAnalyzing
     ? "AI 正在分析頁面內容"
     : analysisError
       ? "分析未完成"
-      : hasNoAnalysisRows
-        ? "尚無可追蹤的分析指標"
-        : hasNoFilteredRows
-          ? "沒有符合條件的分析指標"
-          : hasAppliedSource
-            ? "尚未產生埋點建議"
-            : "尚未套用 Figma 來源";
+      : isLoadingPages
+        ? "正在匯入 Figma Page"
+        : isWaitingForPageImport
+          ? "請先匯入 Figma Page"
+          : pageLoadError
+            ? "Page 清單尚未完成"
+            : isWaitingForPageSelection
+              ? "請選擇要分析的 Page"
+              : hasNoImportedPages
+                ? "沒有可分析的 Page"
+                : hasNoAnalysisRows
+                  ? "尚無可追蹤的分析指標"
+                  : hasNoFilteredRows
+                    ? "沒有符合條件的分析指標"
+                    : hasAppliedSource
+                      ? "尚未產生埋點建議"
+                      : "尚未套用 Figma 來源";
   const tableEmptyDescription = isAnalyzing
     ? "正在讀取 Figma 結構並呼叫模型。"
     : analysisError
       ? analysisError
-      : hasNoAnalysisRows
-        ? "模型沒有從目前連結範圍判斷出需要第一階段追蹤的事件。"
-        : hasNoFilteredRows
-          ? "請調整搜尋文字或事件類型篩選。"
-          : hasAppliedSource
-            ? "按下分析頁面內容後會列出事件。"
-            : "左側套用連結後再開始分析。";
+      : isLoadingPages
+        ? "這一步只讀取 Page 清單，不會呼叫模型。"
+        : isWaitingForPageImport
+          ? "整份檔案需要先匯入 Page 清單，選擇單一 Page 後才會分析。"
+          : pageLoadError
+            ? pageLoadError
+            : isWaitingForPageSelection
+              ? "請在左側選一個 Page，再點擊 AI 分析。"
+              : hasNoImportedPages
+                ? "這份 Figma 檔案沒有讀到可選 Page，請確認檔案權限或改貼指定 Page 連結。"
+                : hasNoAnalysisRows
+                  ? "模型沒有從目前連結範圍判斷出需要第一階段追蹤的事件。"
+                  : hasNoFilteredRows
+                    ? "請調整搜尋文字或事件類型篩選。"
+                    : hasAppliedSource
+                      ? "按下分析頁面內容後會列出事件。"
+                      : "左側套用連結後再開始分析。";
   const detailEmptyTitle = isAnalyzing
     ? "AI 分析中"
     : analysisError
@@ -996,7 +1050,7 @@ export default function Home() {
         </div>
       ) : null}
 
-      <section className={`workspace ${isDetailOpen ? "detail-open" : "detail-collapsed"}`}>
+      <section className={`workspace ${workspaceDetailClass}`}>
         <aside className="control-panel" aria-label="Figma 分析控制台">
           <div className="panel-section">
             <div className="section-heading">
@@ -1045,7 +1099,7 @@ export default function Home() {
                 )}
                 <div className="source-actions">
                   <button className="primary-button" type="button" onClick={handleApplySource}>
-                    套用連結
+                    {activeInputInfo.mode === "file" ? "匯入 Page" : "套用連結"}
                   </button>
                   <button className="secondary-button" type="button" onClick={handleClearSource}>
                     清空
@@ -1076,12 +1130,22 @@ export default function Home() {
                 </div>
                 {figmaInfo.mode === "file" ? (
                   <div className={`page-selector ${pageLoadError ? "page-selector-error" : ""}`}>
-                    <label className="field-label" htmlFor="figma-page">
-                      分析 Page
-                    </label>
+                    <div className="page-selector-header">
+                      <label className="field-label" htmlFor="figma-page">
+                        分析 Page
+                      </label>
+                      <button
+                        className="secondary-button small-button"
+                        type="button"
+                        onClick={() => loadFigmaPages(figmaInfo)}
+                        disabled={isLoadingPages}
+                      >
+                        匯入 Page
+                      </button>
+                    </div>
                     {isLoadingPages ? (
                       <div className="source-empty">
-                        <strong>正在讀取 Page 清單</strong>
+                        <strong>正在匯入 Page 清單</strong>
                         <span>這一步只讀 Figma 檔案結構，不會呼叫模型。</span>
                       </div>
                     ) : pageOptions.length ? (
@@ -1091,6 +1155,7 @@ export default function Home() {
                           value={selectedPageId}
                           onChange={(event) => handleSelectPage(event.target.value)}
                         >
+                          <option value="">請選擇 Page</option>
                           {pageOptions.map((page) => (
                             <option key={page.id} value={page.id}>
                               {page.name}
@@ -1103,8 +1168,8 @@ export default function Home() {
                       </>
                     ) : (
                       <div className="source-empty">
-                        <strong>尚未讀到 Page</strong>
-                        <span>請確認 Figma 權限，或改貼指定 Page / 節點連結。</span>
+                        <strong>{hasImportedPages ? "尚未讀到 Page" : "尚未匯入 Page"}</strong>
+                        <span>{hasImportedPages ? "請確認 Figma 權限，或改貼指定 Page / 節點連結。" : "按下匯入 Page 後，會列出這份檔案中的 Page。"}</span>
                       </div>
                     )}
                     {pageLoadError ? <span className="page-selector-message">{pageLoadError}</span> : null}
@@ -1140,7 +1205,7 @@ export default function Home() {
                   分析中
                 </span>
               ) : isLoadingPages ? (
-                "讀取 Page 中"
+                "匯入 Page 中"
               ) : needsPageSelection && !selectedPage ? (
                 "請先選擇 Page"
               ) : (
@@ -1320,16 +1385,59 @@ export default function Home() {
           </div>
         </section>
 
-        <aside className={`detail-panel ${isDetailOpen ? "expanded" : "collapsed"}`} aria-label="事件詳情">
-          {isDetailOpen ? (
-            <>
-              {selectedRow ? (
-                <>
-                  <div className="detail-header">
-                    <span className={`priority-pill priority-${selectedRow.priority.toLowerCase()}`}>
-                      {selectedRow.priority}
-                    </span>
-                    <code>{selectedRow.eventName}</code>
+        {hasVisibleRows ? (
+          <aside className={`detail-panel ${isDetailOpen ? "expanded" : "collapsed"}`} aria-label="事件詳情">
+            {isDetailOpen ? (
+              <>
+                {selectedRow ? (
+                  <>
+                    <div className="detail-header">
+                      <span className={`priority-pill priority-${selectedRow.priority.toLowerCase()}`}>
+                        {selectedRow.priority}
+                      </span>
+                      <code>{selectedRow.eventName}</code>
+                      <button
+                        className="icon-button detail-toggle"
+                        type="button"
+                        onClick={() => setIsDetailOpen(false)}
+                        aria-label="收合事件詳情"
+                      >
+                        ›
+                      </button>
+                    </div>
+                    <h2>{selectedRow.area}</h2>
+                    <dl className="detail-list">
+                      <div>
+                        <dt>追蹤目的</dt>
+                        <dd>{selectedRow.purpose}</dd>
+                      </div>
+                      <div>
+                        <dt>事件定義</dt>
+                        <dd>{selectedRow.trigger}</dd>
+                      </div>
+                      <div>
+                        <dt>數據分析意義</dt>
+                        <dd>{selectedRow.analysisValue}</dd>
+                      </div>
+                      <div>
+                        <dt>屬性參數</dt>
+                        <dd>{selectedRow.properties}</dd>
+                      </div>
+                      <div>
+                        <dt>屬性定義</dt>
+                        <dd>{selectedRow.propertyDefinitions}</dd>
+                      </div>
+                      <div>
+                        <dt>Sample Values</dt>
+                        <dd>{selectedRow.sampleValues}</dd>
+                      </div>
+                    </dl>
+                  </>
+                ) : (
+                  <div className="detail-empty">
+                    {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
+                    <strong>{detailEmptyTitle}</strong>
+                    <span>{detailEmptyDescription}</span>
                     <button
                       className="icon-button detail-toggle"
                       type="button"
@@ -1339,65 +1447,24 @@ export default function Home() {
                       ›
                     </button>
                   </div>
-                  <h2>{selectedRow.area}</h2>
-                  <dl className="detail-list">
-                    <div>
-                      <dt>追蹤目的</dt>
-                      <dd>{selectedRow.purpose}</dd>
-                    </div>
-                    <div>
-                      <dt>事件定義</dt>
-                      <dd>{selectedRow.trigger}</dd>
-                    </div>
-                    <div>
-                      <dt>數據分析意義</dt>
-                      <dd>{selectedRow.analysisValue}</dd>
-                    </div>
-                    <div>
-                      <dt>屬性參數</dt>
-                      <dd>{selectedRow.properties}</dd>
-                    </div>
-                    <div>
-                      <dt>屬性定義</dt>
-                      <dd>{selectedRow.propertyDefinitions}</dd>
-                    </div>
-                    <div>
-                      <dt>Sample Values</dt>
-                      <dd>{selectedRow.sampleValues}</dd>
-                    </div>
-                  </dl>
-                </>
-              ) : (
-                <div className="detail-empty">
-                  {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
-                  <strong>{detailEmptyTitle}</strong>
-                  <span>{detailEmptyDescription}</span>
-                  <button
-                    className="icon-button detail-toggle"
-                    type="button"
-                    onClick={() => setIsDetailOpen(false)}
-                    aria-label="收合事件詳情"
-                  >
-                    ›
-                  </button>
+                )}
+                <div className="privacy-note">
+                  <strong>資料邊界</strong>
+                  <p>第一階段建議使用去識別化事件屬性，不把病患姓名、身分證、病歷號或完整聯絡資訊放入事件 payload。</p>
                 </div>
-              )}
-              <div className="privacy-note">
-                <strong>資料邊界</strong>
-                <p>第一階段建議使用去識別化事件屬性，不把病患姓名、身分證、病歷號或完整聯絡資訊放入事件 payload。</p>
-              </div>
-            </>
-          ) : (
-            <button
-              className="detail-expand-button"
-              type="button"
-              onClick={() => setIsDetailOpen(true)}
-              aria-label="展開事件詳情"
-            >
-              ‹
-            </button>
-          )}
-        </aside>
+              </>
+            ) : (
+              <button
+                className="detail-expand-button"
+                type="button"
+                onClick={handleOpenDetailPanel}
+                aria-label="展開事件詳情"
+              >
+                ‹
+              </button>
+            )}
+          </aside>
+        ) : null}
       </section>
     </main>
   );

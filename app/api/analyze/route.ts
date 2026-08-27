@@ -789,6 +789,16 @@ export async function POST(request: Request) {
     return Response.json({ message: "缺少 Figma file key，請先套用有效的 Figma 連結" }, { status: 400 });
   }
 
+  if (!asString(requestBody.source?.nodeId)) {
+    return Response.json(
+      {
+        code: "page_required",
+        message: "整份 Figma 檔案請先匯入 Page 清單，選擇其中一個 Page 後再進行 AI 分析。",
+      },
+      { status: 400 },
+    );
+  }
+
   if (!geminiKey && !openAIKey) {
     return Response.json(
       {
