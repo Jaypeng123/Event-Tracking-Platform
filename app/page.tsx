@@ -237,6 +237,41 @@ function readStoredEventLibrary() {
   }
 }
 
+async function readAnalyzeResponse(response: Response): Promise<AnalyzeResponse> {
+  const contentType = response.headers.get("content-type") ?? "";
+  const rawText = await response.text();
+  const trimmedText = rawText.trim();
+  const looksLikeJson = contentType.includes("application/json") || trimmedText.startsWith("{") || trimmedText.startsWith("[");
+
+  if (looksLikeJson) {
+    try {
+      return JSON.parse(trimmedText) as AnalyzeResponse;
+    } catch {
+      return {
+        message: `分析 API 回傳了無法解析的 JSON（HTTP ${response.status}），請稍後再試。`,
+      };
+    }
+  }
+
+  if (response.status === 401) {
+    return {
+      message:
+        "分析 API 需要 ChatGPT 登入授權。目前站台是私有權限，請重新整理並完成登入，或將站台改成公開權限後再分析。",
+    };
+  }
+
+  const readableSnippet = trimmedText
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, 120);
+
+  return {
+    message: `分析 API 回傳非 JSON 內容（HTTP ${response.status}）。${readableSnippet || "請重新整理後再試。"}`,
+  };
+}
+
 function toCsv(rows: TrackingEvent[]) {
   const header = exportColumns.map((column) => escapeCsv(column.label)).join(",");
   const body = rows
@@ -575,6 +610,7 @@ export default function Home() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -582,8 +618,9 @@ export default function Home() {
           scope: figmaInfo.mode === "node" ? "node" : "file",
         }),
         cache: "no-store",
+        credentials: "include",
       });
-      const result = (await response.json()) as AnalyzeResponse;
+      const result = await readAnalyzeResponse(response);
 
       if (analysisRunId.current !== runId) {
         return;
