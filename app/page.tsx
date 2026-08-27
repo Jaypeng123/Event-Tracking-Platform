@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type TrackingEvent = {
   id: string;
@@ -17,6 +17,13 @@ type TrackingEvent = {
   sampleValues: string;
   priority: "P0" | "P1" | "P2";
   status: string;
+};
+
+type SavedTrackingEvent = TrackingEvent & {
+  libraryId: string;
+  sourceName: string;
+  sourceKey: string;
+  savedAt: string;
 };
 
 type EventFilter = "All" | TrackingEvent["eventType"];
@@ -62,6 +69,8 @@ const EMPTY_FIGMA_SOURCE: FigmaSourceInfo = {
   pages: [],
   normalizedUrl: "",
 };
+
+const EVENT_LIBRARY_STORAGE_KEY = "tracking-plan-event-library-v1";
 
 const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
   YxOzcNURPPgfDq9qiXj1uk: {
@@ -190,6 +199,44 @@ function download(filename: string, content: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
+function hashText(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return Math.abs(hash).toString(36);
+}
+
+function isTrackingEventLike(value: unknown): value is SavedTrackingEvent {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return (
+    typeof record.libraryId === "string" &&
+    typeof record.id === "string" &&
+    typeof record.page === "string" &&
+    typeof record.area === "string" &&
+    typeof record.eventName === "string"
+  );
+}
+
+function readStoredEventLibrary() {
+  try {
+    const storedLibrary = window.localStorage.getItem(EVENT_LIBRARY_STORAGE_KEY);
+    const parsed = storedLibrary ? JSON.parse(storedLibrary) : [];
+
+    return Array.isArray(parsed) ? parsed.filter(isTrackingEventLike) : [];
+  } catch {
+    return [];
+  }
+}
+
 function toCsv(rows: TrackingEvent[]) {
   const header = exportColumns.map((column) => escapeCsv(column.label)).join(",");
   const body = rows
@@ -273,6 +320,7 @@ export default function Home() {
   const [filter, setFilter] = useState<EventFilter>("All");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisRows, setAnalysisRows] = useState<TrackingEvent[]>([]);
@@ -280,12 +328,34 @@ export default function Home() {
   const [analysisError, setAnalysisError] = useState("");
   const [analysisMeta, setAnalysisMeta] = useState<AnalyzeResponse["figma"] | null>(null);
   const [analysisState, setAnalysisState] = useState("尚未提供 Figma 連結");
+  const [libraryRows, setLibraryRows] = useState<SavedTrackingEvent[]>([]);
+  const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [editingLibraryId, setEditingLibraryId] = useState("");
+  const [libraryDraft, setLibraryDraft] = useState<SavedTrackingEvent | null>(null);
   const analysisRunId = useRef(0);
 
   const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
   const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
   const activeInputInfo = isEditingSource ? draftInfo : figmaInfo;
   const hasAppliedSource = Boolean(appliedFigmaUrl && figmaInfo.mode !== "invalid" && figmaInfo.mode !== "unsupported");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setLibraryRows(readStoredEventLibrary());
+      setHasLoadedLibrary(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedLibrary) {
+      return;
+    }
+
+    window.localStorage.setItem(EVENT_LIBRARY_STORAGE_KEY, JSON.stringify(libraryRows));
+  }, [hasLoadedLibrary, libraryRows]);
 
   const visibleRows = useMemo(() => {
     if (!hasAppliedSource || !hasAnalyzed) {
@@ -316,7 +386,7 @@ export default function Home() {
     });
   }, [analysisRows, filter, hasAnalyzed, hasAppliedSource, query]);
 
-  const selectedRow = visibleRows.find((row) => row.id === selectedId) ?? visibleRows[0];
+  const selectedRow = isDetailOpen ? visibleRows.find((row) => row.id === selectedId) ?? null : null;
 
   const summary = useMemo(() => {
     const p0Count = visibleRows.filter((row) => row.priority === "P0").length;
@@ -331,6 +401,100 @@ export default function Home() {
     ];
   }, [visibleRows]);
 
+  function getLibraryId(row: TrackingEvent) {
+    return `evt_${hashText([figmaInfo.fileKey, figmaInfo.nodeId || "file", row.id, row.page, row.area, row.eventName].join("|"))}`;
+  }
+
+  function createLibraryItem(row: TrackingEvent): SavedTrackingEvent {
+    return {
+      ...row,
+      libraryId: getLibraryId(row),
+      sourceName: figmaInfo.fileName || "Figma 來源",
+      sourceKey: [figmaInfo.fileKey, figmaInfo.nodeId || "file"].filter(Boolean).join(" / "),
+      savedAt: new Date().toISOString(),
+    };
+  }
+
+  function isRowInLibrary(row: TrackingEvent) {
+    const libraryId = getLibraryId(row);
+
+    return libraryRows.some((item) => item.libraryId === libraryId);
+  }
+
+  function handleToggleLibraryRow(row: TrackingEvent, checked: boolean) {
+    const libraryId = getLibraryId(row);
+
+    setLibraryRows((currentRows) => {
+      if (checked) {
+        return currentRows.some((item) => item.libraryId === libraryId)
+          ? currentRows
+          : [createLibraryItem(row), ...currentRows];
+      }
+
+      return currentRows.filter((item) => item.libraryId !== libraryId);
+    });
+  }
+
+  function handleRowActivate(rowId: string) {
+    if (selectedId === rowId && isDetailOpen) {
+      setSelectedId("");
+      setIsDetailOpen(false);
+      return;
+    }
+
+    setSelectedId(rowId);
+    setIsDetailOpen(true);
+  }
+
+  function handleExportRowsCsv(rows: TrackingEvent[], filename: string) {
+    if (!rows.length) {
+      return;
+    }
+
+    download(filename, toCsv(rows), "text/csv;charset=utf-8");
+  }
+
+  function handleExportRowsExcel(rows: TrackingEvent[], filename: string) {
+    if (!rows.length) {
+      return;
+    }
+
+    download(filename, toExcelXml(rows), "application/vnd.ms-excel;charset=utf-8");
+  }
+
+  function handleStartLibraryEdit(row: SavedTrackingEvent) {
+    setEditingLibraryId(row.libraryId);
+    setLibraryDraft({ ...row });
+  }
+
+  function handleCancelLibraryEdit() {
+    setEditingLibraryId("");
+    setLibraryDraft(null);
+  }
+
+  function handleUpdateLibraryDraft(field: keyof TrackingEvent, value: string) {
+    setLibraryDraft((currentDraft) => (currentDraft ? { ...currentDraft, [field]: value } : currentDraft));
+  }
+
+  function handleSaveLibraryEdit() {
+    if (!libraryDraft) {
+      return;
+    }
+
+    setLibraryRows((currentRows) =>
+      currentRows.map((row) => (row.libraryId === libraryDraft.libraryId ? { ...libraryDraft } : row)),
+    );
+    handleCancelLibraryEdit();
+  }
+
+  function handleDeleteLibraryItem(libraryId: string) {
+    setLibraryRows((currentRows) => currentRows.filter((row) => row.libraryId !== libraryId));
+
+    if (editingLibraryId === libraryId) {
+      handleCancelLibraryEdit();
+    }
+  }
+
   function resetAnalysisResult() {
     analysisRunId.current += 1;
     setIsAnalyzing(false);
@@ -339,6 +503,7 @@ export default function Home() {
     setAnalysisError("");
     setAnalysisMeta(null);
     setSelectedId("");
+    setIsDetailOpen(false);
     setHasAnalyzed(false);
   }
 
@@ -399,6 +564,7 @@ export default function Home() {
     setIsAnalyzing(true);
     setAnalysisRows([]);
     setSelectedId("");
+    setIsDetailOpen(false);
     setHasAnalyzed(false);
     setAnalysisError("");
     setAnalysisMeta(null);
@@ -430,7 +596,8 @@ export default function Home() {
       const rows = Array.isArray(result.events) ? result.events : [];
 
       setAnalysisRows(rows);
-      setSelectedId(rows[0]?.id ?? "");
+      setSelectedId("");
+      setIsDetailOpen(false);
       setHasAnalyzed(true);
       setAnalysisProcess(
         result.analysisProcess?.length
@@ -457,23 +624,11 @@ export default function Home() {
   }
 
   function handleExportExcel() {
-    if (!visibleRows.length) {
-      return;
-    }
-
-    download(
-      "慢病醫療人員_UX_第一階段埋點計畫.xls",
-      toExcelXml(visibleRows),
-      "application/vnd.ms-excel;charset=utf-8",
-    );
+    handleExportRowsExcel(visibleRows, "慢病醫療人員_UX_第一階段埋點計畫.xls");
   }
 
   function handleExportCsv() {
-    if (!visibleRows.length) {
-      return;
-    }
-
-    download("慢病醫療人員_UX_第一階段埋點計畫.csv", toCsv(visibleRows), "text/csv;charset=utf-8");
+    handleExportRowsCsv(visibleRows, "慢病醫療人員_UX_第一階段埋點計畫.csv");
   }
 
   const hasNoAnalysisRows = hasAppliedSource && hasAnalyzed && !analysisRows.length && !analysisError;
@@ -526,13 +681,164 @@ export default function Home() {
           <button className="secondary-button" type="button" onClick={handleExportCsv} disabled={!visibleRows.length}>
             CSV
           </button>
+          <button className="secondary-button library-button" type="button" onClick={() => setIsLibraryOpen(true)}>
+            追蹤事件庫
+            <span>{libraryRows.length}</span>
+          </button>
           <button className="primary-button" type="button" onClick={handleExportExcel} disabled={!visibleRows.length}>
             匯出 Excel
           </button>
         </div>
       </header>
 
-      <section className="workspace">
+      {isLibraryOpen ? (
+        <div className="library-overlay" role="dialog" aria-modal="true" aria-label="追蹤事件庫">
+          <section className="library-panel">
+            <div className="library-panel-header">
+              <div>
+                <p className="eyebrow">Selected Events</p>
+                <h2>追蹤事件庫</h2>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setIsLibraryOpen(false)} aria-label="關閉事件庫">
+                ×
+              </button>
+            </div>
+
+            <div className="library-panel-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => handleExportRowsCsv(libraryRows, "追蹤事件庫.csv")}
+                disabled={!libraryRows.length}
+              >
+                匯出 CSV
+              </button>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => handleExportRowsExcel(libraryRows, "追蹤事件庫.xls")}
+                disabled={!libraryRows.length}
+              >
+                匯出 Excel
+              </button>
+            </div>
+
+            {libraryRows.length ? (
+              <div className="library-list">
+                {libraryRows.map((row) => {
+                  const draft = editingLibraryId === row.libraryId ? libraryDraft : null;
+
+                  return (
+                    <article className="library-item" key={row.libraryId}>
+                      {draft ? (
+                        <>
+                          <div className="library-edit-grid">
+                            <label>
+                              頁面/區塊
+                              <input
+                                value={draft.page}
+                                onChange={(event) => handleUpdateLibraryDraft("page", event.target.value)}
+                              />
+                            </label>
+                            <label>
+                              區塊名稱
+                              <input
+                                value={draft.area}
+                                onChange={(event) => handleUpdateLibraryDraft("area", event.target.value)}
+                              />
+                            </label>
+                            <label>
+                              事件名稱
+                              <input
+                                value={draft.eventName}
+                                onChange={(event) => handleUpdateLibraryDraft("eventName", event.target.value)}
+                              />
+                            </label>
+                            <label>
+                              屬性參數
+                              <input
+                                value={draft.properties}
+                                onChange={(event) => handleUpdateLibraryDraft("properties", event.target.value)}
+                              />
+                            </label>
+                            <label className="wide-field">
+                              觸發時機
+                              <textarea
+                                value={draft.trigger}
+                                onChange={(event) => handleUpdateLibraryDraft("trigger", event.target.value)}
+                                rows={3}
+                              />
+                            </label>
+                            <label className="wide-field">
+                              追蹤目的
+                              <textarea
+                                value={draft.purpose}
+                                onChange={(event) => handleUpdateLibraryDraft("purpose", event.target.value)}
+                                rows={3}
+                              />
+                            </label>
+                            <label className="wide-field">
+                              分析意義
+                              <textarea
+                                value={draft.analysisValue}
+                                onChange={(event) => handleUpdateLibraryDraft("analysisValue", event.target.value)}
+                                rows={3}
+                              />
+                            </label>
+                          </div>
+                          <div className="library-item-actions">
+                            <button className="primary-button" type="button" onClick={handleSaveLibraryEdit}>
+                              儲存
+                            </button>
+                            <button className="secondary-button" type="button" onClick={handleCancelLibraryEdit}>
+                              取消
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="library-item-header">
+                            <div>
+                              <strong>{row.area}</strong>
+                              <span>{row.page}</span>
+                            </div>
+                            <code>{row.eventName}</code>
+                          </div>
+                          <p>{row.purpose}</p>
+                          <div className="library-item-meta">
+                            <span>{row.sourceName}</span>
+                            <span>{row.priority}</span>
+                            <span>{typeLabels[row.eventType]}</span>
+                          </div>
+                          <div className="library-item-actions">
+                            <button className="secondary-button" type="button" onClick={() => handleStartLibraryEdit(row)}>
+                              編輯
+                            </button>
+                            <button
+                              className="secondary-button danger-button"
+                              type="button"
+                              onClick={() => handleDeleteLibraryItem(row.libraryId)}
+                            >
+                              刪除
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="library-empty">
+                <strong>尚未選取埋點追蹤事項</strong>
+                <span>在分析結果表格勾選事件後，會加入這裡並保留到你自行刪除。</span>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
+
+      <section className={`workspace ${isDetailOpen ? "detail-open" : "detail-collapsed"}`}>
         <aside className="control-panel" aria-label="Figma 分析控制台">
           <div className="panel-section">
             <div className="section-heading">
@@ -689,14 +995,6 @@ export default function Home() {
               </div>
             ) : null}
           </div>
-
-          <div className="reference-visual">
-            <div>
-              <span className="section-index">03</span>
-              <h2>欄位格式參考</h2>
-            </div>
-            <img src="/tracking-template-reference.png" alt="埋點 Excel 範例欄位參考" />
-          </div>
         </aside>
 
         <section className="main-panel" aria-label="埋點事件清單">
@@ -742,6 +1040,9 @@ export default function Home() {
             <table className="event-table">
               <thead>
                 <tr>
+                  <th className="select-column">
+                    <span className="sr-only">選取</span>
+                  </th>
                   <th>編號</th>
                   <th>頁面/區塊</th>
                   <th>事件名稱</th>
@@ -755,7 +1056,7 @@ export default function Home() {
               <tbody>
                 {visibleRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <div className="table-empty">
                         {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
                         <strong>{tableEmptyTitle}</strong>
@@ -764,91 +1065,140 @@ export default function Home() {
                     </td>
                   </tr>
                 ) : null}
-                {visibleRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className={selectedRow?.id === row.id ? "selected" : ""}
-                    onClick={() => setSelectedId(row.id)}
-                  >
-                    <td>
-                      <button className="row-id" type="button" onClick={() => setSelectedId(row.id)}>
-                        {row.id}
-                      </button>
-                    </td>
-                    <td>
-                      <strong>{row.page}</strong>
-                      <span>{row.area}</span>
-                    </td>
-                    <td>
-                      <code>{row.eventName}</code>
-                      <span className={`type-pill type-${row.eventType.toLowerCase()}`}>
-                        {typeLabels[row.eventType]}
-                      </span>
-                    </td>
-                    <td>{row.trigger}</td>
-                    <td>{row.purpose}</td>
-                    <td>{row.analysisValue}</td>
-                    <td>{row.properties}</td>
-                    <td>
-                      <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>
-                        {row.priority}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {visibleRows.map((row) => {
+                  const rowInLibrary = isRowInLibrary(row);
+
+                  return (
+                    <tr
+                      key={row.id}
+                      className={selectedRow?.id === row.id ? "selected" : ""}
+                      onClick={() => handleRowActivate(row.id)}
+                    >
+                      <td className="select-column">
+                        <input
+                          aria-label={`加入追蹤事件庫：${row.eventName}`}
+                          checked={rowInLibrary}
+                          type="checkbox"
+                          onChange={(event) => handleToggleLibraryRow(row, event.target.checked)}
+                          onClick={(event) => event.stopPropagation()}
+                        />
+                      </td>
+                      <td>
+                        <button
+                          className="row-id"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleRowActivate(row.id);
+                          }}
+                        >
+                          {row.id}
+                        </button>
+                      </td>
+                      <td>
+                        <strong>{row.page}</strong>
+                        <span>{row.area}</span>
+                      </td>
+                      <td>
+                        <code>{row.eventName}</code>
+                        <span className={`type-pill type-${row.eventType.toLowerCase()}`}>
+                          {typeLabels[row.eventType]}
+                        </span>
+                      </td>
+                      <td>{row.trigger}</td>
+                      <td>{row.purpose}</td>
+                      <td>{row.analysisValue}</td>
+                      <td>{row.properties}</td>
+                      <td>
+                        <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>
+                          {row.priority}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </section>
 
-        <aside className="detail-panel" aria-label="事件詳情">
-          {selectedRow ? (
+        <aside className={`detail-panel ${isDetailOpen ? "expanded" : "collapsed"}`} aria-label="事件詳情">
+          {isDetailOpen ? (
             <>
-              <div className="detail-header">
-                <span className={`priority-pill priority-${selectedRow.priority.toLowerCase()}`}>
-                  {selectedRow.priority}
-                </span>
-                <code>{selectedRow.eventName}</code>
+              {selectedRow ? (
+                <>
+                  <div className="detail-header">
+                    <span className={`priority-pill priority-${selectedRow.priority.toLowerCase()}`}>
+                      {selectedRow.priority}
+                    </span>
+                    <code>{selectedRow.eventName}</code>
+                    <button
+                      className="icon-button detail-toggle"
+                      type="button"
+                      onClick={() => setIsDetailOpen(false)}
+                      aria-label="收合事件詳情"
+                    >
+                      ›
+                    </button>
+                  </div>
+                  <h2>{selectedRow.area}</h2>
+                  <dl className="detail-list">
+                    <div>
+                      <dt>追蹤目的</dt>
+                      <dd>{selectedRow.purpose}</dd>
+                    </div>
+                    <div>
+                      <dt>事件定義</dt>
+                      <dd>{selectedRow.trigger}</dd>
+                    </div>
+                    <div>
+                      <dt>數據分析意義</dt>
+                      <dd>{selectedRow.analysisValue}</dd>
+                    </div>
+                    <div>
+                      <dt>屬性參數</dt>
+                      <dd>{selectedRow.properties}</dd>
+                    </div>
+                    <div>
+                      <dt>屬性定義</dt>
+                      <dd>{selectedRow.propertyDefinitions}</dd>
+                    </div>
+                    <div>
+                      <dt>Sample Values</dt>
+                      <dd>{selectedRow.sampleValues}</dd>
+                    </div>
+                  </dl>
+                </>
+              ) : (
+                <div className="detail-empty">
+                  {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
+                  <strong>{detailEmptyTitle}</strong>
+                  <span>{detailEmptyDescription}</span>
+                  <button
+                    className="icon-button detail-toggle"
+                    type="button"
+                    onClick={() => setIsDetailOpen(false)}
+                    aria-label="收合事件詳情"
+                  >
+                    ›
+                  </button>
+                </div>
+              )}
+              <div className="privacy-note">
+                <strong>資料邊界</strong>
+                <p>第一階段建議使用去識別化事件屬性，不把病患姓名、身分證、病歷號或完整聯絡資訊放入事件 payload。</p>
               </div>
-              <h2>{selectedRow.area}</h2>
-              <dl className="detail-list">
-                <div>
-                  <dt>追蹤目的</dt>
-                  <dd>{selectedRow.purpose}</dd>
-                </div>
-                <div>
-                  <dt>事件定義</dt>
-                  <dd>{selectedRow.trigger}</dd>
-                </div>
-                <div>
-                  <dt>數據分析意義</dt>
-                  <dd>{selectedRow.analysisValue}</dd>
-                </div>
-                <div>
-                  <dt>屬性參數</dt>
-                  <dd>{selectedRow.properties}</dd>
-                </div>
-                <div>
-                  <dt>屬性定義</dt>
-                  <dd>{selectedRow.propertyDefinitions}</dd>
-                </div>
-                <div>
-                  <dt>Sample Values</dt>
-                  <dd>{selectedRow.sampleValues}</dd>
-                </div>
-              </dl>
             </>
           ) : (
-            <div className="detail-empty">
-              {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
-              <strong>{detailEmptyTitle}</strong>
-              <span>{detailEmptyDescription}</span>
-            </div>
+            <button
+              className="detail-expand-button"
+              type="button"
+              onClick={() => setIsDetailOpen(true)}
+              aria-label="展開事件詳情"
+            >
+              ‹
+            </button>
           )}
-          <div className="privacy-note">
-            <strong>資料邊界</strong>
-            <p>第一階段建議使用去識別化事件屬性，不把病患姓名、身分證、病歷號或完整聯絡資訊放入事件 payload。</p>
-          </div>
         </aside>
       </section>
     </main>
