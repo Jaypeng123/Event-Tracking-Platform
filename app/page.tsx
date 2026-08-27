@@ -414,6 +414,8 @@ export default function Home() {
   const pageOptions = hasImportedPages ? loadedPages : [];
   const selectedPage = pageOptions.find((page) => page.id === selectedPageId) ?? null;
   const needsPageSelection = hasAppliedSource && figmaInfo.mode === "file";
+  const canShowPageSelector =
+    hasAppliedSource && (needsPageSelection || isLoadingPages || Boolean(pageOptions.length) || Boolean(pageLoadError));
   const canAnalyzeCurrentSource =
     hasAppliedSource && !isLoadingPages && (!needsPageSelection || (hasImportedPages && Boolean(selectedPage)));
 
@@ -595,7 +597,7 @@ export default function Home() {
   }
 
   async function loadFigmaPages(nextInfo: FigmaSourceInfo) {
-    if (nextInfo.mode !== "file") {
+    if (!nextInfo.fileKey || nextInfo.mode === "empty" || nextInfo.mode === "invalid" || nextInfo.mode === "unsupported") {
       setLoadedPages([]);
       setSelectedPageId("");
       setHasImportedPages(false);
@@ -632,7 +634,13 @@ export default function Home() {
       setSelectedPageId("");
       setHasImportedPages(true);
       setPageLoadError(pages.length ? "" : "這份 Figma 檔案沒有讀到可分析的 Page");
-      setAnalysisState(pages.length ? "已匯入 Page 清單，請選擇要分析的 Page" : "這份 Figma 檔案沒有讀到可分析的 Page");
+      setAnalysisState(
+        pages.length
+          ? nextInfo.mode === "file"
+            ? "已匯入 Figma，請在 AI 分析區選擇要分析的 Page"
+            : "已匯入 Figma，可直接分析目前連結或改選 Page"
+          : "這份 Figma 檔案沒有讀到可分析的 Page",
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "無法讀取 Figma Page 清單";
 
@@ -674,7 +682,7 @@ export default function Home() {
     resetAnalysisResult();
     setFilter("All");
     setQuery("");
-    setAnalysisState(nextInfo.mode === "file" ? "正在匯入 Figma Page 清單" : "");
+    setAnalysisState("正在匯入 Figma Page 清單");
 
     await loadFigmaPages(nextInfo);
   }
@@ -687,7 +695,7 @@ export default function Home() {
     setHasImportedPages(false);
     setPageLoadError("");
     resetAnalysisResult();
-    setAnalysisState("正在替換 Figma 來源，套用後會重置分析結果");
+    setAnalysisState("請輸入要匯入的 Figma 連結");
   }
 
   function handleClearSource() {
@@ -707,7 +715,7 @@ export default function Home() {
   function handleSelectPage(pageId: string) {
     setSelectedPageId(pageId);
     resetAnalysisResult();
-    setAnalysisState(pageId ? "" : "請先選擇要分析的 Page");
+    setAnalysisState(pageId || !needsPageSelection ? "" : "請先選擇要分析的 Page");
   }
 
   async function handleAnalyze() {
@@ -741,15 +749,14 @@ export default function Home() {
     setAnalysisState("");
 
     try {
-      const sourceForAnalysis =
-        figmaInfo.mode === "file" && selectedPage
-          ? {
-              ...figmaInfo,
-              mode: "node",
-              nodeId: selectedPage.id,
-              nodeName: selectedPage.name,
-            }
-          : figmaInfo;
+      const sourceForAnalysis = selectedPage
+        ? {
+            ...figmaInfo,
+            mode: "node",
+            nodeId: selectedPage.id,
+            nodeName: selectedPage.name,
+          }
+        : figmaInfo;
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
@@ -1072,34 +1079,32 @@ export default function Home() {
                 />
                 {activeInputInfo.mode === "empty" ? (
                   <div className="source-empty">
-                    <strong>尚未套用來源</strong>
-                    <span>貼上連結後會解析 file key 與 node-id，分析時會依連結本身讀取內容。</span>
+                    <strong>尚未匯入來源</strong>
+                    <span>貼上 Figma 連結後按下匯入，系統會先讀取可分析的頁面範圍。</span>
                   </div>
                 ) : (
-                  <div className={`figma-meta source-${activeInputInfo.mode}`}>
-                    <span>File key</span>
-                    <strong>{activeInputInfo.fileKey || "未解析"}</strong>
-                    <span>類型</span>
+                  <div className={`source-empty source-${activeInputInfo.mode}`}>
                     <strong>
                       {activeInputInfo.mode === "node"
-                        ? "指定節點"
+                        ? "將匯入目前連結"
                         : activeInputInfo.mode === "file"
-                          ? "整份檔案"
+                          ? "將匯入整份檔案"
                           : activeInputInfo.mode === "unsupported"
-                            ? "不支援"
-                            : "格式錯誤"}
+                            ? "目前不支援這種 Figma 來源"
+                            : "這看起來不是有效的 Figma 連結"}
                     </strong>
-                    {activeInputInfo.nodeId ? (
-                      <>
-                        <span>Node</span>
-                        <strong>{activeInputInfo.nodeId}</strong>
-                      </>
-                    ) : null}
+                    <span>
+                      {activeInputInfo.mode === "file"
+                        ? "匯入後會列出 Page，請先選定一頁再進行 AI 分析。"
+                        : activeInputInfo.mode === "node"
+                          ? "匯入後會顯示 AI 分析區，可直接分析目前連結，也可改選已讀到的 Page。"
+                          : "請改貼 Figma design/file 連結。"}
+                    </span>
                   </div>
                 )}
                 <div className="source-actions">
                   <button className="primary-button" type="button" onClick={handleApplySource}>
-                    {activeInputInfo.mode === "file" ? "匯入 Page" : "套用連結"}
+                    匯入
                   </button>
                   <button className="secondary-button" type="button" onClick={handleClearSource}>
                     清空
@@ -1113,71 +1118,9 @@ export default function Home() {
                   <strong>{figmaInfo.fileName}</strong>
                   <code>{figmaInfo.normalizedUrl}</code>
                 </div>
-                <div className="figma-meta compact">
-                  <span>File key</span>
-                  <strong>{figmaInfo.fileKey}</strong>
-                  {figmaInfo.nodeId ? (
-                    <>
-                      <span>Node</span>
-                      <strong>{figmaInfo.nodeId}</strong>
-                    </>
-                  ) : (
-                    <>
-                      <span>類型</span>
-                      <strong>整份檔案</strong>
-                    </>
-                  )}
-                </div>
-                {figmaInfo.mode === "file" ? (
-                  <div className={`page-selector ${pageLoadError ? "page-selector-error" : ""}`}>
-                    <div className="page-selector-header">
-                      <label className="field-label" htmlFor="figma-page">
-                        分析 Page
-                      </label>
-                      <button
-                        className="secondary-button small-button"
-                        type="button"
-                        onClick={() => loadFigmaPages(figmaInfo)}
-                        disabled={isLoadingPages}
-                      >
-                        匯入 Page
-                      </button>
-                    </div>
-                    {isLoadingPages ? (
-                      <div className="source-empty">
-                        <strong>正在匯入 Page 清單</strong>
-                        <span>這一步只讀 Figma 檔案結構，不會呼叫模型。</span>
-                      </div>
-                    ) : pageOptions.length ? (
-                      <>
-                        <select
-                          id="figma-page"
-                          value={selectedPageId}
-                          onChange={(event) => handleSelectPage(event.target.value)}
-                        >
-                          <option value="">請選擇 Page</option>
-                          {pageOptions.map((page) => (
-                            <option key={page.id} value={page.id}>
-                              {page.name}
-                            </option>
-                          ))}
-                        </select>
-                        <span>
-                          已載入 {pageOptions.length} 個 Page；分析時只會送出目前選取的 Page，避免一次分析整份檔案。
-                        </span>
-                      </>
-                    ) : (
-                      <div className="source-empty">
-                        <strong>{hasImportedPages ? "尚未讀到 Page" : "尚未匯入 Page"}</strong>
-                        <span>{hasImportedPages ? "請確認 Figma 權限，或改貼指定 Page / 節點連結。" : "按下匯入 Page 後，會列出這份檔案中的 Page。"}</span>
-                      </div>
-                    )}
-                    {pageLoadError ? <span className="page-selector-message">{pageLoadError}</span> : null}
-                  </div>
-                ) : null}
                 <div className="source-actions">
                   <button className="secondary-button" type="button" onClick={handleReplaceSource}>
-                    替換連結
+                    匯入
                   </button>
                   <button className="secondary-button danger-button" type="button" onClick={handleClearSource}>
                     清空
@@ -1187,11 +1130,66 @@ export default function Home() {
             )}
           </div>
 
-          <div className="panel-section">
+          {hasAppliedSource ? (
+            <div className="panel-section">
             <div className="section-heading">
               <span className="section-index">02</span>
               <h2>AI 分析</h2>
             </div>
+
+            {canShowPageSelector ? (
+              <div className={`page-selector ${pageLoadError ? "page-selector-error" : ""}`}>
+                <div className="page-selector-header">
+                  <label className="field-label" htmlFor="figma-page">
+                    分析 Page
+                  </label>
+                  <button
+                    className="secondary-button small-button"
+                    type="button"
+                    onClick={() => loadFigmaPages(figmaInfo)}
+                    disabled={isLoadingPages}
+                  >
+                    重新匯入
+                  </button>
+                </div>
+                {isLoadingPages ? (
+                  <div className="source-empty">
+                    <strong>正在匯入 Page 清單</strong>
+                    <span>這一步只讀 Figma 檔案結構，不會呼叫模型。</span>
+                  </div>
+                ) : pageOptions.length ? (
+                  <>
+                    <select
+                      id="figma-page"
+                      value={selectedPageId}
+                      onChange={(event) => handleSelectPage(event.target.value)}
+                    >
+                      <option value="">
+                        {figmaInfo.mode === "node" ? "使用目前連結指定範圍" : "請選擇 Page"}
+                      </option>
+                      {pageOptions.map((page) => (
+                        <option key={page.id} value={page.id}>
+                          {page.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span>
+                      已載入 {pageOptions.length} 個 Page；選定 Page 後只會分析該頁，避免一次分析整份檔案。
+                    </span>
+                  </>
+                ) : (
+                  <div className="source-empty">
+                    <strong>{hasImportedPages ? "尚未讀到 Page" : "尚未匯入 Page"}</strong>
+                    <span>
+                      {hasImportedPages
+                        ? "請確認 Figma 權限，或改貼指定 Page / 節點連結。"
+                        : "按下重新匯入後，會列出這份檔案中的 Page。"}
+                    </span>
+                  </div>
+                )}
+                {pageLoadError ? <span className="page-selector-message">{pageLoadError}</span> : null}
+              </div>
+            ) : null}
 
             <button
               className="primary-button full-width"
@@ -1257,7 +1255,8 @@ export default function Home() {
                 ) : null}
               </div>
             ) : null}
-          </div>
+            </div>
+          ) : null}
         </aside>
 
         <section className="main-panel" aria-label="埋點事件清單">
