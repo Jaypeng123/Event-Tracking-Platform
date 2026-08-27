@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import trackingEvents from "../data/tracking-events.json";
 
 type TrackingEvent = {
@@ -40,7 +40,22 @@ type FigmaSourceInfo = {
   normalizedUrl: string;
 };
 
-const events = trackingEvents as TrackingEvent[];
+type AnalyzeResponse = {
+  events?: TrackingEvent[];
+  analysisProcess?: string[];
+  model?: string;
+  figma?: {
+    fileName?: string;
+    targetName?: string;
+    targetType?: string;
+    pages?: string[];
+    nodeCount?: number;
+    textCount?: number;
+  };
+  message?: string;
+};
+
+const seedEvents = trackingEvents as TrackingEvent[];
 
 const EMPTY_FIGMA_SOURCE: FigmaSourceInfo = {
   mode: "empty",
@@ -263,9 +278,16 @@ export default function Home() {
   const [selectedPageId, setSelectedPageId] = useState("");
   const [filter, setFilter] = useState<EventFilter>("All");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(events[0].id);
+  const [selectedId, setSelectedId] = useState(seedEvents[0]?.id ?? "");
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisRows, setAnalysisRows] = useState<TrackingEvent[]>([]);
+  const [analysisProcess, setAnalysisProcess] = useState<string[]>([]);
+  const [analysisError, setAnalysisError] = useState("");
+  const [analysisMeta, setAnalysisMeta] = useState<AnalyzeResponse["figma"] | null>(null);
+  const [analysisModel, setAnalysisModel] = useState("");
   const [analysisState, setAnalysisState] = useState("尚未提供 Figma 連結");
+  const analysisRunId = useRef(0);
 
   const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
   const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
@@ -280,14 +302,8 @@ export default function Home() {
     }
 
     const normalizedQuery = query.trim().toLowerCase();
-    const allowedEventPages =
-      scope === "page" && selectedPage?.relatedEventPages.length ? selectedPage.relatedEventPages : null;
 
-    return events.filter((row) => {
-      const scopeMatch =
-        scope === "file" ||
-        (scope === "page" && (allowedEventPages ? allowedEventPages.includes(row.page) : row.page !== "全站")) ||
-        (scope === "node" && row.page !== "全站");
+    return analysisRows.filter((row) => {
       const typeMatch = filter === "All" || row.eventType === filter;
       const queryMatch =
         !normalizedQuery ||
@@ -305,9 +321,9 @@ export default function Home() {
           .toLowerCase()
           .includes(normalizedQuery);
 
-      return scopeMatch && typeMatch && queryMatch;
+      return typeMatch && queryMatch;
     });
-  }, [filter, hasAnalyzed, hasAppliedSource, query, scope, selectedPage]);
+  }, [analysisRows, filter, hasAnalyzed, hasAppliedSource, query]);
 
   const selectedRow = visibleRows.find((row) => row.id === selectedId) ?? visibleRows[0];
 
@@ -336,6 +352,18 @@ export default function Home() {
     return "整份檔案";
   }
 
+  function resetAnalysisResult() {
+    analysisRunId.current += 1;
+    setIsAnalyzing(false);
+    setAnalysisRows([]);
+    setAnalysisProcess([]);
+    setAnalysisError("");
+    setAnalysisMeta(null);
+    setAnalysisModel("");
+    setSelectedId("");
+    setHasAnalyzed(false);
+  }
+
   function handleApplySource() {
     const nextInfo = parseFigmaUrl(draftFigmaUrl);
 
@@ -357,12 +385,11 @@ export default function Home() {
     setAppliedFigmaUrl(nextInfo.normalizedUrl);
     setDraftFigmaUrl(nextInfo.normalizedUrl);
     setIsEditingSource(false);
-    setHasAnalyzed(false);
+    resetAnalysisResult();
     setScope(nextInfo.mode === "node" ? "node" : "file");
     setSelectedPageId(nextInfo.pages[0]?.id ?? "");
     setFilter("All");
     setQuery("");
-    setSelectedId(events[0].id);
     setAnalysisState(
       nextInfo.mode === "node"
         ? "已套用指定節點，Page 選擇已隱藏"
@@ -375,6 +402,7 @@ export default function Home() {
   function handleReplaceSource() {
     setDraftFigmaUrl(appliedFigmaUrl);
     setIsEditingSource(true);
+    resetAnalysisResult();
     setAnalysisState("正在替換 Figma 來源，套用後會重置分析結果");
   }
 
@@ -386,24 +414,91 @@ export default function Home() {
     setSelectedPageId("");
     setFilter("All");
     setQuery("");
-    setSelectedId(events[0].id);
-    setHasAnalyzed(false);
+    resetAnalysisResult();
     setAnalysisState("尚未提供 Figma 連結");
   }
 
-  function handleAnalyze() {
+  async function handleAnalyze() {
     if (!hasAppliedSource) {
       setAnalysisState("請先套用 Figma 連結");
       return;
     }
 
-    setHasAnalyzed(true);
-    setAnalysisState(
-      `已產生「${getScopeLabel()}」的第一階段埋點建議`,
-    );
+    const runId = analysisRunId.current + 1;
+    const nextProcess = ["解析 Figma 連結與分析範圍", "讀取 Figma 檔案節點", "呼叫 ChatGPT 模型判斷追蹤點", "整理成 Excel 欄位格式"];
+
+    analysisRunId.current = runId;
+    setIsAnalyzing(true);
+    setAnalysisRows([]);
+    setSelectedId("");
+    setHasAnalyzed(false);
+    setAnalysisError("");
+    setAnalysisMeta(null);
+    setAnalysisModel("");
+    setAnalysisProcess(nextProcess);
+    setAnalysisState(`正在分析「${getScopeLabel()}」，請稍候`);
+
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          source: figmaInfo,
+          scope,
+          selectedPage: scope === "page" ? selectedPage : null,
+        }),
+      });
+      const result = (await response.json()) as AnalyzeResponse;
+
+      if (analysisRunId.current !== runId) {
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(result.message || "AI 分析失敗，請確認環境變數與 Figma 權限");
+      }
+
+      const rows = Array.isArray(result.events) ? result.events : [];
+
+      if (!rows.length) {
+        throw new Error("AI 沒有產出可用的埋點事件");
+      }
+
+      setAnalysisRows(rows);
+      setSelectedId(rows[0].id);
+      setHasAnalyzed(true);
+      setAnalysisProcess(
+        result.analysisProcess?.length
+          ? result.analysisProcess
+          : ["讀取 Figma 節點結構", "整理頁面與功能區塊", "判斷第一階段追蹤事件", "輸出 Excel 欄位格式"],
+      );
+      setAnalysisMeta(result.figma ?? null);
+      setAnalysisModel(result.model ?? "ChatGPT 模型");
+      setAnalysisState(`已由 ${result.model ?? "ChatGPT 模型"} 產生「${getScopeLabel()}」的第一階段埋點建議`);
+    } catch (error) {
+      if (analysisRunId.current !== runId) {
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : "AI 分析失敗，請稍後再試";
+
+      setAnalysisError(message);
+      setAnalysisProcess([]);
+      setAnalysisState(message);
+    } finally {
+      if (analysisRunId.current === runId) {
+        setIsAnalyzing(false);
+      }
+    }
   }
 
   function handleExportExcel() {
+    if (!visibleRows.length) {
+      return;
+    }
+
     download(
       "慢病醫療人員_UX_第一階段埋點計畫.xls",
       toExcelXml(visibleRows),
@@ -412,8 +507,33 @@ export default function Home() {
   }
 
   function handleExportCsv() {
+    if (!visibleRows.length) {
+      return;
+    }
+
     download("慢病醫療人員_UX_第一階段埋點計畫.csv", toCsv(visibleRows), "text/csv;charset=utf-8");
   }
+
+  const tableEmptyTitle = isAnalyzing
+    ? "AI 正在分析頁面內容"
+    : analysisError
+      ? "分析未完成"
+      : hasAppliedSource
+        ? "尚未產生埋點建議"
+        : "尚未套用 Figma 來源";
+  const tableEmptyDescription = isAnalyzing
+    ? "正在讀取 Figma 結構並呼叫 ChatGPT 模型。"
+    : analysisError
+      ? analysisError
+      : hasAppliedSource
+        ? "按下分析頁面內容後會列出事件。"
+        : "左側套用連結後再開始分析。";
+  const detailEmptyTitle = isAnalyzing ? "AI 分析中" : analysisError ? "尚未完成分析" : "尚未選取事件";
+  const detailEmptyDescription = isAnalyzing
+    ? "完成後會自動選取第一筆建議事件。"
+    : analysisError
+      ? "請修正環境變數或權限後重新分析。"
+      : "分析完成後，點擊表格中的事件即可查看屬性與追蹤目的。";
 
   return (
     <main className="app-shell">
@@ -423,10 +543,10 @@ export default function Home() {
           <h1>埋點分析建立工具</h1>
         </div>
         <div className="topbar-actions" aria-label="匯出工具">
-          <button className="secondary-button" type="button" onClick={handleExportCsv}>
+          <button className="secondary-button" type="button" onClick={handleExportCsv} disabled={!visibleRows.length}>
             CSV
           </button>
-          <button className="primary-button" type="button" onClick={handleExportExcel}>
+          <button className="primary-button" type="button" onClick={handleExportExcel} disabled={!visibleRows.length}>
             匯出 Excel
           </button>
         </div>
@@ -540,7 +660,7 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       setScope("file");
-                      setHasAnalyzed(false);
+                      resetAnalysisResult();
                       setAnalysisState("已切換為整份檔案，請重新分析頁面內容");
                     }}
                     aria-pressed={scope === "file"}
@@ -556,7 +676,7 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       setScope("page");
-                      setHasAnalyzed(false);
+                      resetAnalysisResult();
                       setAnalysisState("已切換為指定 Page，請重新分析頁面內容");
                     }}
                     aria-pressed={scope === "page"}
@@ -583,7 +703,7 @@ export default function Home() {
                   onChange={(event) => {
                     setSelectedPageId(event.target.value);
                     setScope("page");
-                    setHasAnalyzed(false);
+                    resetAnalysisResult();
                     setAnalysisState("已切換 Page，請重新分析頁面內容");
                   }}
                 >
@@ -600,11 +720,61 @@ export default function Home() {
               className="primary-button full-width"
               type="button"
               onClick={handleAnalyze}
-              disabled={!hasAppliedSource}
+              disabled={!hasAppliedSource || isAnalyzing}
             >
-              分析頁面內容
+              {isAnalyzing ? (
+                <span className="button-content">
+                  <span className="loading-spinner tiny" aria-hidden="true" />
+                  分析中
+                </span>
+              ) : (
+                "分析頁面內容"
+              )}
             </button>
-            <p className={hasAppliedSource ? "analysis-state" : "analysis-state muted-state"}>{analysisState}</p>
+            {isAnalyzing ? (
+              <div className="analysis-loading" role="status" aria-live="polite">
+                <div className="loading-header">
+                  <span className="loading-spinner" aria-hidden="true" />
+                  <div>
+                    <strong>ChatGPT 模型分析中</strong>
+                    <span>正在讀取 Figma 結構並產出追蹤建議</span>
+                  </div>
+                </div>
+                <ol>
+                  {analysisProcess.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+            <p
+              className={[
+                "analysis-state",
+                !hasAppliedSource ? "muted-state" : "",
+                analysisError ? "error-state" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {analysisState}
+            </p>
+            {!isAnalyzing && hasAnalyzed && analysisProcess.length ? (
+              <div className="analysis-process">
+                <strong>分析流程</strong>
+                <ol>
+                  {analysisProcess.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+                {analysisMeta ? (
+                  <span>
+                    已讀取 {analysisMeta.targetName ?? "Figma 節點"}，節點 {analysisMeta.nodeCount ?? 0} 個，文字{" "}
+                    {analysisMeta.textCount ?? 0} 筆
+                    {analysisModel ? `，模型 ${analysisModel}` : ""}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="reference-visual">
@@ -638,13 +808,13 @@ export default function Home() {
                 placeholder="搜尋事件、頁面或屬性"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                disabled={!hasAnalyzed}
+                disabled={!hasAnalyzed || isAnalyzing || !analysisRows.length}
               />
               <select
                 aria-label="事件類型篩選"
                 value={filter}
                 onChange={(event) => setFilter(event.target.value as EventFilter)}
-                disabled={!hasAnalyzed}
+                disabled={!hasAnalyzed || isAnalyzing || !analysisRows.length}
               >
                 {filterOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -674,8 +844,9 @@ export default function Home() {
                   <tr>
                     <td colSpan={8}>
                       <div className="table-empty">
-                        <strong>{hasAppliedSource ? "尚未產生埋點建議" : "尚未套用 Figma 來源"}</strong>
-                        <span>{hasAppliedSource ? "按下分析頁面內容後會列出事件。" : "左側套用連結後再開始分析。"}</span>
+                        {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
+                        <strong>{tableEmptyTitle}</strong>
+                        <span>{tableEmptyDescription}</span>
                       </div>
                     </td>
                   </tr>
@@ -756,8 +927,9 @@ export default function Home() {
             </>
           ) : (
             <div className="detail-empty">
-              <strong>尚未選取事件</strong>
-              <span>分析完成後，點擊表格中的事件即可查看屬性與追蹤目的。</span>
+              {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
+              <strong>{detailEmptyTitle}</strong>
+              <span>{detailEmptyDescription}</span>
             </div>
           )}
           <div className="privacy-note">
