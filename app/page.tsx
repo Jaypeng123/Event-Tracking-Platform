@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import trackingEvents from "../data/tracking-events.json";
 
 type TrackingEvent = {
   id: string;
@@ -20,7 +19,6 @@ type TrackingEvent = {
   status: string;
 };
 
-type Scope = "file" | "page" | "node";
 type EventFilter = "All" | TrackingEvent["eventType"];
 type FigmaSourceMode = "empty" | "file" | "node" | "unsupported" | "invalid";
 
@@ -54,8 +52,6 @@ type AnalyzeResponse = {
   };
   message?: string;
 };
-
-const seedEvents = trackingEvents as TrackingEvent[];
 
 const EMPTY_FIGMA_SOURCE: FigmaSourceInfo = {
   mode: "empty",
@@ -274,11 +270,9 @@ export default function Home() {
   const [draftFigmaUrl, setDraftFigmaUrl] = useState("");
   const [appliedFigmaUrl, setAppliedFigmaUrl] = useState("");
   const [isEditingSource, setIsEditingSource] = useState(true);
-  const [scope, setScope] = useState<Scope>("file");
-  const [selectedPageId, setSelectedPageId] = useState("");
   const [filter, setFilter] = useState<EventFilter>("All");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(seedEvents[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState("");
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisRows, setAnalysisRows] = useState<TrackingEvent[]>([]);
@@ -293,8 +287,6 @@ export default function Home() {
   const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
   const activeInputInfo = isEditingSource ? draftInfo : figmaInfo;
   const hasAppliedSource = Boolean(appliedFigmaUrl && figmaInfo.mode !== "invalid" && figmaInfo.mode !== "unsupported");
-  const hasPageSwitcher = figmaInfo.mode === "file" && figmaInfo.pages.length > 1;
-  const selectedPage = figmaInfo.pages.find((page) => page.id === selectedPageId) ?? figmaInfo.pages[0];
 
   const visibleRows = useMemo(() => {
     if (!hasAppliedSource || !hasAnalyzed) {
@@ -340,16 +332,8 @@ export default function Home() {
     ];
   }, [visibleRows]);
 
-  function getScopeLabel() {
-    if (scope === "node") {
-      return figmaInfo.nodeName || "指定節點";
-    }
-
-    if (scope === "page") {
-      return selectedPage?.name ?? "指定 Page";
-    }
-
-    return "整份檔案";
+  function getLinkTargetLabel() {
+    return figmaInfo.mode === "node" ? figmaInfo.nodeName || "目前連結中的指定節點" : "目前連結中的整份檔案";
   }
 
   function resetAnalysisResult() {
@@ -386,17 +370,9 @@ export default function Home() {
     setDraftFigmaUrl(nextInfo.normalizedUrl);
     setIsEditingSource(false);
     resetAnalysisResult();
-    setScope(nextInfo.mode === "node" ? "node" : "file");
-    setSelectedPageId(nextInfo.pages[0]?.id ?? "");
     setFilter("All");
     setQuery("");
-    setAnalysisState(
-      nextInfo.mode === "node"
-        ? "已套用指定節點，Page 選擇已隱藏"
-        : nextInfo.pages.length > 1
-          ? "已套用整份檔案，可切換 Page 或分析整份檔案"
-          : "已套用整份檔案，未偵測到多個可切換 Page",
-    );
+    setAnalysisState("");
   }
 
   function handleReplaceSource() {
@@ -410,8 +386,6 @@ export default function Home() {
     setDraftFigmaUrl("");
     setAppliedFigmaUrl("");
     setIsEditingSource(true);
-    setScope("file");
-    setSelectedPageId("");
     setFilter("All");
     setQuery("");
     resetAnalysisResult();
@@ -425,7 +399,7 @@ export default function Home() {
     }
 
     const runId = analysisRunId.current + 1;
-    const nextProcess = ["解析 Figma 連結與分析範圍", "讀取 Figma 檔案節點", "呼叫 ChatGPT 模型判斷追蹤點", "整理成 Excel 欄位格式"];
+    const nextProcess = ["解析 Figma 連結", "讀取 Figma 檔案節點", "呼叫 ChatGPT 模型判斷追蹤點", "整理成 Excel 欄位格式"];
 
     analysisRunId.current = runId;
     setIsAnalyzing(true);
@@ -436,7 +410,7 @@ export default function Home() {
     setAnalysisMeta(null);
     setAnalysisModel("");
     setAnalysisProcess(nextProcess);
-    setAnalysisState(`正在分析「${getScopeLabel()}」，請稍候`);
+    setAnalysisState(`正在分析「${getLinkTargetLabel()}」，請稍候`);
 
     try {
       const response = await fetch("/api/analyze", {
@@ -446,9 +420,9 @@ export default function Home() {
         },
         body: JSON.stringify({
           source: figmaInfo,
-          scope,
-          selectedPage: scope === "page" ? selectedPage : null,
+          scope: figmaInfo.mode === "node" ? "node" : "file",
         }),
+        cache: "no-store",
       });
       const result = (await response.json()) as AnalyzeResponse;
 
@@ -476,7 +450,7 @@ export default function Home() {
       );
       setAnalysisMeta(result.figma ?? null);
       setAnalysisModel(result.model ?? "ChatGPT 模型");
-      setAnalysisState(`已由 ${result.model ?? "ChatGPT 模型"} 產生「${getScopeLabel()}」的第一階段埋點建議`);
+      setAnalysisState("");
     } catch (error) {
       if (analysisRunId.current !== runId) {
         return;
@@ -575,7 +549,7 @@ export default function Home() {
                 {activeInputInfo.mode === "empty" ? (
                   <div className="source-empty">
                     <strong>尚未套用來源</strong>
-                    <span>貼上連結後會解析 file key、node-id 與可切換範圍。</span>
+                    <span>貼上連結後會解析 file key 與 node-id，分析時會依連結本身讀取內容。</span>
                   </div>
                 ) : (
                   <div className={`figma-meta source-${activeInputInfo.mode}`}>
@@ -625,8 +599,8 @@ export default function Home() {
                     </>
                   ) : (
                     <>
-                      <span>Pages</span>
-                      <strong>{figmaInfo.pages.length > 1 ? `${figmaInfo.pages.length} pages` : "無需切換"}</strong>
+                      <span>類型</span>
+                      <strong>整份檔案</strong>
                     </>
                   )}
                 </div>
@@ -645,76 +619,8 @@ export default function Home() {
           <div className="panel-section">
             <div className="section-heading">
               <span className="section-index">02</span>
-              <h2>分析範圍</h2>
+              <h2>AI 分析</h2>
             </div>
-            {!hasAppliedSource ? (
-              <div className="scope-empty">
-                <strong>等待來源</strong>
-                <span>套用 Figma 連結後才會顯示可分析範圍。</span>
-              </div>
-            ) : (
-              <div className="scope-list" role="radiogroup" aria-label="分析範圍">
-                {figmaInfo.mode === "file" ? (
-                  <button
-                    className={scope === "file" ? "scope-option active" : "scope-option"}
-                    type="button"
-                    onClick={() => {
-                      setScope("file");
-                      resetAnalysisResult();
-                      setAnalysisState("已切換為整份檔案，請重新分析頁面內容");
-                    }}
-                    aria-pressed={scope === "file"}
-                  >
-                    <span>整份檔案</span>
-                    <small>第一層功能使用率</small>
-                  </button>
-                ) : null}
-
-                {hasPageSwitcher ? (
-                  <button
-                    className={scope === "page" ? "scope-option active" : "scope-option"}
-                    type="button"
-                    onClick={() => {
-                      setScope("page");
-                      resetAnalysisResult();
-                      setAnalysisState("已切換為指定 Page，請重新分析頁面內容");
-                    }}
-                    aria-pressed={scope === "page"}
-                  >
-                    <span>指定 Page</span>
-                    <small>{selectedPage?.name ?? "請選擇 Page"}</small>
-                  </button>
-                ) : null}
-
-                {figmaInfo.mode === "node" ? (
-                  <button className="scope-option active" type="button" aria-pressed="true">
-                    <span>指定節點</span>
-                    <small>{figmaInfo.nodeName || figmaInfo.nodeId}</small>
-                  </button>
-                ) : null}
-              </div>
-            )}
-
-            {hasPageSwitcher ? (
-              <label className={scope === "page" ? "page-picker active" : "page-picker"}>
-                <span>Page</span>
-                <select
-                  value={selectedPageId}
-                  onChange={(event) => {
-                    setSelectedPageId(event.target.value);
-                    setScope("page");
-                    resetAnalysisResult();
-                    setAnalysisState("已切換 Page，請重新分析頁面內容");
-                  }}
-                >
-                  {figmaInfo.pages.map((page) => (
-                    <option key={page.id} value={page.id}>
-                      {page.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
 
             <button
               className="primary-button full-width"
@@ -747,17 +653,19 @@ export default function Home() {
                 </ol>
               </div>
             ) : null}
-            <p
-              className={[
-                "analysis-state",
-                !hasAppliedSource ? "muted-state" : "",
-                analysisError ? "error-state" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {analysisState}
-            </p>
+            {analysisState ? (
+              <p
+                className={[
+                  "analysis-state",
+                  !hasAppliedSource ? "muted-state" : "",
+                  analysisError ? "error-state" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {analysisState}
+              </p>
+            ) : null}
             {!isAnalyzing && hasAnalyzed && analysisProcess.length ? (
               <div className="analysis-process">
                 <strong>分析流程</strong>

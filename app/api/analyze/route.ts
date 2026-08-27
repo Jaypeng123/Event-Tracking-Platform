@@ -1,10 +1,8 @@
-import trackingEvents from "../../../data/tracking-events.json";
-
 export const dynamic = "force-dynamic";
 
 type EventType = "View" | "Click" | "Feature" | "Flow" | "Validation";
 type Priority = "P0" | "P1" | "P2";
-type Scope = "file" | "page" | "node";
+type Scope = "file" | "node";
 
 type TrackingEvent = {
   id: string;
@@ -25,10 +23,6 @@ type TrackingEvent = {
 
 type AnalyzeRequest = {
   scope?: Scope;
-  selectedPage?: {
-    id?: string;
-    name?: string;
-  } | null;
   source?: {
     fileKey?: string;
     fileName?: string;
@@ -70,11 +64,9 @@ type FigmaContext = {
   nodes: string[];
 };
 
-const seedEvents = trackingEvents as TrackingEvent[];
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
 const MAX_FIGMA_NODES = 180;
-const MAX_REFERENCE_EVENTS = 8;
 const allowedEventTypes = new Set<EventType>(["View", "Click", "Feature", "Flow", "Validation"]);
 const allowedPriorities = new Set<Priority>(["P0", "P1", "P2"]);
 
@@ -148,7 +140,7 @@ function toSemicolonString(value: unknown, fallback = "") {
 }
 
 function normalizeScope(value: unknown): Scope {
-  return value === "page" || value === "node" ? value : "file";
+  return value === "node" ? "node" : "file";
 }
 
 function buildFigmaHeaders(token: string) {
@@ -249,15 +241,14 @@ function collectFigmaContext(payload: FigmaApiResponse, targetId: string) {
 
 async function fetchFigmaContext(requestBody: AnalyzeRequest, figmaToken: string): Promise<FigmaContext> {
   const fileKey = asString(requestBody.source?.fileKey);
-  const scope = normalizeScope(requestBody.scope);
   const nodeId = asString(requestBody.source?.nodeId);
-  const pageId = asString(requestBody.selectedPage?.id);
-  const targetId = scope === "node" ? nodeId : scope === "page" ? pageId : "";
+  const targetId = nodeId;
   const endpoint = targetId
     ? `${FIGMA_API_BASE_URL}/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(targetId)}&depth=5`
     : `${FIGMA_API_BASE_URL}/files/${encodeURIComponent(fileKey)}?depth=3`;
   const response = await fetch(endpoint, {
     headers: buildFigmaHeaders(figmaToken),
+    cache: "no-store",
   });
   const payload = (await readJsonResponse(response)) as FigmaApiResponse & Record<string, unknown>;
 
@@ -286,8 +277,7 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
     {
       task: "根據 Figma 實際讀取到的節點摘要產出第一階段埋點建議。",
       source: requestBody.source,
-      analysisScope: requestBody.scope,
-      selectedPage: requestBody.selectedPage,
+      analysisScope: requestBody.source?.nodeId ? "node" : normalizeScope(requestBody.scope),
       figmaInspection: figmaContext,
       spreadsheetColumnReference: [
         "編號",
@@ -303,7 +293,6 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         "優先級",
         "狀態",
       ],
-      eventStyleReferenceOnly: seedEvents.slice(0, MAX_REFERENCE_EVENTS),
     },
     null,
     2,
