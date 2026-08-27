@@ -279,7 +279,6 @@ export default function Home() {
   const [analysisProcess, setAnalysisProcess] = useState<string[]>([]);
   const [analysisError, setAnalysisError] = useState("");
   const [analysisMeta, setAnalysisMeta] = useState<AnalyzeResponse["figma"] | null>(null);
-  const [analysisModel, setAnalysisModel] = useState("");
   const [analysisState, setAnalysisState] = useState("尚未提供 Figma 連結");
   const analysisRunId = useRef(0);
 
@@ -332,10 +331,6 @@ export default function Home() {
     ];
   }, [visibleRows]);
 
-  function getLinkTargetLabel() {
-    return figmaInfo.mode === "node" ? figmaInfo.nodeName || "目前連結中的指定節點" : "目前連結中的整份檔案";
-  }
-
   function resetAnalysisResult() {
     analysisRunId.current += 1;
     setIsAnalyzing(false);
@@ -343,7 +338,6 @@ export default function Home() {
     setAnalysisProcess([]);
     setAnalysisError("");
     setAnalysisMeta(null);
-    setAnalysisModel("");
     setSelectedId("");
     setHasAnalyzed(false);
   }
@@ -399,7 +393,7 @@ export default function Home() {
     }
 
     const runId = analysisRunId.current + 1;
-    const nextProcess = ["解析 Figma 連結", "讀取 Figma 檔案節點", "呼叫 ChatGPT 模型判斷追蹤點", "整理成 Excel 欄位格式"];
+    const nextProcess = ["解析 Figma 連結", "讀取 Figma 檔案節點", "呼叫模型判斷追蹤點", "整理成 Excel 欄位格式"];
 
     analysisRunId.current = runId;
     setIsAnalyzing(true);
@@ -408,9 +402,8 @@ export default function Home() {
     setHasAnalyzed(false);
     setAnalysisError("");
     setAnalysisMeta(null);
-    setAnalysisModel("");
     setAnalysisProcess(nextProcess);
-    setAnalysisState(`正在分析「${getLinkTargetLabel()}」，請稍候`);
+    setAnalysisState("");
 
     try {
       const response = await fetch("/api/analyze", {
@@ -436,12 +429,8 @@ export default function Home() {
 
       const rows = Array.isArray(result.events) ? result.events : [];
 
-      if (!rows.length) {
-        throw new Error("AI 沒有產出可用的埋點事件");
-      }
-
       setAnalysisRows(rows);
-      setSelectedId(rows[0].id);
+      setSelectedId(rows[0]?.id ?? "");
       setHasAnalyzed(true);
       setAnalysisProcess(
         result.analysisProcess?.length
@@ -449,7 +438,6 @@ export default function Home() {
           : ["讀取 Figma 節點結構", "整理頁面與功能區塊", "判斷第一階段追蹤事件", "輸出 Excel 欄位格式"],
       );
       setAnalysisMeta(result.figma ?? null);
-      setAnalysisModel(result.model ?? "ChatGPT 模型");
       setAnalysisState("");
     } catch (error) {
       if (analysisRunId.current !== runId) {
@@ -488,26 +476,44 @@ export default function Home() {
     download("慢病醫療人員_UX_第一階段埋點計畫.csv", toCsv(visibleRows), "text/csv;charset=utf-8");
   }
 
+  const hasNoAnalysisRows = hasAppliedSource && hasAnalyzed && !analysisRows.length && !analysisError;
+  const hasNoFilteredRows = hasAppliedSource && hasAnalyzed && Boolean(analysisRows.length) && !visibleRows.length;
   const tableEmptyTitle = isAnalyzing
     ? "AI 正在分析頁面內容"
     : analysisError
       ? "分析未完成"
-      : hasAppliedSource
-        ? "尚未產生埋點建議"
-        : "尚未套用 Figma 來源";
+      : hasNoAnalysisRows
+        ? "尚無可追蹤的分析指標"
+        : hasNoFilteredRows
+          ? "沒有符合條件的分析指標"
+          : hasAppliedSource
+            ? "尚未產生埋點建議"
+            : "尚未套用 Figma 來源";
   const tableEmptyDescription = isAnalyzing
-    ? "正在讀取 Figma 結構並呼叫 ChatGPT 模型。"
+    ? "正在讀取 Figma 結構並呼叫模型。"
     : analysisError
       ? analysisError
-      : hasAppliedSource
-        ? "按下分析頁面內容後會列出事件。"
-        : "左側套用連結後再開始分析。";
-  const detailEmptyTitle = isAnalyzing ? "AI 分析中" : analysisError ? "尚未完成分析" : "尚未選取事件";
+      : hasNoAnalysisRows
+        ? "模型沒有從目前連結範圍判斷出需要第一階段追蹤的事件。"
+        : hasNoFilteredRows
+          ? "請調整搜尋文字或事件類型篩選。"
+          : hasAppliedSource
+            ? "按下分析頁面內容後會列出事件。"
+            : "左側套用連結後再開始分析。";
+  const detailEmptyTitle = isAnalyzing
+    ? "AI 分析中"
+    : analysisError
+      ? "尚未完成分析"
+      : hasNoAnalysisRows
+        ? "尚無分析指標"
+        : "尚未選取事件";
   const detailEmptyDescription = isAnalyzing
     ? "完成後會自動選取第一筆建議事件。"
     : analysisError
       ? "請修正環境變數或權限後重新分析。"
-      : "分析完成後，點擊表格中的事件即可查看屬性與追蹤目的。";
+      : hasNoAnalysisRows
+        ? "目前沒有可顯示的事件詳情。"
+        : "分析完成後，點擊表格中的事件即可查看屬性與追蹤目的。";
 
   return (
     <main className="app-shell">
@@ -642,7 +648,7 @@ export default function Home() {
                 <div className="loading-header">
                   <span className="loading-spinner" aria-hidden="true" />
                   <div>
-                    <strong>ChatGPT 模型分析中</strong>
+                    <strong>模型分析中</strong>
                     <span>正在讀取 Figma 結構並產出追蹤建議</span>
                   </div>
                 </div>
@@ -678,7 +684,6 @@ export default function Home() {
                   <span>
                     已讀取 {analysisMeta.targetName ?? "Figma 節點"}，節點 {analysisMeta.nodeCount ?? 0} 個，文字{" "}
                     {analysisMeta.textCount ?? 0} 筆
-                    {analysisModel ? `，模型 ${analysisModel}` : ""}
                   </span>
                 ) : null}
               </div>
