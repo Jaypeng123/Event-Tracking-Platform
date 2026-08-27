@@ -639,6 +639,35 @@ select:disabled {
   margin-top: 0;
 }
 
+.page-selector {
+  background: #fbfcfa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.page-selector select {
+  width: 100%;
+}
+
+.page-selector > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.page-selector-error {
+  background: var(--red-100);
+  border-color: #efb8a5;
+}
+
+.page-selector-message {
+  color: var(--red-700) !important;
+  font-weight: 700;
+}
+
 .page-picker {
   background: #fbfcfa;
   border: 1px solid var(--line);

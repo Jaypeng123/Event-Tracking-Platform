@@ -32,7 +32,8 @@ type FigmaSourceMode = "empty" | "file" | "node" | "unsupported" | "invalid";
 type FigmaPage = {
   id: string;
   name: string;
-  relatedEventPages: string[];
+  relatedEventPages?: string[];
+  childCount?: number;
 };
 
 type FigmaSourceInfo = {
@@ -57,6 +58,12 @@ type AnalyzeResponse = {
     nodeCount?: number;
     textCount?: number;
   };
+  message?: string;
+};
+
+type FigmaPagesResponse = {
+  fileName?: string;
+  pages?: FigmaPage[];
   message?: string;
 };
 
@@ -272,6 +279,31 @@ async function readAnalyzeResponse(response: Response): Promise<AnalyzeResponse>
   };
 }
 
+async function readFigmaPagesResponse(response: Response): Promise<FigmaPagesResponse> {
+  const contentType = response.headers.get("content-type") ?? "";
+  const rawText = await response.text();
+  const trimmedText = rawText.trim();
+  const looksLikeJson = contentType.includes("application/json") || trimmedText.startsWith("{") || trimmedText.startsWith("[");
+
+  if (looksLikeJson) {
+    try {
+      return JSON.parse(trimmedText) as FigmaPagesResponse;
+    } catch {
+      return { message: `Page 清單 API 回傳了無法解析的 JSON（HTTP ${response.status}）。` };
+    }
+  }
+
+  if (response.status === 401) {
+    return {
+      message: "讀取 Page 清單需要 ChatGPT 登入授權。請重新整理並完成登入後再套用連結。",
+    };
+  }
+
+  return {
+    message: `Page 清單 API 回傳非 JSON 內容（HTTP ${response.status}）。請重新整理後再試。`,
+  };
+}
+
 function toCsv(rows: TrackingEvent[]) {
   const header = exportColumns.map((column) => escapeCsv(column.label)).join(",");
   const body = rows
@@ -352,6 +384,10 @@ export default function Home() {
   const [draftFigmaUrl, setDraftFigmaUrl] = useState("");
   const [appliedFigmaUrl, setAppliedFigmaUrl] = useState("");
   const [isEditingSource, setIsEditingSource] = useState(true);
+  const [loadedPages, setLoadedPages] = useState<FigmaPage[]>([]);
+  const [selectedPageId, setSelectedPageId] = useState("");
+  const [isLoadingPages, setIsLoadingPages] = useState(false);
+  const [pageLoadError, setPageLoadError] = useState("");
   const [filter, setFilter] = useState<EventFilter>("All");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -374,6 +410,10 @@ export default function Home() {
   const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
   const activeInputInfo = isEditingSource ? draftInfo : figmaInfo;
   const hasAppliedSource = Boolean(appliedFigmaUrl && figmaInfo.mode !== "invalid" && figmaInfo.mode !== "unsupported");
+  const pageOptions = loadedPages.length ? loadedPages : figmaInfo.pages;
+  const selectedPage = pageOptions.find((page) => page.id === selectedPageId) ?? null;
+  const needsPageSelection = hasAppliedSource && figmaInfo.mode === "file";
+  const canAnalyzeCurrentSource = hasAppliedSource && !isLoadingPages && (!needsPageSelection || Boolean(selectedPage));
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -437,15 +477,17 @@ export default function Home() {
   }, [visibleRows]);
 
   function getLibraryId(row: TrackingEvent) {
-    return `evt_${hashText([figmaInfo.fileKey, figmaInfo.nodeId || "file", row.id, row.page, row.area, row.eventName].join("|"))}`;
+    return `evt_${hashText(
+      [figmaInfo.fileKey, figmaInfo.nodeId || selectedPageId || "file", row.id, row.page, row.area, row.eventName].join("|"),
+    )}`;
   }
 
   function createLibraryItem(row: TrackingEvent): SavedTrackingEvent {
     return {
       ...row,
       libraryId: getLibraryId(row),
-      sourceName: figmaInfo.fileName || "Figma 來源",
-      sourceKey: [figmaInfo.fileKey, figmaInfo.nodeId || "file"].filter(Boolean).join(" / "),
+      sourceName: selectedPage ? `${figmaInfo.fileName} / ${selectedPage.name}` : figmaInfo.fileName || "Figma 來源",
+      sourceKey: [figmaInfo.fileKey, figmaInfo.nodeId || selectedPageId || "file"].filter(Boolean).join(" / "),
       savedAt: new Date().toISOString(),
     };
   }
@@ -542,7 +584,55 @@ export default function Home() {
     setHasAnalyzed(false);
   }
 
-  function handleApplySource() {
+  async function loadFigmaPages(nextInfo: FigmaSourceInfo) {
+    if (nextInfo.mode !== "file") {
+      setLoadedPages([]);
+      setSelectedPageId("");
+      setPageLoadError("");
+      return;
+    }
+
+    setIsLoadingPages(true);
+    setLoadedPages([]);
+    setSelectedPageId("");
+    setPageLoadError("");
+
+    try {
+      const response = await fetch("/api/figma-pages", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileKey: nextInfo.fileKey }),
+        cache: "no-store",
+        credentials: "include",
+      });
+      const result = await readFigmaPagesResponse(response);
+
+      if (!response.ok) {
+        throw new Error(result.message || "無法讀取 Figma Page 清單");
+      }
+
+      const pages = Array.isArray(result.pages) ? result.pages : [];
+
+      setLoadedPages(pages);
+      setSelectedPageId(pages[0]?.id ?? "");
+      setPageLoadError(pages.length ? "" : "這份 Figma 檔案沒有讀到可分析的 Page");
+      setAnalysisState(pages.length ? "已匯入 Page 清單，可切換後分析目前選取的 Page" : "這份 Figma 檔案沒有讀到可分析的 Page");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "無法讀取 Figma Page 清單";
+
+      setLoadedPages(nextInfo.pages);
+      setSelectedPageId(nextInfo.pages[0]?.id ?? "");
+      setPageLoadError(message);
+      setAnalysisState(message);
+    } finally {
+      setIsLoadingPages(false);
+    }
+  }
+
+  async function handleApplySource() {
     const nextInfo = parseFigmaUrl(draftFigmaUrl);
 
     if (nextInfo.mode === "empty") {
@@ -563,15 +653,23 @@ export default function Home() {
     setAppliedFigmaUrl(nextInfo.normalizedUrl);
     setDraftFigmaUrl(nextInfo.normalizedUrl);
     setIsEditingSource(false);
+    setLoadedPages(nextInfo.pages);
+    setSelectedPageId(nextInfo.mode === "file" ? nextInfo.pages[0]?.id ?? "" : "");
+    setPageLoadError("");
     resetAnalysisResult();
     setFilter("All");
     setQuery("");
-    setAnalysisState("");
+    setAnalysisState(nextInfo.mode === "file" ? "正在讀取 Figma Page 清單" : "");
+
+    await loadFigmaPages(nextInfo);
   }
 
   function handleReplaceSource() {
     setDraftFigmaUrl(appliedFigmaUrl);
     setIsEditingSource(true);
+    setLoadedPages([]);
+    setSelectedPageId("");
+    setPageLoadError("");
     resetAnalysisResult();
     setAnalysisState("正在替換 Figma 來源，套用後會重置分析結果");
   }
@@ -580,14 +678,28 @@ export default function Home() {
     setDraftFigmaUrl("");
     setAppliedFigmaUrl("");
     setIsEditingSource(true);
+    setLoadedPages([]);
+    setSelectedPageId("");
+    setPageLoadError("");
     setFilter("All");
     setQuery("");
     resetAnalysisResult();
     setAnalysisState("尚未提供 Figma 連結");
   }
 
+  function handleSelectPage(pageId: string) {
+    setSelectedPageId(pageId);
+    resetAnalysisResult();
+    setAnalysisState(pageId ? "" : "請先選擇要分析的 Page");
+  }
+
   async function handleAnalyze() {
-    if (!hasAppliedSource) {
+    if (!canAnalyzeCurrentSource) {
+      if (needsPageSelection && !selectedPage) {
+        setAnalysisState(isLoadingPages ? "正在讀取 Figma Page 清單" : "請先選擇要分析的 Page");
+        return;
+      }
+
       setAnalysisState("請先套用 Figma 連結");
       return;
     }
@@ -607,6 +719,15 @@ export default function Home() {
     setAnalysisState("");
 
     try {
+      const sourceForAnalysis =
+        figmaInfo.mode === "file" && selectedPage
+          ? {
+              ...figmaInfo,
+              mode: "node",
+              nodeId: selectedPage.id,
+              nodeName: selectedPage.name,
+            }
+          : figmaInfo;
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
@@ -614,8 +735,8 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          source: figmaInfo,
-          scope: figmaInfo.mode === "node" ? "node" : "file",
+          source: sourceForAnalysis,
+          scope: sourceForAnalysis.nodeId ? "node" : "file",
         }),
         cache: "no-store",
         credentials: "include",
@@ -953,6 +1074,42 @@ export default function Home() {
                     </>
                   )}
                 </div>
+                {figmaInfo.mode === "file" ? (
+                  <div className={`page-selector ${pageLoadError ? "page-selector-error" : ""}`}>
+                    <label className="field-label" htmlFor="figma-page">
+                      分析 Page
+                    </label>
+                    {isLoadingPages ? (
+                      <div className="source-empty">
+                        <strong>正在讀取 Page 清單</strong>
+                        <span>這一步只讀 Figma 檔案結構，不會呼叫模型。</span>
+                      </div>
+                    ) : pageOptions.length ? (
+                      <>
+                        <select
+                          id="figma-page"
+                          value={selectedPageId}
+                          onChange={(event) => handleSelectPage(event.target.value)}
+                        >
+                          {pageOptions.map((page) => (
+                            <option key={page.id} value={page.id}>
+                              {page.name}
+                            </option>
+                          ))}
+                        </select>
+                        <span>
+                          已載入 {pageOptions.length} 個 Page；分析時只會送出目前選取的 Page，避免一次分析整份檔案。
+                        </span>
+                      </>
+                    ) : (
+                      <div className="source-empty">
+                        <strong>尚未讀到 Page</strong>
+                        <span>請確認 Figma 權限，或改貼指定 Page / 節點連結。</span>
+                      </div>
+                    )}
+                    {pageLoadError ? <span className="page-selector-message">{pageLoadError}</span> : null}
+                  </div>
+                ) : null}
                 <div className="source-actions">
                   <button className="secondary-button" type="button" onClick={handleReplaceSource}>
                     替換連結
@@ -975,13 +1132,17 @@ export default function Home() {
               className="primary-button full-width"
               type="button"
               onClick={handleAnalyze}
-              disabled={!hasAppliedSource || isAnalyzing}
+              disabled={!canAnalyzeCurrentSource || isAnalyzing}
             >
               {isAnalyzing ? (
                 <span className="button-content">
                   <span className="loading-spinner tiny" aria-hidden="true" />
                   分析中
                 </span>
+              ) : isLoadingPages ? (
+                "讀取 Page 中"
+              ) : needsPageSelection && !selectedPage ? (
+                "請先選擇 Page"
               ) : (
                 "分析頁面內容"
               )}
