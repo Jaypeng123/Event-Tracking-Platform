@@ -65,6 +65,7 @@ type FigmaContext = {
 };
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
+const GEMINI_GENERATE_CONTENT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
 const MAX_FIGMA_NODES = 180;
 const allowedEventTypes = new Set<EventType>(["View", "Click", "Feature", "Flow", "Validation"]);
@@ -334,11 +335,11 @@ function extractOutputText(payload: Record<string, unknown>) {
     .trim();
 }
 
-function parseModelJson(payload: Record<string, unknown>) {
+function parseModelJson(payload: Record<string, unknown>, providerName: string) {
   const outputText = extractOutputText(payload);
 
   if (!outputText) {
-    throw new Error("OpenAI 回傳中沒有可解析的文字內容");
+    throw new Error(`${providerName} 回傳中沒有可解析的文字內容`);
   }
 
   return JSON.parse(outputText) as { analysisProcess?: unknown; events?: unknown };
@@ -412,7 +413,7 @@ async function analyzeWithOpenAI(requestBody: AnalyzeRequest, figmaContext: Figm
     throw new Error(errorMessage);
   }
 
-  const parsed = parseModelJson(payload);
+  const parsed = parseModelJson(payload, "OpenAI");
   const events = Array.isArray(parsed.events)
     ? parsed.events.map((event, index) => normalizeEvent(event, index)).filter((event): event is TrackingEvent => Boolean(event))
     : [];
@@ -423,6 +424,99 @@ async function analyzeWithOpenAI(requestBody: AnalyzeRequest, figmaContext: Figm
 
   return {
     model,
+    analysisProcess: normalizeAnalysisProcess(parsed.analysisProcess),
+    events,
+  };
+}
+
+function extractGeminiOutputText(payload: Record<string, unknown>) {
+  const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+
+  return candidates
+    .flatMap((candidate) => {
+      if (!candidate || typeof candidate !== "object") {
+        return [];
+      }
+
+      const content = "content" in candidate && candidate.content && typeof candidate.content === "object"
+        ? candidate.content
+        : null;
+      const parts = content && "parts" in content && Array.isArray(content.parts) ? content.parts : [];
+
+      return parts.map((part) => {
+        if (!part || typeof part !== "object") {
+          return "";
+        }
+
+        return "text" in part && typeof part.text === "string" ? part.text : "";
+      });
+    })
+    .join("\n")
+    .trim();
+}
+
+function extractGeminiError(payload: Record<string, unknown>, fallback: string) {
+  if (payload.error && typeof payload.error === "object" && "message" in payload.error) {
+    return String(payload.error.message);
+  }
+
+  const promptFeedback = payload.promptFeedback;
+
+  if (promptFeedback && typeof promptFeedback === "object" && "blockReason" in promptFeedback) {
+    return `Gemini 拒絕了這次請求：${String(promptFeedback.blockReason)}`;
+  }
+
+  return asString(payload.raw, fallback);
+}
+
+async function analyzeWithGemini(requestBody: AnalyzeRequest, figmaContext: FigmaContext, geminiKey: string) {
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  const response = await fetch(`${GEMINI_GENERATE_CONTENT_BASE_URL}/models/${encodeURIComponent(model)}:generateContent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": geminiKey,
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: buildInstructions() }],
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: [
+                buildPrompt(requestBody, figmaContext),
+                "請只輸出符合 schema 的 JSON，不要加入 markdown code block 或額外解釋。",
+              ].join("\n\n"),
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        maxOutputTokens: 5000,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+  const payload = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(extractGeminiError(payload, `Gemini API 回傳 ${response.status}`));
+  }
+
+  const parsed = parseModelJson({ output_text: extractGeminiOutputText(payload) }, "Gemini");
+  const events = Array.isArray(parsed.events)
+    ? parsed.events.map((event, index) => normalizeEvent(event, index)).filter((event): event is TrackingEvent => Boolean(event))
+    : [];
+
+  if (!events.length) {
+    throw new Error("Gemini 沒有產出可用的埋點事件");
+  }
+
+  return {
+    model: `Gemini ${model}`,
     analysisProcess: normalizeAnalysisProcess(parsed.analysisProcess),
     events,
   };
@@ -439,17 +533,22 @@ export async function POST(request: Request) {
 
   const fileKey = asString(requestBody.source?.fileKey);
   const openAIKey = process.env.OPENAI_API_KEY?.trim();
+  const geminiKey = (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_AI_API_KEY ||
+    process.env.GOOGLE_STUDIO_API_KEY
+  )?.trim();
   const figmaToken = (process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN)?.trim();
 
   if (!fileKey) {
     return Response.json({ message: "缺少 Figma file key，請先套用有效的 Figma 連結" }, { status: 400 });
   }
 
-  if (!openAIKey) {
+  if (!geminiKey && !openAIKey) {
     return Response.json(
       {
-        code: "missing_openai_key",
-        message: "尚未設定 OPENAI_API_KEY，因此不會產生假資料。請在 Sites 環境變數加入 OpenAI API key 後再分析。",
+        code: "missing_ai_key",
+        message: "尚未設定 GEMINI_API_KEY 或 OPENAI_API_KEY，因此不會產生假資料。請在 Sites 環境變數加入 AI API key 後再分析。",
       },
       { status: 503 },
     );
@@ -467,7 +566,9 @@ export async function POST(request: Request) {
 
   try {
     const figmaContext = await fetchFigmaContext(requestBody, figmaToken);
-    const analysis = await analyzeWithOpenAI(requestBody, figmaContext, openAIKey);
+    const analysis = geminiKey
+      ? await analyzeWithGemini(requestBody, figmaContext, geminiKey)
+      : await analyzeWithOpenAI(requestBody, figmaContext, openAIKey ?? "");
 
     return Response.json({
       ...analysis,
