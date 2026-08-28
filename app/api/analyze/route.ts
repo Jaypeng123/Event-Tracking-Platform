@@ -311,6 +311,8 @@ function buildInstructions() {
     "eventName 必須是英文 snake_case 的 verb_object，例如 view_patient_detail、click_pending_task、open_advanced_search、apply_patient_filter、switch_health_metric、download_ecg_report、save_custom_health_plan。",
     "不可直接把 Figma Layer Name 轉成 eventName；遇到個人中心（1.4~1.8）/ Arrow 2 這類圖層，必須做語意轉換，不可輸出 use_1_4_1_8_arrow_2、use_pending_task、track_event_1。",
     "使用率、點擊率、完成率是 metric，不是 event；eventName 要描述發生了什麼使用者行為。",
+    "priority 必須使用 P0、P1、P2。P0：第一階段沒有這支，就無法回答核心產品問題。P1：有助於理解使用情境與功能價值。P2：微互動與細節優化。",
+    "請只把真正關鍵的頁面曝光、核心入口、關鍵流程列為 P0；不要把全部事件都標成 P0。",
     "page 與 area 不可留空，也不可使用未命名頁面、未命名區塊等占位詞；若節點名稱不清楚，請根據畫面文字自行命名具體頁面與區塊。",
     "page 與 area 不要保留版本號或頁碼範圍，例如 個人中心（1.4~1.8）要輸出 個人中心。",
     "trigger、purpose、analysisValue、metricCalculation 不可每列重複相同模板句。",
@@ -335,6 +337,7 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         "不要使用未命名頁面、未命名區塊、Arrow、ScrollerBar、Action Button、track_event_1、使用者完成主要互動時、衡量此功能是否被實際使用等占位內容。",
         "eventName 必須是語意化 verb_object，不可使用 use_ 開頭，不可包含 Figma 版本號、頁碼範圍或 layer 編號。",
         "每一筆事件都要對應不同的使用行為或分析問題，避免多筆事件只有編號不同。",
+        "priority 要依據 P0/P1/P2 定義分級；P0 通常不超過全部事件的一半。",
         "analysisValue 要寫分析的原因：先提出想驗證的產品假設，再說追這筆事件能如何驗證。",
         "metricCalculation 要寫可直接放進 Excel 的計算描述。",
         "屬性欄位只輸出分號分隔字串，例如 page_name; user_role; entry_source。",
@@ -395,14 +398,127 @@ function extractOutputText(payload: Record<string, unknown>) {
     .trim();
 }
 
+function stripMarkdownJsonFence(value: string) {
+  return value
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
+function tryParseJsonObject(value: string) {
+  try {
+    const parsed = JSON.parse(value) as { analysisProcess?: unknown; events?: unknown };
+
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function extractOuterJsonObject(value: string) {
+  const start = value.indexOf("{");
+  const end = value.lastIndexOf("}");
+
+  return start >= 0 && end > start ? value.slice(start, end + 1) : "";
+}
+
+function extractBalancedArrayObjects(value: string, arrayKey: string) {
+  const keyIndex = value.indexOf(`"${arrayKey}"`);
+
+  if (keyIndex < 0) {
+    return [];
+  }
+
+  const arrayStart = value.indexOf("[", keyIndex);
+
+  if (arrayStart < 0) {
+    return [];
+  }
+
+  const objects: unknown[] = [];
+  let objectStart = -1;
+  let depth = 0;
+  let isInString = false;
+  let isEscaped = false;
+
+  for (let index = arrayStart + 1; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (isEscaped) {
+      isEscaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      isEscaped = isInString;
+      continue;
+    }
+
+    if (char === "\"") {
+      isInString = !isInString;
+      continue;
+    }
+
+    if (isInString) {
+      continue;
+    }
+
+    if (char === "{") {
+      if (depth === 0) {
+        objectStart = index;
+      }
+
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+
+      if (depth === 0 && objectStart >= 0) {
+        const parsed = tryParseJsonObject(value.slice(objectStart, index + 1));
+
+        if (parsed) {
+          objects.push(parsed);
+        }
+
+        objectStart = -1;
+      }
+    }
+  }
+
+  return objects;
+}
+
 function parseModelJson(payload: Record<string, unknown>, providerName: string) {
   const outputText = extractOutputText(payload);
 
   if (!outputText) {
-    throw new Error(`${providerName} 回傳中沒有可解析的文字內容`);
+    return {
+      analysisProcess: [`${providerName} 回傳內容不足，改以 Figma 結構補強`, "整理頁面與功能區塊", "建立優先級", "輸出 Excel 欄位格式"],
+      events: [],
+    };
   }
 
-  return JSON.parse(outputText) as { analysisProcess?: unknown; events?: unknown };
+  const cleanedText = stripMarkdownJsonFence(outputText);
+  const parsed = tryParseJsonObject(cleanedText) ?? tryParseJsonObject(extractOuterJsonObject(cleanedText));
+
+  if (parsed) {
+    return parsed;
+  }
+
+  const recoveredEvents = extractBalancedArrayObjects(cleanedText, "events");
+
+  return {
+    analysisProcess: [
+      `${providerName} 輸出格式不完整，已保留可解析事件並補強`,
+      "讀取 Figma 節點結構",
+      "整理頁面與功能區塊",
+      "建立優先級",
+      "輸出 Excel 欄位格式",
+    ],
+    events: recoveredEvents,
+  };
 }
 
 const genericScopeNames = new Set([
@@ -697,6 +813,24 @@ function deriveMetricCalculation(page: string, area: string, eventType: EventTyp
   }
 }
 
+function derivePriority(eventType: EventType, index: number): Priority {
+  if (index <= 2 && ["PageView", "SearchFilter", "FlowComplete"].includes(eventType)) {
+    return "P0";
+  }
+
+  if (index >= 9 || eventType === "ErrorDropoff") {
+    return "P2";
+  }
+
+  return "P1";
+}
+
+function normalizePriority(value: unknown, eventType: EventType, index: number) {
+  const priority = asString(value, derivePriority(eventType, index)) as Priority;
+
+  return allowedPriorities.has(priority) ? priority : derivePriority(eventType, index);
+}
+
 function isUnsafeEventName(value: string) {
   const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
@@ -770,7 +904,6 @@ function normalizeEvent(value: unknown, index: number, figmaContext: FigmaContex
   }
 
   const record = value as Record<string, unknown>;
-  const priority = asString(record.priority, index < 6 ? "P0" : "P1") as Priority;
   const page = isGenericScopeName(asString(record.page))
     ? derivePageName(figmaContext)
     : cleanScopeName(asString(record.page), derivePageName(figmaContext), 38);
@@ -778,6 +911,7 @@ function normalizeEvent(value: unknown, index: number, figmaContext: FigmaContex
     ? deriveAreaName(figmaContext, page, index)
     : cleanScopeName(removePagePrefix(asString(record.area), page), deriveAreaName(figmaContext, page, index), 48);
   const normalizedEventType = coerceEventType(record.eventType, `${page} ${area}`, index);
+  const priority = normalizePriority(record.priority, normalizedEventType, index);
   const eventName = normalizeEventName(asString(record.eventName), page, area, normalizedEventType, index);
   const trigger = asString(record.trigger);
   const purpose = asString(record.purpose);
@@ -801,7 +935,7 @@ function normalizeEvent(value: unknown, index: number, figmaContext: FigmaContex
     propertyDefinitions: toSemicolonString(record.propertyDefinitions, "頁面名稱; 使用者角色; 進入來源"),
     dataTypes: toSemicolonString(record.dataTypes, "string; string; string"),
     sampleValues: toSemicolonString(record.sampleValues, "patient_detail; doctor; sidebar"),
-    priority: allowedPriorities.has(priority) ? priority : "P1",
+    priority,
     status: asString(record.status, "AI 產生"),
   };
 }
@@ -931,7 +1065,7 @@ function buildFallbackEvents(figmaContext: FigmaContext): TrackingEvent[] {
       propertyDefinitions: fieldSet.propertyDefinitions,
       dataTypes: fieldSet.dataTypes,
       sampleValues: fieldSet.sampleValues,
-      priority: index < 6 ? "P0" : "P1",
+      priority: derivePriority(eventType, index),
       status: "AI 補強",
     };
   }
@@ -949,7 +1083,7 @@ function ensureUsefulEvents(events: TrackingEvent[], figmaContext: FigmaContext)
   const minimumEventCount = figmaContext.nodeCount > 8 || figmaContext.textCount > 4 ? 6 : 3;
 
   if (events.length >= minimumEventCount) {
-    return events;
+    return rebalancePriorities(events);
   }
 
   const fallbackEvents = buildFallbackEvents(figmaContext);
@@ -965,7 +1099,29 @@ function ensureUsefulEvents(events: TrackingEvent[], figmaContext: FigmaContext)
     }
   });
 
-  return combined;
+  return rebalancePriorities(combined);
+}
+
+function rebalancePriorities(events: TrackingEvent[]) {
+  const maxP0Count = Math.max(2, Math.ceil(events.length * 0.4));
+  let p0Count = 0;
+
+  return events.map((event, index) => {
+    if (event.priority !== "P0") {
+      return event;
+    }
+
+    p0Count += 1;
+
+    if (p0Count <= maxP0Count) {
+      return event;
+    }
+
+    return {
+      ...event,
+      priority: derivePriority(event.eventType, index) === "P0" ? "P1" : derivePriority(event.eventType, index),
+    };
+  });
 }
 
 async function analyzeWithOpenAI(requestBody: AnalyzeRequest, figmaContext: FigmaContext, openAIKey: string) {
@@ -980,7 +1136,7 @@ async function analyzeWithOpenAI(requestBody: AnalyzeRequest, figmaContext: Figm
       model,
       instructions: buildInstructions(),
       input: buildPrompt(requestBody, figmaContext),
-      max_output_tokens: 5000,
+      max_output_tokens: 8000,
       text: {
         format: {
           type: "json_schema",
@@ -1082,7 +1238,7 @@ async function analyzeWithGemini(requestBody: AnalyzeRequest, figmaContext: Figm
         },
       ],
       generationConfig: {
-        maxOutputTokens: 5000,
+        maxOutputTokens: 8000,
         responseMimeType: "application/json",
       },
     }),
@@ -1162,9 +1318,42 @@ export async function POST(request: Request) {
 
   try {
     const figmaContext = await fetchFigmaContext(requestBody, figmaToken);
-    const analysis = geminiKey
-      ? await analyzeWithGemini(requestBody, figmaContext, geminiKey)
-      : await analyzeWithOpenAI(requestBody, figmaContext, openAIKey ?? "");
+    let analysis:
+      | {
+          model: string;
+          analysisProcess: string[];
+          events: TrackingEvent[];
+        }
+      | null = null;
+    let providerError: unknown = null;
+
+    if (geminiKey) {
+      try {
+        analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey);
+      } catch (error) {
+        providerError = error;
+      }
+    }
+
+    if (!analysis && openAIKey) {
+      try {
+        analysis = await analyzeWithOpenAI(requestBody, figmaContext, openAIKey);
+      } catch (error) {
+        providerError = error;
+      }
+    }
+
+    if (!analysis) {
+      if (providerError) {
+        throw providerError;
+      }
+
+      analysis = {
+        model: "Figma structure fallback",
+        analysisProcess: ["讀取 Figma 節點結構", "模型回傳不足，改以 Figma 結構補強", "建立優先級", "輸出 Excel 欄位格式"],
+        events: buildFallbackEvents(figmaContext),
+      };
+    }
 
     return Response.json({
       ...analysis,

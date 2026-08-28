@@ -28,6 +28,7 @@ type SavedTrackingEvent = TrackingEvent & {
 };
 
 type EventFilter = "All" | TrackingEvent["eventType"];
+type PriorityFilter = "All" | TrackingEvent["priority"];
 type FigmaSourceMode = "empty" | "file" | "node" | "unsupported" | "invalid";
 
 type FigmaPage = {
@@ -106,6 +107,19 @@ const filterOptions: Array<{ value: EventFilter; label: string }> = [
   { value: "ErrorDropoff", label: "錯誤／流失" },
   { value: "ExportDownload", label: "匯出／下載" },
 ];
+
+const priorityOptions: Array<{ value: PriorityFilter; label: string }> = [
+  { value: "All", label: "全部" },
+  { value: "P0", label: "P0" },
+  { value: "P1", label: "P1" },
+  { value: "P2", label: "P2" },
+];
+
+const priorityDescriptions: Record<TrackingEvent["priority"], string> = {
+  P0: "第一階段沒有這支，就無法回答核心產品問題",
+  P1: "有助於理解使用情境與功能價值",
+  P2: "微互動與細節優化",
+};
 
 const exportColumns: Array<{ key: keyof TrackingEvent; label: string }> = [
   { key: "id", label: "編號" },
@@ -445,6 +459,7 @@ export default function Home() {
   const [isLoadingPages, setIsLoadingPages] = useState(false);
   const [pageLoadError, setPageLoadError] = useState("");
   const [filter, setFilter] = useState<EventFilter>("All");
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("All");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -501,6 +516,7 @@ export default function Home() {
 
     return analysisRows.filter((row) => {
       const typeMatch = filter === "All" || row.eventType === filter;
+      const priorityMatch = priorityFilter === "All" || row.priority === priorityFilter;
       const queryMatch =
         !normalizedQuery ||
         [
@@ -518,24 +534,35 @@ export default function Home() {
           .toLowerCase()
           .includes(normalizedQuery);
 
-      return typeMatch && queryMatch;
+      return typeMatch && priorityMatch && queryMatch;
     });
-  }, [analysisRows, filter, hasAnalyzed, hasAppliedSource, query]);
+  }, [analysisRows, filter, hasAnalyzed, hasAppliedSource, priorityFilter, query]);
 
   const summary = useMemo(() => {
-    const p0Count = visibleRows.filter((row) => row.priority === "P0").length;
-    const pages = new Set(visibleRows.map((row) => row.page));
-    const interactionCount = visibleRows.filter((row) =>
-      ["Click", "SearchFilter", "FlowComplete", "CreateEdit", "ExportDownload"].includes(row.eventType),
-    ).length;
+    const rows = hasAppliedSource && hasAnalyzed ? analysisRows : [];
 
     return [
-      { label: "建議事件", value: visibleRows.length, note: "第一階段可開規格" },
-      { label: "涵蓋頁面", value: pages.size, note: "依 Page 與區塊去重" },
-      { label: "高優先級", value: p0Count, note: "優先驗證核心假設" },
-      { label: "互動事件", value: interactionCount, note: "點擊、搜尋、建立與匯出" },
+      { filter: "All" as const, label: "全部", value: rows.length, note: "目前頁面的埋點候選" },
+      {
+        filter: "P0" as const,
+        label: "P0",
+        value: rows.filter((row) => row.priority === "P0").length,
+        note: priorityDescriptions.P0,
+      },
+      {
+        filter: "P1" as const,
+        label: "P1",
+        value: rows.filter((row) => row.priority === "P1").length,
+        note: priorityDescriptions.P1,
+      },
+      {
+        filter: "P2" as const,
+        label: "P2",
+        value: rows.filter((row) => row.priority === "P2").length,
+        note: priorityDescriptions.P2,
+      },
     ];
-  }, [visibleRows]);
+  }, [analysisRows, hasAnalyzed, hasAppliedSource]);
 
   function getLibraryId(row: TrackingEvent) {
     return `evt_${hashText(
@@ -729,6 +756,7 @@ export default function Home() {
     setPageLoadError("");
     resetAnalysisResult();
     setFilter("All");
+    setPriorityFilter("All");
     setQuery("");
     setAnalysisState("正在讀取Figma稿件");
 
@@ -744,6 +772,7 @@ export default function Home() {
     setHasImportedPages(false);
     setPageLoadError("");
     setFilter("All");
+    setPriorityFilter("All");
     setQuery("");
     resetAnalysisResult();
     setAnalysisState("尚未提供 Figma 連結");
@@ -914,7 +943,7 @@ export default function Home() {
                 : hasNoAnalysisRows
                   ? "模型沒有從目前連結範圍判斷出需要第一階段追蹤的事件。"
                   : hasNoFilteredRows
-                    ? "請調整搜尋文字或事件類型篩選。"
+                    ? "請調整搜尋文字、事件類型或優先級篩選。"
                     : hasAppliedSource
                       ? "按下分析頁面內容後會列出事件。"
                       : "左側套用連結後再開始分析。";
@@ -1341,11 +1370,17 @@ export default function Home() {
         <section className="main-panel" aria-label="埋點事件清單">
           <div className="summary-grid" aria-label="分析摘要">
             {summary.map((item) => (
-              <article className="summary-item" key={item.label}>
+              <button
+                className={`summary-item ${priorityFilter === item.filter ? "active" : ""}`}
+                key={item.label}
+                type="button"
+                onClick={() => setPriorityFilter(item.filter)}
+                disabled={!hasAnalyzed || isAnalyzing || !analysisRows.length}
+              >
                 <span>{item.label}</span>
                 <strong>{item.value}</strong>
                 <small>{item.note}</small>
-              </article>
+              </button>
             ))}
           </div>
 
@@ -1362,18 +1397,36 @@ export default function Home() {
                 onChange={(event) => setQuery(event.target.value)}
                 disabled={!hasAnalyzed || isAnalyzing || !analysisRows.length}
               />
-              <select
-                aria-label="事件類型篩選"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value as EventFilter)}
-                disabled={!hasAnalyzed || isAnalyzing || !analysisRows.length}
-              >
-                {filterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <label className="filter-field">
+                <span>事件類型</span>
+                <select
+                  aria-label="事件類型篩選"
+                  value={filter}
+                  onChange={(event) => setFilter(event.target.value as EventFilter)}
+                  disabled={!hasAnalyzed || isAnalyzing || !analysisRows.length}
+                >
+                  {filterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="filter-field">
+                <span>優先級</span>
+                <select
+                  aria-label="優先級篩選"
+                  value={priorityFilter}
+                  onChange={(event) => setPriorityFilter(event.target.value as PriorityFilter)}
+                  disabled={!hasAnalyzed || isAnalyzing || !analysisRows.length}
+                >
+                  {priorityOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
 
@@ -1468,6 +1521,7 @@ export default function Home() {
                         <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>
                           {row.priority}
                         </span>
+                        <small className="priority-description">{priorityDescriptions[row.priority]}</small>
                       </td>
                     </tr>
                   );
