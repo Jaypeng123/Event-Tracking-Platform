@@ -103,6 +103,46 @@ button {
   gap: 10px;
 }
 
+.topbar-title {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  min-width: 0;
+}
+
+.project-switcher {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-switcher label {
+  color: var(--muted);
+  display: grid;
+  font-size: 11px;
+  font-weight: 800;
+  gap: 5px;
+}
+
+.project-switcher select {
+  max-width: 260px;
+  min-width: 180px;
+}
+
+.project-chip {
+  background: var(--green-100);
+  border: 1px solid #cfe4ce;
+  border-radius: 999px;
+  color: var(--green-900);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  padding: 7px 10px;
+}
+
 .toolbar-controls {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -863,6 +903,43 @@ select:disabled {
 }
 
 .source-actions.single-action {
+  grid-template-columns: 1fr;
+}
+
+.source-switcher {
+  align-items: stretch;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.source-switcher select {
+  min-width: 0;
+  width: 100%;
+}
+
+.source-switcher .danger-button {
+  padding-inline: 12px;
+}
+
+.project-dialog {
+  display: grid;
+  gap: 12px;
+}
+
+.project-name-field {
+  color: var(--muted);
+  display: grid;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.project-name-field input {
+  width: 100%;
+}
+
+.confirm-actions.single-action {
   grid-template-columns: 1fr;
 }
 
@@ -1630,6 +1707,17 @@ code {
     width: 100%;
   }
 
+  .topbar-title,
+  .project-switcher {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .project-switcher label,
+  .project-switcher select {
+    width: 100%;
+  }
+
   .topbar-actions button,
   .search-field input,
   .library-controls .search-field input,
@@ -1642,6 +1730,10 @@ code {
 
   .source-filter select {
     max-width: none;
+  }
+
+  .source-switcher {
+    grid-template-columns: 1fr;
   }
 
   .workspace,

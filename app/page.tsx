@@ -24,6 +24,7 @@ type TrackingEvent = {
 
 type SavedTrackingEvent = TrackingEvent & {
   libraryId: string;
+  projectId: string;
   sourceName: string;
   sourceKey: string;
   savedAt: string;
@@ -58,6 +59,28 @@ type FigmaSourceInfo = {
   nodeName: string;
   pages: FigmaPage[];
   normalizedUrl: string;
+};
+
+type TrackingProject = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ImportedFigmaSource = {
+  id: string;
+  projectId: string;
+  mode: Extract<FigmaSourceMode, "file" | "node">;
+  fileKey: string;
+  fileName: string;
+  nodeId: string;
+  nodeName: string;
+  normalizedUrl: string;
+  pages: FigmaPage[];
+  selectedPageId: string;
+  importedAt: string;
+  updatedAt: string;
 };
 
 type AnalyzeResponse = {
@@ -102,6 +125,10 @@ const EMPTY_FIGMA_SOURCE: FigmaSourceInfo = {
 };
 
 const EVENT_LIBRARY_STORAGE_KEY = "tracking-plan-event-library-v1";
+const PROJECTS_STORAGE_KEY = "tracking-plan-projects-v1";
+const ACTIVE_PROJECT_STORAGE_KEY = "tracking-plan-active-project-v1";
+const FIGMA_SOURCES_STORAGE_KEY = "tracking-plan-figma-sources-v1";
+const LEGACY_PROJECT_ID = "legacy-project";
 
 const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
   YxOzcNURPPgfDq9qiXj1uk: {
@@ -450,6 +477,8 @@ function normalizeStoredEvent(row: SavedTrackingEvent): SavedTrackingEvent {
 
   return {
     ...row,
+    projectId:
+      typeof row.projectId === "string" && row.projectId.trim() ? row.projectId : LEGACY_PROJECT_ID,
     page,
     area,
     metricName:
@@ -464,13 +493,105 @@ function normalizeStoredEvent(row: SavedTrackingEvent): SavedTrackingEvent {
     analysisValue:
       typeof row.analysisValue === "string" && row.analysisValue.trim()
         ? toNumberedDisplayList(row.analysisValue)
-        : "驗證此事件是否能回答目前頁面的核心使用假設。",
+        : "判斷此事件是否能回答目前頁面的核心產品問題。",
     metricCalculation:
       typeof row.metricCalculation === "string" && row.metricCalculation.trim()
         ? toNumberedDisplayList(row.metricCalculation)
         : "事件 UV ÷ 平台活躍 UV",
     sourceName: cleanScopeName(row.sourceName, row.sourceName || "Figma 來源"),
   };
+}
+
+function isTrackingProjectLike(value: unknown): value is TrackingProject {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return typeof record.id === "string" && typeof record.name === "string";
+}
+
+function normalizeStoredProject(project: TrackingProject): TrackingProject {
+  const now = new Date().toISOString();
+  const name = cleanScopeName(project.name, "未命名專案", 40);
+
+  return {
+    id: project.id || `project_${hashText(name + now)}`,
+    name,
+    createdAt: typeof project.createdAt === "string" ? project.createdAt : now,
+    updatedAt: typeof project.updatedAt === "string" ? project.updatedAt : now,
+  };
+}
+
+function readStoredProjects() {
+  try {
+    const storedProjects = window.localStorage.getItem(PROJECTS_STORAGE_KEY);
+    const parsed = storedProjects ? JSON.parse(storedProjects) : [];
+
+    return Array.isArray(parsed) ? parsed.filter(isTrackingProjectLike).map(normalizeStoredProject) : [];
+  } catch {
+    return [];
+  }
+}
+
+function readStoredActiveProjectId() {
+  try {
+    return window.localStorage.getItem(ACTIVE_PROJECT_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function isImportedFigmaSourceLike(value: unknown): value is ImportedFigmaSource {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return (
+    typeof record.id === "string" &&
+    typeof record.projectId === "string" &&
+    typeof record.fileKey === "string" &&
+    typeof record.normalizedUrl === "string" &&
+    Array.isArray(record.pages)
+  );
+}
+
+function getFigmaSourceId(projectId: string, source: FigmaSourceInfo) {
+  return `figma_${hashText([projectId, source.fileKey, source.nodeId || "file"].join("|"))}`;
+}
+
+function normalizeStoredFigmaSource(source: ImportedFigmaSource): ImportedFigmaSource {
+  const now = new Date().toISOString();
+  const pages = Array.isArray(source.pages) ? source.pages.map(normalizeFigmaPage) : [];
+
+  return {
+    ...source,
+    id: source.id || `figma_${hashText(source.normalizedUrl || source.fileKey)}`,
+    projectId: source.projectId || LEGACY_PROJECT_ID,
+    mode: source.mode === "node" ? "node" : "file",
+    fileName: cleanScopeName(source.fileName, "Figma 來源", 48),
+    nodeName: source.nodeName ? cleanScopeName(source.nodeName, "指定節點", 48) : "",
+    pages,
+    selectedPageId: pages.some((page) => page.id === source.selectedPageId) ? source.selectedPageId : "",
+    importedAt: typeof source.importedAt === "string" ? source.importedAt : now,
+    updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : now,
+  };
+}
+
+function readStoredFigmaSources() {
+  try {
+    const storedSources = window.localStorage.getItem(FIGMA_SOURCES_STORAGE_KEY);
+    const parsed = storedSources ? JSON.parse(storedSources) : [];
+
+    return Array.isArray(parsed)
+      ? parsed.filter(isImportedFigmaSourceLike).map(normalizeStoredFigmaSource)
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 function readStoredEventLibrary() {
@@ -615,6 +736,14 @@ function toExcelXml(rows: TrackingEvent[]) {
 export default function Home() {
   const [draftFigmaUrl, setDraftFigmaUrl] = useState("");
   const [appliedFigmaUrl, setAppliedFigmaUrl] = useState("");
+  const [projects, setProjects] = useState<TrackingProject[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState("");
+  const [importedSources, setImportedSources] = useState<ImportedFigmaSource[]>([]);
+  const [activeSourceId, setActiveSourceId] = useState("");
+  const [isAddingSource, setIsAddingSource] = useState(false);
+  const [hasLoadedWorkspace, setHasLoadedWorkspace] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [projectNameDraft, setProjectNameDraft] = useState("");
   const [loadedPages, setLoadedPages] = useState<FigmaPage[]>([]);
   const [selectedPageId, setSelectedPageId] = useState("");
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
@@ -655,9 +784,24 @@ export default function Home() {
 
   const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
   const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
+  const currentProject = projects.find((project) => project.id === activeProjectId) ?? null;
+  const currentProjectSources = useMemo(
+    () => importedSources.filter((source) => source.projectId === activeProjectId),
+    [activeProjectId, importedSources],
+  );
+  const selectedImportedSource = currentProjectSources.find((source) => source.id === activeSourceId) ?? null;
+  const currentProjectLibraryRows = useMemo(
+    () =>
+      libraryRows.filter((row) =>
+        activeProjectId
+          ? row.projectId === activeProjectId || (!row.projectId && activeProjectId === LEGACY_PROJECT_ID)
+          : false,
+      ),
+    [activeProjectId, libraryRows],
+  );
   const hasDraftSource = Boolean(draftFigmaUrl.trim());
   const hasAppliedSource = Boolean(appliedFigmaUrl && figmaInfo.mode !== "invalid" && figmaInfo.mode !== "unsupported");
-  const activeInputInfo = hasAppliedSource ? figmaInfo : draftInfo;
+  const showImportForm = !currentProjectSources.length || isAddingSource;
   const pageOptions = hasImportedPages ? loadedPages : [];
   const selectedPage = pageOptions.find((page) => page.id === selectedPageId) ?? null;
   const needsPageSelection = hasAppliedSource;
@@ -669,12 +813,72 @@ export default function Home() {
     analysisModelOptions.find((option) => option.id === selectedAnalysisModelId) ?? analysisModelOptions[0];
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      const storedProjects = readStoredProjects();
+      const storedSources = readStoredFigmaSources();
+      const storedActiveProjectId = readStoredActiveProjectId();
+      const nextActiveProjectId =
+        storedProjects.find((project) => project.id === storedActiveProjectId)?.id ?? storedProjects[0]?.id ?? "";
+      const nextSource = storedSources.find((source) => source.projectId === nextActiveProjectId) ?? null;
+
+      setProjects(storedProjects);
+      setImportedSources(storedSources);
+      setActiveProjectId(nextActiveProjectId);
+      setIsProjectModalOpen(!storedProjects.length);
+      setIsAddingSource(!nextSource);
+      if (nextSource) {
+        const selectedSourcePageId = nextSource.pages.some((page) => page.id === nextSource.selectedPageId)
+          ? nextSource.selectedPageId
+          : "";
+
+        setActiveSourceId(nextSource.id);
+        setDraftFigmaUrl("");
+        setAppliedFigmaUrl(nextSource.normalizedUrl);
+        setLoadedPages(nextSource.pages);
+        setSelectedPageId(selectedSourcePageId);
+        setHasImportedPages(true);
+        setPageLoadError(nextSource.pages.length ? "" : "這個來源沒有讀到可分析的 Page");
+        setAnalysisState("");
+      } else {
+        setActiveSourceId("");
+        setDraftFigmaUrl("");
+        setAppliedFigmaUrl("");
+        setLoadedPages([]);
+        setSelectedPageId("");
+        setHasImportedPages(false);
+        setPageLoadError("");
+        setAnalysisState("尚未提供 Figma 連結");
+      }
       setLibraryRows(readStoredEventLibrary());
       setHasLoadedLibrary(true);
+      setHasLoadedWorkspace(true);
     }, 0);
 
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!hasLoadedWorkspace) {
+      return;
+    }
+
+    window.localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+  }, [hasLoadedWorkspace, projects]);
+
+  useEffect(() => {
+    if (!hasLoadedWorkspace) {
+      return;
+    }
+
+    window.localStorage.setItem(ACTIVE_PROJECT_STORAGE_KEY, activeProjectId);
+  }, [activeProjectId, hasLoadedWorkspace]);
+
+  useEffect(() => {
+    if (!hasLoadedWorkspace) {
+      return;
+    }
+
+    window.localStorage.setItem(FIGMA_SOURCES_STORAGE_KEY, JSON.stringify(importedSources));
+  }, [hasLoadedWorkspace, importedSources]);
 
   useEffect(() => {
     if (!hasLoadedLibrary) {
@@ -787,8 +991,9 @@ export default function Home() {
   }, [analysisRows, filter, hasAnalyzed, hasAppliedSource, priorityFilter, query]);
 
   const librarySourceOptions = useMemo(
-    () => Array.from(new Set(libraryRows.map((row) => cleanScopeName(row.sourceName, "Figma 來源")).filter(Boolean))),
-    [libraryRows],
+    () =>
+      Array.from(new Set(currentProjectLibraryRows.map((row) => cleanScopeName(row.sourceName, "Figma 來源")).filter(Boolean))),
+    [currentProjectLibraryRows],
   );
   const effectiveLibrarySourceFilter =
     librarySourceFilter === "All" || librarySourceOptions.includes(librarySourceFilter) ? librarySourceFilter : "All";
@@ -796,7 +1001,7 @@ export default function Home() {
   const libraryVisibleRows = useMemo(() => {
     const normalizedQuery = libraryQuery.trim().toLowerCase();
 
-    return libraryRows.filter((row) => {
+    return currentProjectLibraryRows.filter((row) => {
       const typeMatch = libraryTypeFilter === "All" || row.eventType === libraryTypeFilter;
       const priorityMatch = libraryPriorityFilter === "All" || row.priority === libraryPriorityFilter;
       const sourceMatch =
@@ -824,7 +1029,7 @@ export default function Home() {
 
       return typeMatch && priorityMatch && sourceMatch && queryMatch;
     });
-  }, [effectiveLibrarySourceFilter, libraryPriorityFilter, libraryQuery, libraryRows, libraryTypeFilter]);
+  }, [currentProjectLibraryRows, effectiveLibrarySourceFilter, libraryPriorityFilter, libraryQuery, libraryTypeFilter]);
 
   const summary = useMemo(() => {
     const rows = hasAppliedSource && hasAnalyzed ? analysisRows : [];
@@ -852,9 +1057,181 @@ export default function Home() {
     ];
   }, [analysisRows, hasAnalyzed, hasAppliedSource]);
 
+  function applyImportedSourceToState(source: ImportedFigmaSource | null) {
+    if (!source) {
+      setActiveSourceId("");
+      setDraftFigmaUrl("");
+      setAppliedFigmaUrl("");
+      setLoadedPages([]);
+      setSelectedPageId("");
+      setIsPageMenuOpen(false);
+      setHasImportedPages(false);
+      setPageLoadError("");
+      resetAnalysisResult();
+      setFilter("All");
+      setPriorityFilter("All");
+      setQuery("");
+      setAnalysisState("尚未提供 Figma 連結");
+      return;
+    }
+
+    const selectedSourcePageId = source.pages.some((page) => page.id === source.selectedPageId)
+      ? source.selectedPageId
+      : "";
+
+    setActiveSourceId(source.id);
+    setDraftFigmaUrl("");
+    setAppliedFigmaUrl(source.normalizedUrl);
+    setLoadedPages(source.pages);
+    setSelectedPageId(selectedSourcePageId);
+    setIsPageMenuOpen(false);
+    setHasImportedPages(true);
+    setPageLoadError(source.pages.length ? "" : "這個來源沒有讀到可分析的 Page");
+    setIsAddingSource(false);
+    resetAnalysisResult();
+    setFilter("All");
+    setPriorityFilter("All");
+    setQuery("");
+    setAnalysisState("");
+  }
+
+  function createImportedSource(nextInfo: FigmaSourceInfo, pages: FigmaPage[]): ImportedFigmaSource {
+    const existingSource = importedSources.find(
+      (source) => source.id === getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo),
+    );
+    const selectedSourcePageId =
+      existingSource?.selectedPageId && pages.some((page) => page.id === existingSource.selectedPageId)
+        ? existingSource.selectedPageId
+        : "";
+    const now = new Date().toISOString();
+
+    return {
+      id: getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo),
+      projectId: activeProjectId || LEGACY_PROJECT_ID,
+      mode: nextInfo.mode === "node" ? "node" : "file",
+      fileKey: nextInfo.fileKey,
+      fileName: cleanScopeName(nextInfo.fileName, "Figma 來源", 48),
+      nodeId: nextInfo.nodeId,
+      nodeName: nextInfo.nodeName ? cleanScopeName(nextInfo.nodeName, "指定節點", 48) : "",
+      normalizedUrl: nextInfo.normalizedUrl,
+      pages,
+      selectedPageId: selectedSourcePageId,
+      importedAt: existingSource?.importedAt ?? now,
+      updatedAt: now,
+    };
+  }
+
+  function saveImportedSource(nextInfo: FigmaSourceInfo, pages: FigmaPage[]) {
+    const source = createImportedSource(nextInfo, pages);
+
+    setImportedSources((currentSources) => {
+      const nextSources = currentSources.filter((currentSource) => currentSource.id !== source.id);
+
+      return [source, ...nextSources];
+    });
+    applyImportedSourceToState(source);
+  }
+
+  function handleSwitchProject(projectId: string) {
+    const nextProject = projects.find((project) => project.id === projectId);
+
+    if (!nextProject) {
+      return;
+    }
+
+    const nextSource = importedSources.find((source) => source.projectId === projectId) ?? null;
+
+    setActiveProjectId(projectId);
+    setLibraryQuery("");
+    setLibraryTypeFilter("All");
+    setLibraryPriorityFilter("All");
+    setLibrarySourceFilter("All");
+    setIsAddingSource(!nextSource);
+    applyImportedSourceToState(nextSource);
+  }
+
+  function handleOpenProjectModal() {
+    setProjectNameDraft("");
+    setIsProjectModalOpen(true);
+  }
+
+  function handleSaveProject() {
+    const projectName = projectNameDraft.trim();
+
+    if (!projectName) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const isFirstProject = projects.length === 0;
+    const project: TrackingProject = {
+      id: `project_${hashText(`${projectName}|${now}`)}`,
+      name: cleanScopeName(projectName, "未命名專案", 40),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setProjects((currentProjects) => [project, ...currentProjects]);
+    setActiveProjectId(project.id);
+    setProjectNameDraft("");
+    setIsProjectModalOpen(false);
+    setIsAddingSource(true);
+    setLibraryQuery("");
+    setLibraryTypeFilter("All");
+    setLibraryPriorityFilter("All");
+    setLibrarySourceFilter("All");
+    if (isFirstProject) {
+      setLibraryRows((currentRows) =>
+        currentRows.map((row) => (row.projectId === LEGACY_PROJECT_ID ? { ...row, projectId: project.id } : row)),
+      );
+    }
+    applyImportedSourceToState(null);
+  }
+
+  function handleStartAddSource() {
+    setIsAddingSource(true);
+    applyImportedSourceToState(null);
+  }
+
+  function handleCancelAddSource() {
+    const nextSource =
+      currentProjectSources.find((source) => source.id === activeSourceId) ?? currentProjectSources[0] ?? null;
+
+    setIsAddingSource(!nextSource);
+    applyImportedSourceToState(nextSource);
+  }
+
+  function handleSelectImportedSource(sourceId: string) {
+    const source = currentProjectSources.find((currentSource) => currentSource.id === sourceId);
+
+    if (source) {
+      applyImportedSourceToState(source);
+    }
+  }
+
+  function handleDeleteImportedSource(sourceId: string) {
+    const remainingProjectSources = currentProjectSources.filter((source) => source.id !== sourceId);
+    const nextSource = remainingProjectSources[0] ?? null;
+
+    setImportedSources((currentSources) => currentSources.filter((source) => source.id !== sourceId));
+
+    if (sourceId === activeSourceId || !nextSource) {
+      setIsAddingSource(!nextSource);
+      applyImportedSourceToState(nextSource);
+    }
+  }
+
   function getLibraryId(row: TrackingEvent) {
     return `evt_${hashText(
-      [figmaInfo.fileKey, figmaInfo.nodeId || selectedPageId || "file", row.id, row.page, row.area, row.eventName].join("|"),
+      [
+        activeProjectId || LEGACY_PROJECT_ID,
+        figmaInfo.fileKey,
+        figmaInfo.nodeId || selectedPageId || "file",
+        row.id,
+        row.page,
+        row.area,
+        row.eventName,
+      ].join("|"),
     )}`;
   }
 
@@ -862,6 +1239,7 @@ export default function Home() {
     return {
       ...row,
       libraryId: getLibraryId(row),
+      projectId: activeProjectId || LEGACY_PROJECT_ID,
       sourceName: selectedPage
         ? `${cleanScopeName(figmaInfo.fileName, "Figma 來源")} / ${selectedPage.name}`
         : cleanScopeName(figmaInfo.fileName || "Figma 來源", "Figma 來源"),
@@ -956,7 +1334,7 @@ export default function Home() {
   }
 
   function handleConfirmClearLibrary() {
-    setLibraryRows([]);
+    setLibraryRows((currentRows) => currentRows.filter((row) => row.projectId !== activeProjectId));
     setLibraryQuery("");
     setLibraryTypeFilter("All");
     setLibraryPriorityFilter("All");
@@ -1018,7 +1396,7 @@ export default function Home() {
       setSelectedPageId("");
       setHasImportedPages(false);
       setPageLoadError("");
-      return;
+      return [];
     }
 
     setIsLoadingPages(true);
@@ -1052,6 +1430,7 @@ export default function Home() {
       setHasImportedPages(true);
       setPageLoadError(pages.length ? "" : "這份 Figma 檔案沒有讀到可分析的 Page");
       setAnalysisState("");
+      return pages;
     } catch (error) {
       const message = error instanceof Error ? error.message : "無法讀取 Figma Page 清單";
 
@@ -1061,12 +1440,18 @@ export default function Home() {
       setHasImportedPages(false);
       setPageLoadError(message);
       setAnalysisState("");
+      return [];
     } finally {
       setIsLoadingPages(false);
     }
   }
 
   async function handleApplySource() {
+    if (!activeProjectId) {
+      handleOpenProjectModal();
+      return;
+    }
+
     const nextInfo = parseFigmaUrl(draftFigmaUrl);
 
     if (nextInfo.mode === "empty") {
@@ -1085,7 +1470,7 @@ export default function Home() {
     }
 
     setAppliedFigmaUrl(nextInfo.normalizedUrl);
-    setDraftFigmaUrl(nextInfo.normalizedUrl);
+    setDraftFigmaUrl("");
     setLoadedPages([]);
     setSelectedPageId("");
     setIsPageMenuOpen(false);
@@ -1097,26 +1482,26 @@ export default function Home() {
     setQuery("");
     setAnalysisState("");
 
-    await loadFigmaPages(nextInfo);
-  }
+    const pages = await loadFigmaPages(nextInfo);
 
-  function handleClearSource() {
-    setDraftFigmaUrl("");
-    setAppliedFigmaUrl("");
-    setLoadedPages([]);
-    setSelectedPageId("");
-    setIsPageMenuOpen(false);
-    setHasImportedPages(false);
-    setPageLoadError("");
-    setFilter("All");
-    setPriorityFilter("All");
-    setQuery("");
-    resetAnalysisResult();
-    setAnalysisState("尚未提供 Figma 連結");
+    if (pages.length) {
+      saveImportedSource(nextInfo, pages);
+    }
   }
 
   function handleSelectPage(pageId: string) {
     setSelectedPageId(pageId);
+    setImportedSources((currentSources) =>
+      currentSources.map((source) =>
+        source.id === activeSourceId
+          ? {
+              ...source,
+              selectedPageId: pageId,
+              updatedAt: new Date().toISOString(),
+            }
+          : source,
+      ),
+    );
     setIsPageMenuOpen(false);
     resetAnalysisResult();
     setAnalysisState(pageId ? "" : "請先選擇要分析的 Page");
@@ -1257,7 +1642,7 @@ export default function Home() {
                     ? "沒有符合條件的分析指標"
                     : hasAppliedSource
                       ? "尚未產生埋點建議"
-                      : "尚未套用 Figma 來源";
+                      : "尚未套用 Figma 連結";
   const tableEmptyDescription = isAnalyzing
     ? "正在讀取Figma稿件"
     : analysisError
@@ -1291,13 +1676,14 @@ export default function Home() {
               <p className="eyebrow">Product Analytics</p>
               <h1>埋點事件庫</h1>
             </div>
+            {currentProject ? <span className="project-chip">{currentProject.name}</span> : null}
           </div>
           <div className="topbar-actions">
             <button
               className="secondary-button danger-button"
               type="button"
               onClick={() => setIsClearLibraryConfirmOpen(true)}
-              disabled={!libraryRows.length}
+              disabled={!currentProjectLibraryRows.length}
             >
               清除全部事件
             </button>
@@ -1316,7 +1702,7 @@ export default function Home() {
           <div className="library-toolbar">
             <div>
               <p className="eyebrow">Selected Events</p>
-              <h2>已儲存 {libraryRows.length} 筆埋點事件</h2>
+              <h2>已儲存 {currentProjectLibraryRows.length} 筆埋點事件</h2>
             </div>
             <div className="toolbar-controls library-controls">
               <label className="filter-field search-field">
@@ -1326,7 +1712,7 @@ export default function Home() {
                   placeholder="搜尋事件、頁面或屬性"
                   value={libraryQuery}
                   onChange={(event) => setLibraryQuery(event.target.value)}
-                  disabled={!libraryRows.length}
+                  disabled={!currentProjectLibraryRows.length}
                 />
               </label>
               <label className="filter-field">
@@ -1335,7 +1721,7 @@ export default function Home() {
                   aria-label="埋點事件庫事件類型篩選"
                   value={libraryTypeFilter}
                   onChange={(event) => setLibraryTypeFilter(event.target.value as EventFilter)}
-                  disabled={!libraryRows.length}
+                  disabled={!currentProjectLibraryRows.length}
                 >
                   {filterOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -1350,7 +1736,7 @@ export default function Home() {
                   aria-label="埋點事件庫優先級篩選"
                   value={libraryPriorityFilter}
                   onChange={(event) => setLibraryPriorityFilter(event.target.value as PriorityFilter)}
-                  disabled={!libraryRows.length}
+                  disabled={!currentProjectLibraryRows.length}
                 >
                   {priorityOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -1365,7 +1751,7 @@ export default function Home() {
                   aria-label="埋點事件庫來源篩選"
                   value={effectiveLibrarySourceFilter}
                   onChange={(event) => setLibrarySourceFilter(event.target.value)}
-                  disabled={!libraryRows.length || !librarySourceOptions.length}
+                  disabled={!currentProjectLibraryRows.length || !librarySourceOptions.length}
                 >
                   <option value="All">全部</option>
                   {librarySourceOptions.map((sourceName) => (
@@ -1432,9 +1818,9 @@ export default function Home() {
             </div>
           ) : (
             <div className="library-page-empty">
-              <strong>{libraryRows.length ? "沒有符合條件的埋點事件" : "尚未選取埋點追蹤事項"}</strong>
+              <strong>{currentProjectLibraryRows.length ? "沒有符合條件的埋點事件" : "尚未選取埋點追蹤事項"}</strong>
               <span>
-                {libraryRows.length
+                {currentProjectLibraryRows.length
                   ? "請調整搜尋文字、事件類型、優先級或來源篩選。"
                   : "回到工具頁，在分析結果表格勾選事件後，會加入這裡並保留到你自行刪除。"}
               </span>
@@ -1542,7 +1928,7 @@ export default function Home() {
             <div className="confirm-dialog">
               <p className="eyebrow">Confirm</p>
               <h2>清除全部事件？</h2>
-              <p>會清除埋點事件庫中的 {libraryRows.length} 筆事件，首頁目前的分析結果不會被刪除。</p>
+              <p>會清除目前專案「{currentProject?.name ?? "未命名專案"}」中的 {currentProjectLibraryRows.length} 筆事件，首頁目前的分析結果不會被刪除。</p>
               <div className="confirm-actions">
                 <button className="secondary-button" type="button" onClick={() => setIsClearLibraryConfirmOpen(false)}>
                   取消
@@ -1554,6 +1940,49 @@ export default function Home() {
             </div>
           </div>
         ) : null}
+
+        {isProjectModalOpen ? (
+          <div className="confirm-layer" role="dialog" aria-modal="true" aria-label="新增專案">
+            {projects.length ? (
+              <button
+                className="drawer-scrim"
+                type="button"
+                onClick={() => setIsProjectModalOpen(false)}
+                aria-label="關閉新增專案"
+              />
+            ) : null}
+            <form
+              className="confirm-dialog project-dialog"
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleSaveProject();
+              }}
+            >
+              <p className="eyebrow">Project</p>
+              <h2>新增專案</h2>
+              <p>先建立專案名稱，再匯入 Figma 連結與儲存埋點事件。</p>
+              <label className="project-name-field">
+                專案名稱
+                <input
+                  autoFocus
+                  value={projectNameDraft}
+                  onChange={(event) => setProjectNameDraft(event.target.value)}
+                  placeholder="例如：慢病醫療人員平台"
+                />
+              </label>
+              <div className={projects.length ? "confirm-actions" : "confirm-actions single-action"}>
+                {projects.length ? (
+                  <button className="secondary-button" type="button" onClick={() => setIsProjectModalOpen(false)}>
+                    取消
+                  </button>
+                ) : null}
+                <button className="primary-button" type="submit" disabled={!projectNameDraft.trim()}>
+                  建立專案
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
       </main>
     );
   }
@@ -1561,14 +1990,40 @@ export default function Home() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div>
-          <p className="eyebrow">Product Analytics</p>
-          <h1>埋點規劃工具</h1>
+        <div className="topbar-title">
+          <div>
+            <p className="eyebrow">Product Analytics</p>
+            <h1>埋點規劃工具</h1>
+          </div>
+          <div className="project-switcher" aria-label="專案切換">
+            <label>
+              <span>專案</span>
+              <select
+                aria-label="切換專案"
+                value={activeProjectId}
+                onChange={(event) => handleSwitchProject(event.target.value)}
+                disabled={!projects.length}
+              >
+                {projects.length ? (
+                  projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">尚未建立專案</option>
+                )}
+              </select>
+            </label>
+            <button className="secondary-button small-button" type="button" onClick={handleOpenProjectModal}>
+              新增專案
+            </button>
+          </div>
         </div>
         <div className="topbar-actions" aria-label="匯出工具">
           <button className="secondary-button library-button" type="button" onClick={() => setIsLibraryOpen(true)}>
             埋點事件庫
-            <span>{libraryRows.length}</span>
+            <span>{currentProjectLibraryRows.length}</span>
           </button>
           <button className="primary-button" type="button" onClick={handleExportExcel} disabled={!visibleRows.length}>
             匯出 Excel
@@ -1581,67 +2036,113 @@ export default function Home() {
           <div className="panel-section">
             <div className="section-heading">
               <span className="section-index">01</span>
-              <h2>Figma 來源</h2>
+              <h2>Figma 連結</h2>
             </div>
 
             <div className="source-editor">
-              <label className="field-label" htmlFor="figma-url">
-                Figma 連結
-              </label>
-              <textarea
-                id="figma-url"
-                value={draftFigmaUrl}
-                onChange={(event) => setDraftFigmaUrl(event.target.value)}
-                placeholder="貼上 Figma design/file 連結"
-                rows={3}
-                disabled={hasAppliedSource || isLoadingPages}
-              />
-              {hasAppliedSource ? (
-                <div className="source-empty source-locked">
-                  <strong>已匯入來源</strong>
-                  <span>{cleanScopeName(figmaInfo.fileName, "Figma 來源")}。若要更換連結，請點擊更換 Figma 來源。</span>
-                </div>
-              ) : activeInputInfo.mode === "empty" ? (
+              {!currentProject ? (
                 <div className="source-empty">
-                  <strong>尚未匯入來源</strong>
-                  <span>貼上 Figma 連結後按下匯入，系統會先讀取可分析的頁面範圍。</span>
+                  <strong>請先建立專案</strong>
+                  <span>建立專案後，就能匯入 Figma 連結並產出埋點建議。</span>
                 </div>
-              ) : (
-                <div className={`source-empty source-${activeInputInfo.mode}`}>
-                  <strong>
-                    {activeInputInfo.mode === "node"
-                      ? "將匯入這份 Figma 稿件"
-                      : activeInputInfo.mode === "file"
-                        ? "將匯入整份檔案"
-                        : activeInputInfo.mode === "unsupported"
-                          ? "目前不支援這種 Figma 來源"
-                          : "這看起來不是有效的 Figma 連結"}
-                  </strong>
-                  <span>
-                    {activeInputInfo.mode === "file" || activeInputInfo.mode === "node"
-                      ? "匯入後會列出 Page，請選定一頁再進行 AI 分析。"
-                      : "請改貼 Figma design/file 連結。"}
-                  </span>
-                </div>
-              )}
-              <div className="source-actions single-action">
-                {hasAppliedSource ? (
-                  <button className="secondary-button danger-button" type="button" onClick={handleClearSource}>
-                    更換 Figma 來源
-                  </button>
-                ) : (
-                  <>
+              ) : showImportForm ? (
+                <>
+                  <label className="field-label" htmlFor="figma-url">
+                    Figma 連結
+                  </label>
+                  <textarea
+                    id="figma-url"
+                    value={draftFigmaUrl}
+                    onChange={(event) => setDraftFigmaUrl(event.target.value)}
+                    placeholder="貼上 Figma design/file 連結"
+                    rows={3}
+                    disabled={isLoadingPages}
+                  />
+                  {draftInfo.mode === "empty" ? (
+                    <div className="source-empty">
+                      <strong>尚未匯入來源</strong>
+                      <span>貼上 Figma 連結後按下匯入，系統會先讀取可分析的 Page。</span>
+                    </div>
+                  ) : (
+                    <div className={`source-empty source-${draftInfo.mode}`}>
+                      <strong>
+                        {draftInfo.mode === "node"
+                          ? "將匯入這份 Figma 稿件"
+                          : draftInfo.mode === "file"
+                            ? "將匯入整份檔案"
+                            : draftInfo.mode === "unsupported"
+                              ? "目前不支援這種 Figma 連結"
+                              : "這看起來不是有效的 Figma 連結"}
+                      </strong>
+                      <span>
+                        {draftInfo.mode === "file" || draftInfo.mode === "node"
+                          ? "匯入後會列出 Page，請選定一頁再進行 AI 分析。"
+                          : "請改貼 Figma design/file 連結。"}
+                      </span>
+                    </div>
+                  )}
+                  <div className={currentProjectSources.length ? "source-actions" : "source-actions single-action"}>
                     <button
                       className="primary-button"
                       type="button"
                       onClick={handleApplySource}
                       disabled={!hasDraftSource || isLoadingPages}
                     >
-                      匯入
+                      {isLoadingPages ? "讀取中" : "匯入"}
                     </button>
-                  </>
-                )}
-              </div>
+                    {currentProjectSources.length ? (
+                      <button className="secondary-button" type="button" onClick={handleCancelAddSource} disabled={isLoadingPages}>
+                        取消
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label className="field-label" htmlFor="imported-source">
+                    已匯入來源
+                  </label>
+                  <div className="source-switcher">
+                    <select
+                      id="imported-source"
+                      aria-label="切換已匯入 Figma 來源"
+                      value={activeSourceId}
+                      onChange={(event) => handleSelectImportedSource(event.target.value)}
+                      disabled={isLoadingPages || isAnalyzing}
+                    >
+                      {currentProjectSources.map((source) => (
+                        <option key={source.id} value={source.id}>
+                          {source.fileName}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="secondary-button danger-button"
+                      type="button"
+                      onClick={() => handleDeleteImportedSource(activeSourceId)}
+                      disabled={!activeSourceId || isLoadingPages || isAnalyzing}
+                    >
+                      刪除來源
+                    </button>
+                  </div>
+                  <div className="source-empty source-locked">
+                    <strong>{selectedImportedSource?.fileName ?? cleanScopeName(figmaInfo.fileName, "Figma 來源")}</strong>
+                    <span>
+                      已載入 {selectedImportedSource?.pages.length ?? pageOptions.length} 個 Page。可切換已匯入來源或新增其他 Figma 連結。
+                    </span>
+                  </div>
+                  <div className="source-actions single-action">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={handleStartAddSource}
+                      disabled={isLoadingPages || isAnalyzing}
+                    >
+                      新增 Figma 連結
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -1702,7 +2203,7 @@ export default function Home() {
                         <span>
                           {hasImportedPages
                             ? "請確認 Figma 權限，或改貼指定 Page / 節點連結。"
-                            : "匯入 Figma 來源後，會列出這份檔案中的 Page。"}
+                            : "匯入 Figma 連結後，會列出這份檔案中的 Page。"}
                         </span>
                       </div>
                     )}
@@ -2003,6 +2504,49 @@ export default function Home() {
                 </div>
               </>
           </aside>
+        ) : null}
+
+        {isProjectModalOpen ? (
+          <div className="confirm-layer" role="dialog" aria-modal="true" aria-label="新增專案">
+            {projects.length ? (
+              <button
+                className="drawer-scrim"
+                type="button"
+                onClick={() => setIsProjectModalOpen(false)}
+                aria-label="關閉新增專案"
+              />
+            ) : null}
+            <form
+              className="confirm-dialog project-dialog"
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleSaveProject();
+              }}
+            >
+              <p className="eyebrow">Project</p>
+              <h2>{projects.length ? "新增專案" : "建立第一個專案"}</h2>
+              <p>每個專案會有自己的 Figma 連結與埋點事件庫，方便不同產品或版本分開管理。</p>
+              <label className="project-name-field">
+                專案名稱
+                <input
+                  autoFocus
+                  value={projectNameDraft}
+                  onChange={(event) => setProjectNameDraft(event.target.value)}
+                  placeholder="例如：慢病醫療人員平台"
+                />
+              </label>
+              <div className={projects.length ? "confirm-actions" : "confirm-actions single-action"}>
+                {projects.length ? (
+                  <button className="secondary-button" type="button" onClick={() => setIsProjectModalOpen(false)}>
+                    取消
+                  </button>
+                ) : null}
+                <button className="primary-button" type="submit" disabled={!projectNameDraft.trim()}>
+                  建立專案
+                </button>
+              </div>
+            </form>
+          </div>
         ) : null}
       </section>
     </main>
