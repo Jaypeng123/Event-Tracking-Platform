@@ -31,6 +31,10 @@ Worker runtime 需要在 Cloudflare 的 Variables and Secrets 新增：
 - `FIGMA_ACCESS_TOKEN`
 - `OPENAI_API_KEY`
 
+若要在模型選單使用 Gemini，另外新增：
+
+- `GEMINI_API_KEY`
+
 若要本機手動部署，可先登入 Wrangler 後執行：
 
 ```bash
@@ -40,5 +44,6 @@ npm run deploy:cloudflare
 ## Notes
 
 - 不要把 Figma token 或 OpenAI API key 寫進程式碼或 commit。
-- `GEMINI_API_KEY` 是選用 fallback，主要分析模型預設為 OpenAI 的 `gpt-5.6-luna`。
+- `GEMINI_API_KEY` 是選用模型來源；沒有設定時，Gemini 選項會提示需要新增部署環境變數。
+- 主要分析模型預設為 OpenAI 的 `gpt-5.6-luna`。
 - 目前保留 `.openai/hosting.json`，因此原本的 Sites 測試站仍可繼續作為內部測試版使用。

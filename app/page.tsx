@@ -75,10 +75,14 @@ type AnalyzeResponse = {
   message?: string;
 };
 
-type OpenAIModelOption = {
+type ModelProvider = "openai" | "gemini";
+
+type AnalysisModelOption = {
   id: string;
   label: string;
   note: string;
+  provider: ModelProvider;
+  model: string;
 };
 
 type FigmaPagesResponse = {
@@ -139,10 +143,56 @@ const priorityDescriptions: Record<TrackingEvent["priority"], string> = {
   P2: "微互動與細節優化",
 };
 
-const openAIModelOptions: OpenAIModelOption[] = [
-  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna", note: "低成本，適合大量頁面初步分析" },
-  { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", note: "品質與成本平衡" },
-  { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", note: "較高品質，適合複雜頁面" },
+const analysisModelOptions: AnalysisModelOption[] = [
+  {
+    id: "openai:gpt-5.6-luna",
+    label: "GPT-5.6 Luna",
+    note: "低成本，適合大量頁面初步分析",
+    provider: "openai",
+    model: "gpt-5.6-luna",
+  },
+  {
+    id: "openai:gpt-5.6-terra",
+    label: "GPT-5.6 Terra",
+    note: "品質與成本平衡",
+    provider: "openai",
+    model: "gpt-5.6-terra",
+  },
+  {
+    id: "openai:gpt-5.6-sol",
+    label: "GPT-5.6 Sol",
+    note: "較高品質，適合複雜頁面",
+    provider: "openai",
+    model: "gpt-5.6-sol",
+  },
+  {
+    id: "gemini:gemini-3.7-flash",
+    label: "Gemini 3.7 Flash",
+    note: "適合快速產出第一版埋點建議",
+    provider: "gemini",
+    model: "gemini-3.7-flash",
+  },
+  {
+    id: "gemini:gemini-3.6-flash",
+    label: "Gemini 3.6 Flash",
+    note: "穩定、平衡的 Gemini 分析模型",
+    provider: "gemini",
+    model: "gemini-3.6-flash",
+  },
+  {
+    id: "gemini:gemini-3.5-flash",
+    label: "Gemini 3.5 Flash",
+    note: "適合一般頁面的穩定分析",
+    provider: "gemini",
+    model: "gemini-3.5-flash",
+  },
+  {
+    id: "gemini:gemini-3.5-flash-lite",
+    label: "Gemini 3.5 Flash Lite",
+    note: "低成本，適合輕量頁面掃描",
+    provider: "gemini",
+    model: "gemini-3.5-flash-lite",
+  },
 ];
 
 const libraryColumnConfig: Array<{ key: LibraryColumnKey; label: string; width: number; minWidth: number }> = [
@@ -578,7 +628,7 @@ export default function Home() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [selectedOpenAIModel, setSelectedOpenAIModel] = useState(openAIModelOptions[0].id);
+  const [selectedAnalysisModelId, setSelectedAnalysisModelId] = useState(analysisModelOptions[0].id);
   const [analysisRows, setAnalysisRows] = useState<TrackingEvent[]>([]);
   const [analysisError, setAnalysisError] = useState("");
   const [, setAnalysisState] = useState("尚未提供 Figma 連結");
@@ -615,6 +665,8 @@ export default function Home() {
     hasAppliedSource && (needsPageSelection || isLoadingPages || Boolean(pageOptions.length) || Boolean(pageLoadError));
   const canAnalyzeCurrentSource =
     hasAppliedSource && !isLoadingPages && hasImportedPages && Boolean(selectedPage);
+  const selectedAnalysisModel =
+    analysisModelOptions.find((option) => option.id === selectedAnalysisModelId) ?? analysisModelOptions[0];
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setLibraryRows(readStoredEventLibrary());
@@ -1126,8 +1178,9 @@ export default function Home() {
           source: sourceForAnalysis,
           scope: sourceForAnalysis.nodeId ? "node" : "file",
           ai: {
-            provider: "openai",
-            openAIModel: selectedOpenAIModel,
+            provider: selectedAnalysisModel.provider,
+            openAIModel: selectedAnalysisModel.provider === "openai" ? selectedAnalysisModel.model : undefined,
+            geminiModel: selectedAnalysisModel.provider === "gemini" ? selectedAnalysisModel.model : undefined,
           },
         }),
         cache: "no-store",
@@ -1659,16 +1712,30 @@ export default function Home() {
                     <span>分析模型</span>
                     <select
                       aria-label="分析模型"
-                      value={selectedOpenAIModel}
-                      onChange={(event) => setSelectedOpenAIModel(event.target.value)}
+                      value={selectedAnalysisModelId}
+                      onChange={(event) => setSelectedAnalysisModelId(event.target.value)}
                       disabled={isAnalyzing}
                     >
-                      {openAIModelOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
+                      <optgroup label="OpenAI">
+                        {analysisModelOptions
+                          .filter((option) => option.provider === "openai")
+                          .map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.label}
+                            </option>
+                          ))}
+                      </optgroup>
+                      <optgroup label="Gemini">
+                        {analysisModelOptions
+                          .filter((option) => option.provider === "gemini")
+                          .map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.label}
+                            </option>
+                          ))}
+                      </optgroup>
                     </select>
+                    <small>{selectedAnalysisModel.note}</small>
                   </label>
                 </div>
                 {pageOptions.length && !isLoadingPages ? (

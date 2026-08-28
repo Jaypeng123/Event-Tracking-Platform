@@ -1020,9 +1020,17 @@ select:disabled {
 .compact-model-field select {
   height: 42px;
   justify-self: end;
-  max-width: 188px;
+  max-width: 236px;
   min-width: 0;
   width: 100%;
+}
+
+.compact-model-field small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  grid-column: 1 / -1;
+  line-height: 1.5;
 }
 
 .page-select {

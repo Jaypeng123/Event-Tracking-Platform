@@ -29,6 +29,7 @@ type AnalyzeRequest = {
   ai?: {
     provider?: string;
     openAIModel?: string;
+    geminiModel?: string;
   };
   source?: {
     fileKey?: string;
@@ -81,8 +82,16 @@ const openAIModelOptions = [
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
 ] as const;
+const geminiModelOptions = [
+  { id: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
+  { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+  { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+  { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash Lite" },
+] as const;
 const supportedOpenAIModelIds = new Set<string>(openAIModelOptions.map((option) => option.id));
+const supportedGeminiModelIds = new Set<string>(geminiModelOptions.map((option) => option.id));
 const DEFAULT_OPENAI_MODEL = openAIModelOptions[0].id;
+const DEFAULT_GEMINI_MODEL = geminiModelOptions[0].id;
 
 const eventSchema = {
   type: "object",
@@ -216,6 +225,21 @@ function normalizeOpenAIModel(value: unknown) {
   }
 
   return DEFAULT_OPENAI_MODEL;
+}
+
+function normalizeGeminiModel(value: unknown) {
+  const requestedModel = asString(value);
+  const environmentModel = asString(process.env.GEMINI_MODEL);
+
+  if (supportedGeminiModelIds.has(requestedModel)) {
+    return requestedModel;
+  }
+
+  if (supportedGeminiModelIds.has(environmentModel)) {
+    return environmentModel;
+  }
+
+  return DEFAULT_GEMINI_MODEL;
 }
 
 function buildFigmaHeaders(token: string) {
@@ -1351,8 +1375,12 @@ function extractGeminiError(payload: Record<string, unknown>, fallback: string) 
   return asString(payload.raw, fallback);
 }
 
-async function analyzeWithGemini(requestBody: AnalyzeRequest, figmaContext: FigmaContext, geminiKey: string) {
-  const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
+async function analyzeWithGemini(
+  requestBody: AnalyzeRequest,
+  figmaContext: FigmaContext,
+  geminiKey: string,
+  model: string,
+) {
   const response = await fetch(`${GEMINI_GENERATE_CONTENT_BASE_URL}/models/${encodeURIComponent(model)}:generateContent`, {
     method: "POST",
     headers: {
@@ -1415,6 +1443,7 @@ export async function POST(request: Request) {
   const fileKey = asString(requestBody.source?.fileKey);
   const requestedProvider = normalizeModelProvider(requestBody.ai?.provider);
   const selectedOpenAIModel = normalizeOpenAIModel(requestBody.ai?.openAIModel);
+  const selectedGeminiModel = normalizeGeminiModel(requestBody.ai?.geminiModel);
   const openAIKey = process.env.OPENAI_API_KEY?.trim();
   const geminiKey = (
     process.env.GEMINI_API_KEY ||
@@ -1441,7 +1470,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         code: "missing_openai_key",
-        message: "已選擇 OpenAI 模型，但尚未設定 OPENAI_API_KEY。請在 Sites 環境變數加入 OpenAI API key 後再分析。",
+        message: "已選擇 OpenAI 模型，但尚未設定 OPENAI_API_KEY。請在部署環境變數加入 OpenAI API key 後再分析。",
       },
       { status: 503 },
     );
@@ -1451,7 +1480,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         code: "missing_gemini_key",
-        message: "已選擇 Gemini 模型，但尚未設定 GEMINI_API_KEY 或 GOOGLE_AI_API_KEY。請在 Sites 環境變數加入 Google AI key 後再分析。",
+        message: "已選擇 Gemini 模型，但尚未設定 GEMINI_API_KEY 或 GOOGLE_AI_API_KEY。請在部署環境變數加入 Google AI key 後再分析。",
       },
       { status: 503 },
     );
@@ -1461,7 +1490,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         code: "missing_ai_key",
-        message: "尚未設定 GEMINI_API_KEY 或 OPENAI_API_KEY，因此不會產生假資料。請在 Sites 環境變數加入 AI API key 後再分析。",
+        message: "尚未設定 GEMINI_API_KEY 或 OPENAI_API_KEY，因此不會產生假資料。請在部署環境變數加入 AI API key 後再分析。",
       },
       { status: 503 },
     );
@@ -1491,10 +1520,10 @@ export async function POST(request: Request) {
     if (requestedProvider === "openai") {
       analysis = await analyzeWithOpenAI(requestBody, figmaContext, openAIKey as string, selectedOpenAIModel);
     } else if (requestedProvider === "gemini") {
-      analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey as string);
+      analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey as string, selectedGeminiModel);
     } else if (geminiKey) {
       try {
-        analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey);
+        analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey, selectedGeminiModel);
       } catch (error) {
         providerError = error;
       }
