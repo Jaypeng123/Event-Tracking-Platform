@@ -29,7 +29,6 @@ type SavedTrackingEvent = TrackingEvent & {
 
 type EventFilter = "All" | TrackingEvent["eventType"];
 type PriorityFilter = "All" | TrackingEvent["priority"];
-type ModelProvider = "gemini" | "openai";
 type FigmaSourceMode = "empty" | "file" | "node" | "unsupported" | "invalid";
 
 type FigmaPage = {
@@ -73,13 +72,6 @@ type OpenAIModelOption = {
 type FigmaPagesResponse = {
   fileName?: string;
   pages?: FigmaPage[];
-  message?: string;
-};
-
-type OpenAIModelsResponse = {
-  models?: OpenAIModelOption[];
-  availableModelIds?: string[];
-  defaultModel?: string;
   message?: string;
 };
 
@@ -401,31 +393,6 @@ async function readFigmaPagesResponse(response: Response): Promise<FigmaPagesRes
   };
 }
 
-async function readOpenAIModelsResponse(response: Response): Promise<OpenAIModelsResponse> {
-  const contentType = response.headers.get("content-type") ?? "";
-  const rawText = await response.text();
-  const trimmedText = rawText.trim();
-  const looksLikeJson = contentType.includes("application/json") || trimmedText.startsWith("{") || trimmedText.startsWith("[");
-
-  if (looksLikeJson) {
-    try {
-      return JSON.parse(trimmedText) as OpenAIModelsResponse;
-    } catch {
-      return { message: `OpenAI 模型清單 API 回傳了無法解析的 JSON（HTTP ${response.status}）。` };
-    }
-  }
-
-  if (response.status === 401) {
-    return {
-      message: "確認 OpenAI 可用模型需要 ChatGPT 登入授權。請重新整理並完成登入後再試。",
-    };
-  }
-
-  return {
-    message: `OpenAI 模型清單 API 回傳非 JSON 內容（HTTP ${response.status}）。請重新整理後再試。`,
-  };
-}
-
 function toExcelXml(rows: TrackingEvent[]) {
   const header = exportColumns
     .map(
@@ -510,15 +477,9 @@ export default function Home() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [modelProvider, setModelProvider] = useState<ModelProvider>("openai");
   const [selectedOpenAIModel, setSelectedOpenAIModel] = useState(openAIModelOptions[0].id);
-  const [availableOpenAIModelIds, setAvailableOpenAIModelIds] = useState<string[]>([]);
-  const [openAIModelMessage, setOpenAIModelMessage] = useState("");
-  const [isCheckingOpenAIModels, setIsCheckingOpenAIModels] = useState(false);
   const [analysisRows, setAnalysisRows] = useState<TrackingEvent[]>([]);
-  const [analysisProcess, setAnalysisProcess] = useState<string[]>([]);
   const [analysisError, setAnalysisError] = useState("");
-  const [analysisMeta, setAnalysisMeta] = useState<AnalyzeResponse["figma"] | null>(null);
   const [, setAnalysisState] = useState("尚未提供 Figma 連結");
   const [libraryRows, setLibraryRows] = useState<SavedTrackingEvent[]>([]);
   const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
@@ -531,6 +492,7 @@ export default function Home() {
   const [editingLibraryId, setEditingLibraryId] = useState("");
   const [libraryDraft, setLibraryDraft] = useState<SavedTrackingEvent | null>(null);
   const analysisRunId = useRef(0);
+  const pageSelectRef = useRef<HTMLDivElement | null>(null);
 
   const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
   const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
@@ -544,9 +506,6 @@ export default function Home() {
     hasAppliedSource && (needsPageSelection || isLoadingPages || Boolean(pageOptions.length) || Boolean(pageLoadError));
   const canAnalyzeCurrentSource =
     hasAppliedSource && !isLoadingPages && hasImportedPages && Boolean(selectedPage);
-  const currentOpenAIModel =
-    openAIModelOptions.find((option) => option.id === selectedOpenAIModel) ?? openAIModelOptions[0];
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setLibraryRows(readStoredEventLibrary());
@@ -563,6 +522,34 @@ export default function Home() {
 
     window.localStorage.setItem(EVENT_LIBRARY_STORAGE_KEY, JSON.stringify(libraryRows));
   }, [hasLoadedLibrary, libraryRows]);
+
+  useEffect(() => {
+    if (!isPageMenuOpen) {
+      return;
+    }
+
+    function handleOutsidePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (target instanceof Node && pageSelectRef.current && !pageSelectRef.current.contains(target)) {
+        setIsPageMenuOpen(false);
+      }
+    }
+
+    function handleEscapeKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsPageMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    document.addEventListener("keydown", handleEscapeKey);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+      document.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, [isPageMenuOpen]);
 
   const visibleRows = useMemo(() => {
     if (!hasAppliedSource || !hasAnalyzed) {
@@ -784,9 +771,7 @@ export default function Home() {
     analysisRunId.current += 1;
     setIsAnalyzing(false);
     setAnalysisRows([]);
-    setAnalysisProcess([]);
     setAnalysisError("");
-    setAnalysisMeta(null);
     setSelectedId("");
     setIsDetailOpen(false);
     setHasAnalyzed(false);
@@ -902,48 +887,6 @@ export default function Home() {
     setAnalysisState(pageId ? "" : "請先選擇要分析的 Page");
   }
 
-  async function handleCheckOpenAIModels() {
-    setIsCheckingOpenAIModels(true);
-    setOpenAIModelMessage("");
-
-    try {
-      const response = await fetch("/api/openai-models", {
-        headers: {
-          Accept: "application/json",
-        },
-        cache: "no-store",
-        credentials: "include",
-      });
-      const result = await readOpenAIModelsResponse(response);
-
-      if (!response.ok) {
-        throw new Error(result.message || "無法確認 OpenAI 可用模型");
-      }
-
-      const nextAvailableModelIds = Array.isArray(result.availableModelIds) ? result.availableModelIds : [];
-
-      setAvailableOpenAIModelIds(nextAvailableModelIds);
-
-      if (nextAvailableModelIds.length && !nextAvailableModelIds.includes(selectedOpenAIModel)) {
-        setSelectedOpenAIModel(result.defaultModel ?? nextAvailableModelIds[0]);
-      }
-
-      setOpenAIModelMessage(
-        result.message ||
-          (nextAvailableModelIds.length
-            ? `這組 API key 可使用：${nextAvailableModelIds.join("、")}`
-            : "這組 API key 目前沒有回傳平台支援的 OpenAI 模型。"),
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "無法確認 OpenAI 可用模型";
-
-      setAvailableOpenAIModelIds([]);
-      setOpenAIModelMessage(message);
-    } finally {
-      setIsCheckingOpenAIModels(false);
-    }
-  }
-
   async function handleAnalyze() {
     if (!canAnalyzeCurrentSource) {
       if (!hasAppliedSource) {
@@ -971,7 +914,6 @@ export default function Home() {
     }
 
     const runId = analysisRunId.current + 1;
-    const nextProcess = ["解析 Figma 連結", "讀取 Figma 檔案節點", "呼叫模型判斷追蹤點", "整理成 Excel 欄位格式"];
 
     analysisRunId.current = runId;
     setIsAnalyzing(true);
@@ -980,8 +922,6 @@ export default function Home() {
     setIsDetailOpen(false);
     setHasAnalyzed(false);
     setAnalysisError("");
-    setAnalysisMeta(null);
-    setAnalysisProcess(nextProcess);
     setAnalysisState("");
 
     try {
@@ -1003,7 +943,7 @@ export default function Home() {
           source: sourceForAnalysis,
           scope: sourceForAnalysis.nodeId ? "node" : "file",
           ai: {
-            provider: modelProvider,
+            provider: "openai",
             openAIModel: selectedOpenAIModel,
           },
         }),
@@ -1026,12 +966,6 @@ export default function Home() {
       setSelectedId("");
       setIsDetailOpen(false);
       setHasAnalyzed(true);
-      setAnalysisProcess(
-        result.analysisProcess?.length
-          ? result.analysisProcess
-          : ["讀取 Figma 節點結構", "整理頁面與功能區塊", "判斷第一階段追蹤事件", "輸出 Excel 欄位格式"],
-      );
-      setAnalysisMeta(result.figma ?? null);
       setAnalysisState("");
     } catch (error) {
       if (analysisRunId.current !== runId) {
@@ -1041,7 +975,6 @@ export default function Home() {
       const message = error instanceof Error ? error.message : "AI 分析失敗，請稍後再試";
 
       setAnalysisError(message);
-      setAnalysisProcess([]);
       setAnalysisState(message);
     } finally {
       if (analysisRunId.current === runId) {
@@ -1435,7 +1368,7 @@ export default function Home() {
                 value={draftFigmaUrl}
                 onChange={(event) => setDraftFigmaUrl(event.target.value)}
                 placeholder="貼上 Figma design/file 連結"
-                rows={5}
+                rows={3}
                 disabled={hasAppliedSource || isLoadingPages}
               />
               {hasAppliedSource ? (
@@ -1500,14 +1433,21 @@ export default function Home() {
                   <label className="field-label" htmlFor="figma-page">
                     分析 Page
                   </label>
-                  <button
-                    className="secondary-button small-button"
-                    type="button"
-                    onClick={() => loadFigmaPages(figmaInfo)}
-                    disabled={isLoadingPages}
-                  >
-                    重新匯入
-                  </button>
+                  <label className="compact-model-field">
+                    <span>分析模型</span>
+                    <select
+                      aria-label="分析模型"
+                      value={selectedOpenAIModel}
+                      onChange={(event) => setSelectedOpenAIModel(event.target.value)}
+                      disabled={isAnalyzing}
+                    >
+                      {openAIModelOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
                 {isLoadingPages ? (
                   <div className="source-empty">
@@ -1516,7 +1456,7 @@ export default function Home() {
                   </div>
                 ) : pageOptions.length ? (
                   <>
-                    <div className={`page-select ${isPageMenuOpen ? "open" : ""}`} id="figma-page">
+                    <div className={`page-select ${isPageMenuOpen ? "open" : ""}`} id="figma-page" ref={pageSelectRef}>
                       <button
                         className="page-select-trigger"
                         type="button"
@@ -1557,72 +1497,13 @@ export default function Home() {
                     <span>
                       {hasImportedPages
                         ? "請確認 Figma 權限，或改貼指定 Page / 節點連結。"
-                        : "按下重新匯入後，會列出這份檔案中的 Page。"}
+                        : "匯入 Figma 來源後，會列出這份檔案中的 Page。"}
                     </span>
                   </div>
                 )}
                 {pageLoadError ? <span className="page-selector-message">{pageLoadError}</span> : null}
               </div>
             ) : null}
-
-            <div className="model-selector">
-              <div className="model-selector-header">
-                <span className="field-label">分析模型</span>
-                {modelProvider === "openai" ? (
-                  <button
-                    className="secondary-button small-button"
-                    type="button"
-                    onClick={handleCheckOpenAIModels}
-                    disabled={isCheckingOpenAIModels || isAnalyzing}
-                  >
-                    {isCheckingOpenAIModels ? "確認中" : "確認可用模型"}
-                  </button>
-                ) : null}
-              </div>
-              <div className="model-toggle" role="group" aria-label="模型來源">
-                <button
-                  className={modelProvider === "openai" ? "active" : ""}
-                  type="button"
-                  onClick={() => setModelProvider("openai")}
-                  disabled={isAnalyzing}
-                >
-                  OpenAI
-                </button>
-                <button
-                  className={modelProvider === "gemini" ? "active" : ""}
-                  type="button"
-                  onClick={() => setModelProvider("gemini")}
-                  disabled={isAnalyzing}
-                >
-                  Gemini
-                </button>
-              </div>
-              {modelProvider === "openai" ? (
-                <label className="model-select-field">
-                  <span>OpenAI 模型</span>
-                  <select
-                    aria-label="OpenAI 模型"
-                    value={selectedOpenAIModel}
-                    onChange={(event) => setSelectedOpenAIModel(event.target.value)}
-                    disabled={isAnalyzing}
-                  >
-                    {openAIModelOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <small>{currentOpenAIModel.note}</small>
-                </label>
-              ) : (
-                <p className="model-note">使用站台目前設定的 Gemini 模型。</p>
-              )}
-              {modelProvider === "openai" && openAIModelMessage ? (
-                <p className={`model-status ${availableOpenAIModelIds.length ? "" : "model-status-warning"}`}>
-                  {openAIModelMessage}
-                </p>
-              ) : null}
-            </div>
 
             <button
               className="primary-button full-width"
@@ -1652,30 +1533,9 @@ export default function Home() {
                     <span>正在讀取 Figma 結構並產出追蹤建議</span>
                   </div>
                 </div>
-                <ol>
-                  {analysisProcess.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
               </div>
             ) : null}
             {analysisError ? <p className="analysis-state error-state">{analysisError}</p> : null}
-            {!isAnalyzing && hasAnalyzed && analysisProcess.length ? (
-              <div className="analysis-process">
-                <strong>分析流程</strong>
-                <ol>
-                  {analysisProcess.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
-                {analysisMeta ? (
-                  <span>
-                    已讀取 {analysisMeta.targetName ?? "Figma 節點"}，節點 {analysisMeta.nodeCount ?? 0} 個，文字{" "}
-                    {analysisMeta.textCount ?? 0} 筆
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
             </div>
           ) : null}
         </aside>

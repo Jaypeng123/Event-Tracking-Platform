@@ -347,6 +347,13 @@ function buildInstructions() {
     "page 與 area 不可留空，也不可使用未命名頁面、未命名區塊等占位詞；若節點名稱不清楚，請根據畫面文字自行命名具體頁面與區塊。",
     "page 與 area 不要保留版本號或頁碼，例如 個人中心（1.4~1.8）要輸出 個人中心，慢病管理-待處理 (4) 要輸出 慢病管理-待處理。",
     "trigger、purpose、analysisValue、metricCalculation 不可每列重複相同模板句。",
+    "文案請參考埋點文案建議表的語氣：白話、精準、像正式產品分析規格，不要文言、不要空泛修飾、不要落落長。",
+    "trigger 建議使用「使用者於...時觸發」或「進入...且內容載入完成時觸發」，句子要能讓工程師知道何時送事件。",
+    "purpose 用「了解、衡量、評估」開頭，描述要觀察的使用行為或功能價值，避免和分析原因重複。",
+    "analysisValue 用「驗證」開頭，寫出要驗證的產品假設；若有後續判斷，使用「若...可...」補充。",
+    "metricCalculation 必須是可落地公式，使用 UV、Session、點擊次數、曝光次數、完成次數等分母分子，例如 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%。",
+    "同一欄若包含多個公式、事件或觀察點，請用換行列點格式，每一項以「- 」開頭；不要用一長串逗號或分號塞在同一行。",
+    "每個欄位請盡量控制在 1 到 2 句內；若超過 2 個重點，改用列點。",
     "properties、propertyDefinitions、dataTypes、sampleValues 都必須是以分號分隔的字串，不要輸出物件或陣列。",
     "追蹤目的要回答為什麼要追這個事件；analysisValue 欄位代表「分析的原因」，必須用可驗證假設來寫，例如：假設醫療人員需要快速查看待處理個案，因此追蹤此入口可驗證它是否承擔主要分流角色。",
     "metricCalculation 欄位必須寫出指標計算方式，例如 使用個人中心的 UV ÷ 平台活躍 UV、點擊待處理的 UV ÷ 進入個人中心的 UV。",
@@ -369,9 +376,16 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         "eventName 必須是語意化 verb_object，不可使用 use_ 開頭，不可包含 Figma 版本號、頁碼範圍或 layer 編號。",
         "每一筆事件都要對應不同的使用行為或分析問題，避免多筆事件只有編號不同。",
         "priority 要依據 P0/P1/P2 定義分級；P0 通常不超過全部事件的一半。",
-        "analysisValue 要寫分析的原因：先提出想驗證的產品假設，再說追這筆事件能如何驗證。",
-        "metricCalculation 要寫可直接放進 Excel 的計算描述。",
+        "trigger、purpose、analysisValue、metricCalculation 要參考使用者提供的埋點文案建議：白話、可執行、避免文言與長句堆疊。",
+        "purpose 寫成「了解 / 衡量 / 評估...」，聚焦使用行為或功能價值。",
+        "analysisValue 寫成「驗證...」的產品假設，必要時補上「若...可...」的後續判斷。",
+        "metricCalculation 要寫可直接放進 Excel 的計算描述，若有多個公式請用換行列點，每行以 - 開頭。",
         "屬性欄位只輸出分號分隔字串，例如 page_name; user_role; entry_source。",
+      ],
+      copyStyleReference: [
+        "追蹤目的範例：了解醫療人員進入個案詳情頁後最常查看哪些資訊模組，判斷資訊架構與各頁籤功能權重。",
+        "分析原因範例：驗證預設切換至「健康總覽」是否符合多數醫護人員第一需求；若特定頁籤使用率低，可評估簡化或合併。",
+        "指標計算範例：- 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%\n- 各頁籤瀏覽 UV ÷ 進入個案詳情頁總 UV × 100%",
       ],
       spreadsheetColumnReference: [
         "編號",
@@ -767,60 +781,60 @@ function deriveEventName(page: string, area: string, eventType: EventType, index
 function deriveTrigger(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
-      return `進入「${page}」且主要內容載入完成時`;
+      return `使用者進入「${page}」且主要內容載入完成時觸發。`;
     case "SearchFilter":
-      return `在「${page}」使用「${area}」搜尋、篩選或排序條件時`;
+      return `使用者於「${page}」套用「${area}」搜尋、篩選或排序條件時觸發。`;
     case "FlowComplete":
-      return `完成「${area}」流程送出或狀態更新時`;
+      return `使用者完成「${area}」流程送出或狀態更新時觸發。`;
     case "CreateEdit":
-      return `在「${area}」完成新增、編輯或儲存時`;
+      return `使用者於「${area}」完成新增、編輯或儲存時觸發。`;
     case "ErrorDropoff":
-      return `「${area}」出現錯誤、限制提示或使用者中途離開時`;
+      return `「${area}」出現錯誤、限制提示，或使用者中途離開時觸發。`;
     case "ExportDownload":
-      return `點擊「${area}」匯出或下載並送出請求時`;
+      return `使用者點擊「${area}」匯出或下載，且系統送出請求時觸發。`;
     case "Click":
     default:
-      return `點擊「${area}」主要操作入口時`;
+      return `使用者點擊「${area}」主要操作入口時觸發。`;
   }
 }
 
 function derivePurpose(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
-      return `確認「${page}」是否為醫療人員日常查看資料的主要入口`;
+      return `了解醫療人員是否會把「${page}」作為日常查看資料的主要入口。`;
     case "SearchFilter":
-      return `了解醫療人員是否依賴「${area}」縮小病患或任務範圍`;
+      return `了解醫療人員是否仰賴「${area}」縮小個案或任務範圍。`;
     case "FlowComplete":
-      return `衡量醫療人員是否能順利完成「${area}」的關鍵流程`;
+      return `衡量醫療人員是否能順利完成「${area}」的關鍵流程。`;
     case "CreateEdit":
-      return `評估醫療人員建立或維護「${area}」資料的實際需求`;
+      return `評估醫療人員建立或維護「${area}」資料的實際需求。`;
     case "ErrorDropoff":
-      return `找出醫療人員在「${area}」操作時的阻塞、錯誤與流失情境`;
+      return `找出醫療人員在「${area}」操作時容易卡住或放棄的情境。`;
     case "ExportDownload":
-      return `確認醫療人員是否需要把「${area}」資料帶出平台使用`;
+      return `評估醫療人員是否需要將「${area}」資料帶出平台使用。`;
     case "Click":
     default:
-      return `衡量醫療人員對「${area}」入口的點擊率與使用需求`;
+      return `衡量醫療人員對「${area}」入口的點擊率與使用需求。`;
   }
 }
 
 function deriveAnalysisValue(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
-      return `假設「${page}」承擔醫療人員的主要工作入口，因此需要驗證實際觸達率與角色採用是否符合預期。`;
+      return `驗證「${page}」是否符合醫療人員的主要工作入口需求；若觸達率偏低，可評估入口層級或導流方式。`;
     case "SearchFilter":
-      return `假設醫療人員需要快速縮小個案範圍，因此追蹤「${area}」可驗證搜尋或篩選是否降低查找成本。`;
+      return `驗證醫療人員是否需要透過「${area}」快速縮小個案範圍；若使用率高，可優先優化條件預設與結果呈現。`;
     case "FlowComplete":
-      return `假設「${area}」是完成照護作業的關鍵步驟，因此需要驗證流程是否能被順利完成並找出中斷點。`;
+      return `驗證「${area}」是否能支援醫療人員完成主要照護作業；若完成率偏低，可回頭檢查流程步驟與欄位負擔。`;
     case "CreateEdit":
-      return `假設醫療人員會持續維護「${area}」資料，因此追蹤建立與編輯可驗證此功能是否真的支援日常作業。`;
+      return `驗證醫療人員是否真的需要維護「${area}」資料；若建立或編輯行為少，可評估功能入口與欄位必要性。`;
     case "ErrorDropoff":
-      return `假設「${area}」可能造成操作卡關，因此追蹤錯誤或流失可驗證是否需要調整規則、文案或流程。`;
+      return `驗證「${area}」是否造成操作卡關；若錯誤或離開比例偏高，可優先調整規則、提示文案或流程順序。`;
     case "ExportDownload":
-      return `假設醫療人員需要將「${area}」資料用於院內溝通或後續紀錄，因此追蹤匯出下載可驗證外部使用需求。`;
+      return `驗證醫療人員是否需要將「${area}」資料用於院內溝通或後續紀錄；若下載率高，可評估報表格式與欄位完整度。`;
     case "Click":
     default:
-      return `假設「${area}」是醫療人員前往下一步任務的重要入口，因此追蹤點擊可驗證入口是否有效承接需求。`;
+      return `驗證「${area}」是否能有效引導醫療人員前往下一步任務；若點擊率低，可檢查文案、位置與視覺權重。`;
   }
 }
 
@@ -890,6 +904,29 @@ function normalizeEventName(value: string, page: string, area: string, eventType
   return allowedVerbs.has(verb) ? normalized : deriveEventName(page, area, eventType, index);
 }
 
+function toReadableBulletList(value: string) {
+  const normalized = value.replace(/\r/g, "").replace(/\s*\n+\s*/g, "\n").trim();
+  const lines = normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length > 1) {
+    return lines.map((line) => (line.startsWith("- ") ? line : `- ${line.replace(/^[-•]\s*/, "")}`)).join("\n");
+  }
+
+  const formulaParts = normalized
+    .split(/\s*[；;]\s*(?=[^；;\n]*(?:÷|=|×|UV|Session|次數|率))/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (formulaParts.length > 1) {
+    return formulaParts.map((part) => (part.startsWith("- ") ? part : `- ${part}`)).join("\n");
+  }
+
+  return normalized;
+}
+
 function isGenericSentence(value: string) {
   const normalized = value.trim();
 
@@ -947,9 +984,8 @@ function normalizeEvent(value: unknown, index: number, figmaContext: FigmaContex
   const trigger = asString(record.trigger);
   const purpose = asString(record.purpose);
   const analysisValue = asString(record.analysisValue);
-  const metricCalculation = toSemicolonString(
-    record.metricCalculation,
-    deriveMetricCalculation(page, area, normalizedEventType),
+  const metricCalculation = toReadableBulletList(
+    toSemicolonString(record.metricCalculation, deriveMetricCalculation(page, area, normalizedEventType)),
   );
 
   return {
