@@ -18,16 +18,20 @@ npm run dev
 
 ## Cloudflare Workers Deployment
 
-這個 repo 已包含 `wrangler.jsonc` 與 GitHub Actions。推到 GitHub 後，`main` 分支會自動 build 並部署到 Cloudflare Workers。
+這個 repo 已包含 `wrangler.jsonc`。在 Cloudflare Workers & Pages 連接 GitHub repo 後，`main` 分支會自動 build 並部署到 Cloudflare Workers。
 
-GitHub repo 需要新增以下 Secrets：
+Cloudflare build settings 建議使用：
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+- Root directory: `/`
+
+Worker runtime 需要在 Cloudflare 的 Variables and Secrets 新增：
+
 - `FIGMA_ACCESS_TOKEN`
 - `OPENAI_API_KEY`
 
-Cloudflare API token 需要能部署 Workers。若要手動部署，可先登入 Wrangler 後執行：
+若要本機手動部署，可先登入 Wrangler 後執行：
 
 ```bash
 npm run deploy:cloudflare
