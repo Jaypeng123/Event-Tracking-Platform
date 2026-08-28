@@ -1257,7 +1257,7 @@ select:disabled {
 .event-table {
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 2220px;
+  min-width: 2020px;
   table-layout: fixed;
   width: 100%;
 }
@@ -1323,11 +1323,10 @@ select:disabled {
   width: 220px;
 }
 
-.event-col-name {
-  width: 200px;
+.event-col-trigger {
+  width: 300px;
 }
 
-.event-col-trigger,
 .event-col-purpose {
   width: 230px;
 }

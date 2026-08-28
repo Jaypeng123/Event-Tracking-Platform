@@ -36,7 +36,7 @@ type LibraryColumnKey =
   | "index"
   | "page"
   | "metricName"
-  | "eventName"
+  | "trigger"
   | "purpose"
   | "analysisValue"
   | "metricCalculation"
@@ -149,7 +149,7 @@ const libraryColumnConfig: Array<{ key: LibraryColumnKey; label: string; width: 
   { key: "index", label: "編號", width: 72, minWidth: 56 },
   { key: "page", label: "頁面/區塊", width: 220, minWidth: 150 },
   { key: "metricName", label: "指標名稱", width: 230, minWidth: 160 },
-  { key: "eventName", label: "事件名稱", width: 230, minWidth: 170 },
+  { key: "trigger", label: "埋點事件", width: 300, minWidth: 210 },
   { key: "purpose", label: "追蹤目的", width: 270, minWidth: 190 },
   { key: "analysisValue", label: "分析的原因", width: 320, minWidth: 220 },
   { key: "metricCalculation", label: "指標計算", width: 300, minWidth: 210 },
@@ -169,8 +169,7 @@ const exportColumns: Array<{ key: keyof TrackingEvent; label: string }> = [
   { key: "id", label: "編號" },
   { key: "page", label: "頁面/區塊" },
   { key: "metricName", label: "指標名稱" },
-  { key: "eventName", label: "事件名稱 (En)" },
-  { key: "trigger", label: "觸發時機/事件定義 (Trigger/Event Definition)" },
+  { key: "trigger", label: "埋點事件" },
   { key: "purpose", label: "追蹤目的" },
   { key: "analysisValue", label: "分析的原因" },
   { key: "metricCalculation", label: "指標計算" },
@@ -297,6 +296,15 @@ function toNumberedDisplayList(value: string) {
   return parts.length > 1 ? parts.map((part, index) => `${index + 1}. ${part}`).join("\n") : normalized;
 }
 
+function normalizeTrackingEventCopy(value: string) {
+  return value
+    .replace(/^使用者\s*/, "")
+    .replace(/時觸發。?$/g, "")
+    .replace(/觸發。?$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
   const normalizedUrl = normalizeUrl(rawUrl);
 
@@ -399,6 +407,10 @@ function normalizeStoredEvent(row: SavedTrackingEvent): SavedTrackingEvent {
         ? cleanScopeName(row.metricName, deriveMetricName(page, area, eventType), 36)
         : deriveMetricName(page, area, eventType),
     eventType,
+    trigger:
+      typeof row.trigger === "string" && row.trigger.trim()
+        ? normalizeTrackingEventCopy(row.trigger)
+        : "完成指定埋點行為",
     analysisValue:
       typeof row.analysisValue === "string" && row.analysisValue.trim()
         ? toNumberedDisplayList(row.analysisValue)
@@ -526,7 +538,6 @@ function toExcelXml(rows: TrackingEvent[]) {
       <Column ss:Width="86"/>
       <Column ss:Width="132"/>
       <Column ss:Width="158"/>
-      <Column ss:Width="148"/>
       <Column ss:Width="260"/>
       <Column ss:Width="240"/>
       <Column ss:Width="260"/>
@@ -709,7 +720,6 @@ export default function Home() {
           row.page,
           row.area,
           row.metricName,
-          row.eventName,
           row.trigger,
           row.purpose,
           row.analysisValue,
@@ -747,7 +757,6 @@ export default function Home() {
           row.page,
           row.area,
           row.metricName,
-          row.eventName,
           row.eventType,
           row.trigger,
           row.purpose,
@@ -1339,7 +1348,7 @@ export default function Home() {
                         <strong>{row.metricName}</strong>
                       </td>
                       <td>
-                        <code>{row.eventName}</code>
+                        {row.trigger}
                         <span>{typeLabels[row.eventType]}</span>
                       </td>
                       <td>{row.purpose}</td>
@@ -1417,13 +1426,6 @@ export default function Home() {
                   />
                 </label>
                 <label>
-                  事件名稱
-                  <input
-                    value={libraryDraft.eventName}
-                    onChange={(event) => handleUpdateLibraryDraft("eventName", event.target.value)}
-                  />
-                </label>
-                <label>
                   屬性參數
                   <input
                     value={libraryDraft.properties}
@@ -1431,7 +1433,7 @@ export default function Home() {
                   />
                 </label>
                 <label className="wide-field">
-                  觸發時機
+                  埋點事件
                   <textarea
                     value={libraryDraft.trigger}
                     onChange={(event) => handleUpdateLibraryDraft("trigger", event.target.value)}
@@ -1784,7 +1786,6 @@ export default function Home() {
                 <col className="event-col-id" />
                 <col className="event-col-page" />
                 <col className="event-col-metric-name" />
-                <col className="event-col-name" />
                 <col className="event-col-trigger" />
                 <col className="event-col-purpose" />
                 <col className="event-col-analysis" />
@@ -1800,8 +1801,7 @@ export default function Home() {
                   <th>編號</th>
                   <th>頁面/區塊</th>
                   <th>指標名稱</th>
-                  <th>事件名稱</th>
-                  <th>觸發時機</th>
+                  <th>埋點事件</th>
                   <th>追蹤目的</th>
                   <th>分析的原因</th>
                   <th>指標計算</th>
@@ -1812,7 +1812,7 @@ export default function Home() {
               <tbody>
                 {visibleRows.length === 0 ? (
                   <tr className="empty-row">
-                    <td colSpan={11}>
+                    <td colSpan={10}>
                       <div className={`table-empty ${isAnalyzing ? "plain-loading" : ""}`}>
                         {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
                         <strong>{tableEmptyTitle}</strong>
@@ -1832,7 +1832,7 @@ export default function Home() {
                     >
                       <td className="select-column">
                         <input
-                          aria-label={`加入埋點事件庫：${row.eventName}`}
+                          aria-label={`加入埋點事件庫：${row.metricName}`}
                           checked={rowInLibrary}
                           type="checkbox"
                           onChange={(event) => handleToggleLibraryRow(row, event.target.checked)}
@@ -1857,12 +1857,11 @@ export default function Home() {
                       </td>
                       <td>{row.metricName}</td>
                       <td>
-                        <code>{row.eventName}</code>
+                        {row.trigger}
                         <span className={`type-pill type-${row.eventType.toLowerCase()}`}>
                           {typeLabels[row.eventType]}
                         </span>
                       </td>
-                      <td>{row.trigger}</td>
                       <td>{row.purpose}</td>
                       <td>{row.analysisValue}</td>
                       <td>{row.metricCalculation}</td>
@@ -1887,7 +1886,6 @@ export default function Home() {
                   <span className={`priority-pill priority-${selectedRow.priority.toLowerCase()}`}>
                     {selectedRow.priority}
                   </span>
-                  <code>{selectedRow.eventName}</code>
                   <button
                     className="icon-button detail-toggle"
                     type="button"
@@ -1908,7 +1906,7 @@ export default function Home() {
                     <dd>{selectedRow.purpose}</dd>
                   </div>
                   <div>
-                    <dt>事件定義</dt>
+                    <dt>埋點事件</dt>
                     <dd>{selectedRow.trigger}</dd>
                   </div>
                   <div>

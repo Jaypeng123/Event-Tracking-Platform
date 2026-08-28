@@ -350,9 +350,10 @@ function buildInstructions() {
     "page 與 area 不可留空，也不可使用未命名頁面、未命名區塊等占位詞；若節點名稱不清楚，請根據畫面文字自行命名具體頁面與區塊。",
     "page 與 area 不要保留版本號或頁碼，例如 個人中心（1.4~1.8）要輸出 個人中心，慢病管理-待處理 (4) 要輸出 慢病管理-待處理。",
     "metricName 是中文指標名稱，描述這筆埋點要衡量的指標，例如 個案推播通知使用率、個案詳情瀏覽率、進階搜尋使用率、健康計畫新增完成率、流程流失率。不可填 eventName，也不可直接使用 Figma layer name。",
+    "trigger 欄位在畫面與匯出中會命名為「埋點事件」，必須明確定義可實作的使用者行為，簡潔描述動作與結果，例如：點擊左側「推播通知」按鈕開啟彈窗、於彈窗點擊「確認」且成功建立通知。",
     "trigger、purpose、analysisValue、metricCalculation 不可每列重複相同模板句。",
     "文案請參考埋點文案建議表的語氣：白話、精準、像正式產品分析規格，不要文言、不要空泛修飾、不要落落長。",
-    "trigger 建議使用「使用者於...時觸發」或「進入...且內容載入完成時觸發」，句子要能讓工程師知道何時送事件。",
+    "trigger 不要寫成冗長的「使用者於...時觸發」格式，也不要只寫使用者完成主要互動；請直接寫行為，例如：點擊「待處理」切換列表、套用進階搜尋條件並回傳結果。",
     "purpose 用「了解、衡量、評估」開頭，描述要觀察的使用行為或功能價值，避免和分析原因重複。",
     "analysisValue 用「驗證」開頭，寫出要驗證的產品假設；若有後續判斷，使用「若...可...」補充。",
     "metricCalculation 必須是可落地公式，使用 UV、Session、點擊次數、曝光次數、完成次數等分母分子，例如 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%。",
@@ -381,6 +382,7 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         "eventName 必須是語意化 verb_object，不可使用 use_ 開頭，不可包含 Figma 版本號、頁碼範圍或 layer 編號。",
         "每一筆事件都要對應不同的使用行為或分析問題，避免多筆事件只有編號不同。",
         "priority 要依據 P0/P1/P2 定義分級；P0 通常不超過全部事件的一半。",
+        "trigger 是「埋點事件」欄位，要明確、簡潔、可實作，描述使用者做了什麼與必要結果。",
         "trigger、purpose、analysisValue、metricCalculation 要參考使用者提供的埋點文案建議：白話、可執行、避免文言與長句堆疊。",
         "purpose 寫成「了解 / 衡量 / 評估...」，聚焦使用行為或功能價值。",
         "analysisValue 寫成「驗證...」的產品假設，必要時補上「若...可...」的後續判斷。",
@@ -390,6 +392,7 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
       ],
       copyStyleReference: [
         "指標名稱範例：個案詳情瀏覽率、待處理狀態切換率、進階搜尋使用率、健康計畫新增完成率。",
+        "埋點事件範例：點擊左側「推播通知」按鈕開啟彈窗、於彈窗點擊「確認」且成功建立通知、套用進階搜尋條件並回傳結果。",
         "追蹤目的範例：了解醫療人員進入個案詳情頁後最常查看哪些資訊模組，判斷資訊架構與各頁籤功能權重。",
         "分析原因範例：驗證預設切換至「健康總覽」是否符合多數醫護人員第一需求；若特定頁籤使用率低，可評估簡化或合併。",
         "指標計算範例：1. 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%\n2. 各頁籤瀏覽 UV ÷ 進入個案詳情頁總 UV × 100%",
@@ -398,8 +401,7 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         "編號",
         "頁面/區塊",
         "指標名稱",
-        "事件名稱 (En)",
-        "觸發時機/事件定義",
+        "埋點事件",
         "追蹤目的",
         "分析的原因",
         "指標計算",
@@ -586,6 +588,8 @@ const genericScopeNames = new Set([
 
 const genericFallbackSentences = new Set([
   "使用者完成主要互動時",
+  "使用者完成主要互動時觸發",
+  "完成主要互動時",
   "衡量此功能是否被實際使用",
   "作為第一階段功能使用率與點擊率分析依據",
 ]);
@@ -812,21 +816,33 @@ function deriveMetricName(page: string, area: string, eventType: EventType) {
 function deriveTrigger(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
-      return `使用者進入「${page}」且主要內容載入完成時觸發。`;
+      return `進入「${page}」且主要內容載入完成`;
     case "SearchFilter":
-      return `使用者於「${page}」套用「${area}」搜尋、篩選或排序條件時觸發。`;
+      return `於「${page}」套用「${area}」搜尋或篩選條件`;
     case "FlowComplete":
-      return `使用者完成「${area}」流程送出或狀態更新時觸發。`;
+      return `完成「${area}」流程並成功送出`;
     case "CreateEdit":
-      return `使用者於「${area}」完成新增、編輯或儲存時觸發。`;
+      return `於「${area}」完成新增、編輯或儲存`;
     case "ErrorDropoff":
-      return `「${area}」出現錯誤、限制提示，或使用者中途離開時觸發。`;
+      return `於「${area}」遇到錯誤提示或中途離開`;
     case "ExportDownload":
-      return `使用者點擊「${area}」匯出或下載，且系統送出請求時觸發。`;
+      return `點擊「${area}」匯出或下載資料`;
     case "Click":
     default:
-      return `使用者點擊「${area}」主要操作入口時觸發。`;
+      return `點擊「${area}」主要操作入口`;
   }
+}
+
+function normalizeTriggerCopy(value: string, page: string, area: string, eventType: EventType) {
+  const source = isGenericSentence(value) ? deriveTrigger(page, area, eventType) : value;
+  const cleaned = source
+    .replace(/^使用者\s*/, "")
+    .replace(/時觸發。?$/g, "")
+    .replace(/觸發。?$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return cleaned || deriveTrigger(page, area, eventType);
 }
 
 function derivePurpose(page: string, area: string, eventType: EventType) {
@@ -1045,7 +1061,7 @@ function normalizeEvent(value: unknown, index: number, figmaContext: FigmaContex
     metricName,
     eventName,
     eventType: normalizedEventType,
-    trigger: isGenericSentence(trigger) ? deriveTrigger(page, area, normalizedEventType) : trigger,
+    trigger: normalizeTriggerCopy(trigger, page, area, normalizedEventType),
     purpose: isGenericSentence(purpose) ? derivePurpose(page, area, normalizedEventType) : purpose,
     analysisValue: isWeakAnalysisReason(analysisValue) ? derivedAnalysisValue : analysisValue,
     metricCalculation,
