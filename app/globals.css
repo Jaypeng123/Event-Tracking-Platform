@@ -426,14 +426,16 @@ select:disabled {
 
 .library-table-wrap {
   border-top: 1px solid var(--line);
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .library-table {
   border-collapse: separate;
   border-spacing: 0;
+  min-width: 100%;
   table-layout: fixed;
-  width: 100%;
+  width: max-content;
 }
 
 .library-table th,
@@ -457,6 +459,52 @@ select:disabled {
   position: sticky;
   top: 0;
   z-index: 1;
+}
+
+.resizable-header {
+  position: sticky;
+}
+
+.resizable-header-content {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.resizable-header-content > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.column-resize-handle {
+  align-self: stretch;
+  cursor: col-resize;
+  display: inline-flex;
+  flex: 0 0 12px;
+  justify-content: center;
+  margin: -12px -8px -12px 4px;
+  min-height: 40px;
+  touch-action: none;
+}
+
+.column-resize-handle::after {
+  background: rgb(255 255 255 / 32%);
+  border-radius: 999px;
+  content: "";
+  display: block;
+  margin: 9px 0;
+  width: 2px;
+}
+
+.column-resize-handle:hover::after,
+.resizable-header.resizing .column-resize-handle::after {
+  background: #ffffff;
+}
+
+.library-table.is-resizing {
+  user-select: none;
 }
 
 .library-table td span {
@@ -1209,7 +1257,7 @@ select:disabled {
 .event-table {
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 1780px;
+  min-width: 2220px;
   table-layout: fixed;
   width: 100%;
 }
@@ -1269,6 +1317,10 @@ select:disabled {
 
 .event-col-page {
   width: 190px;
+}
+
+.event-col-metric-name {
+  width: 220px;
 }
 
 .event-col-name {

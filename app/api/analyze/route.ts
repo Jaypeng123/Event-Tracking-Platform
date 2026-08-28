@@ -9,6 +9,7 @@ type TrackingEvent = {
   id: string;
   page: string;
   area: string;
+  metricName: string;
   eventName: string;
   eventType: EventType;
   trigger: string;
@@ -90,6 +91,7 @@ const eventSchema = {
     "id",
     "page",
     "area",
+    "metricName",
     "eventName",
     "eventType",
     "trigger",
@@ -107,6 +109,7 @@ const eventSchema = {
     id: { type: "string" },
     page: { type: "string" },
     area: { type: "string" },
+    metricName: { type: "string" },
     eventName: { type: "string" },
     eventType: {
       type: "string",
@@ -346,13 +349,14 @@ function buildInstructions() {
     "請只把真正關鍵的頁面曝光、核心入口、關鍵流程列為 P0；不要把全部事件都標成 P0。",
     "page 與 area 不可留空，也不可使用未命名頁面、未命名區塊等占位詞；若節點名稱不清楚，請根據畫面文字自行命名具體頁面與區塊。",
     "page 與 area 不要保留版本號或頁碼，例如 個人中心（1.4~1.8）要輸出 個人中心，慢病管理-待處理 (4) 要輸出 慢病管理-待處理。",
+    "metricName 是中文指標名稱，描述這筆埋點要衡量的指標，例如 個案推播通知使用率、個案詳情瀏覽率、進階搜尋使用率、健康計畫新增完成率、流程流失率。不可填 eventName，也不可直接使用 Figma layer name。",
     "trigger、purpose、analysisValue、metricCalculation 不可每列重複相同模板句。",
     "文案請參考埋點文案建議表的語氣：白話、精準、像正式產品分析規格，不要文言、不要空泛修飾、不要落落長。",
     "trigger 建議使用「使用者於...時觸發」或「進入...且內容載入完成時觸發」，句子要能讓工程師知道何時送事件。",
     "purpose 用「了解、衡量、評估」開頭，描述要觀察的使用行為或功能價值，避免和分析原因重複。",
     "analysisValue 用「驗證」開頭，寫出要驗證的產品假設；若有後續判斷，使用「若...可...」補充。",
     "metricCalculation 必須是可落地公式，使用 UV、Session、點擊次數、曝光次數、完成次數等分母分子，例如 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%。",
-    "同一欄若包含多個公式、事件或觀察點，請用換行列點格式，每一項以「- 」開頭；不要用一長串逗號或分號塞在同一行。",
+    "analysisValue 或 metricCalculation 若包含多個假設、公式、事件或觀察點，請用換行編號格式，每一項以「1.」「2.」「3.」開頭；不要用一長串逗號或分號塞在同一行。",
     "每個欄位請盡量控制在 1 到 2 句內；若超過 2 個重點，改用列點。",
     "properties、propertyDefinitions、dataTypes、sampleValues 都必須是以分號分隔的字串，不要輸出物件或陣列。",
     "追蹤目的要回答為什麼要追這個事件；analysisValue 欄位代表「分析的原因」，必須用可驗證假設來寫，例如：假設醫療人員需要快速查看待處理個案，因此追蹤此入口可驗證它是否承擔主要分流角色。",
@@ -372,6 +376,7 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
       requiredOutputRules: [
         "只要 figmaInspection.nodeCount 或 textCount 大於 0，就至少產出 6 筆第一階段追蹤事件；只有完全讀不到畫面內容時，events 才可回傳空陣列。",
         "page 與 area 必須自行命名，名稱要來自 Figma 節點、頁面、畫面文字或可合理推論的功能區塊。",
+        "metricName 必須是中文指標名稱，像正式儀表板指標，不可直接複製英文 eventName 或 Figma 圖層名稱。",
         "不要使用未命名頁面、未命名區塊、Arrow、ScrollerBar、Action Button、track_event_1、使用者完成主要互動時、衡量此功能是否被實際使用等占位內容。",
         "eventName 必須是語意化 verb_object，不可使用 use_ 開頭，不可包含 Figma 版本號、頁碼範圍或 layer 編號。",
         "每一筆事件都要對應不同的使用行為或分析問題，避免多筆事件只有編號不同。",
@@ -379,17 +384,20 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         "trigger、purpose、analysisValue、metricCalculation 要參考使用者提供的埋點文案建議：白話、可執行、避免文言與長句堆疊。",
         "purpose 寫成「了解 / 衡量 / 評估...」，聚焦使用行為或功能價值。",
         "analysisValue 寫成「驗證...」的產品假設，必要時補上「若...可...」的後續判斷。",
-        "metricCalculation 要寫可直接放進 Excel 的計算描述，若有多個公式請用換行列點，每行以 - 開頭。",
+        "metricCalculation 要寫可直接放進 Excel 的計算描述，若有多個公式請用換行編號，每行以 1.、2.、3. 開頭。",
+        "analysisValue 若有多個分析原因，也用換行編號，每行以 1.、2.、3. 開頭。",
         "屬性欄位只輸出分號分隔字串，例如 page_name; user_role; entry_source。",
       ],
       copyStyleReference: [
+        "指標名稱範例：個案詳情瀏覽率、待處理狀態切換率、進階搜尋使用率、健康計畫新增完成率。",
         "追蹤目的範例：了解醫療人員進入個案詳情頁後最常查看哪些資訊模組，判斷資訊架構與各頁籤功能權重。",
         "分析原因範例：驗證預設切換至「健康總覽」是否符合多數醫護人員第一需求；若特定頁籤使用率低，可評估簡化或合併。",
-        "指標計算範例：- 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%\n- 各頁籤瀏覽 UV ÷ 進入個案詳情頁總 UV × 100%",
+        "指標計算範例：1. 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%\n2. 各頁籤瀏覽 UV ÷ 進入個案詳情頁總 UV × 100%",
       ],
       spreadsheetColumnReference: [
         "編號",
         "頁面/區塊",
+        "指標名稱",
         "事件名稱 (En)",
         "觸發時機/事件定義",
         "追蹤目的",
@@ -778,6 +786,29 @@ function deriveEventName(page: string, area: string, eventType: EventType, index
   return `${verb}_${object}`.replace(/_{2,}/g, "_").replace(/_+$/g, "");
 }
 
+function deriveMetricName(page: string, area: string, eventType: EventType) {
+  const pageSubject = cleanScopeName(page, "頁面", 28);
+  const areaSubject = cleanScopeName(area || page, pageSubject, 28);
+
+  switch (eventType) {
+    case "PageView":
+      return `${pageSubject}瀏覽率`;
+    case "SearchFilter":
+      return `${areaSubject}使用率`;
+    case "FlowComplete":
+      return `${areaSubject}完成率`;
+    case "CreateEdit":
+      return `${areaSubject}新增完成率`;
+    case "ErrorDropoff":
+      return `${areaSubject}流失率`;
+    case "ExportDownload":
+      return `${areaSubject}匯出下載率`;
+    case "Click":
+    default:
+      return `${areaSubject}點擊率`;
+  }
+}
+
 function deriveTrigger(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
@@ -891,6 +922,18 @@ function isUnsafeEventName(value: string) {
   );
 }
 
+function isWeakMetricName(value: string, eventName: string) {
+  const normalized = value.trim();
+
+  return (
+    !normalized ||
+    normalized === eventName ||
+    /^[a-z0-9_]+$/i.test(normalized) ||
+    /Arrow|Vector|Rectangle|ScrollerBar|ScrollBar|Action Button|Icon/i.test(normalized) ||
+    /(^|_)\d+(_\d+){1,}(_|$)/.test(normalized)
+  );
+}
+
 function normalizeEventName(value: string, page: string, area: string, eventType: EventType, index: number) {
   const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/_{2,}/g, "_");
   const allowedVerbs = new Set(["view", "click", "open", "apply", "search", "switch", "complete", "create", "edit", "save", "encounter", "abandon", "download", "export"]);
@@ -904,24 +947,25 @@ function normalizeEventName(value: string, page: string, area: string, eventType
   return allowedVerbs.has(verb) ? normalized : deriveEventName(page, area, eventType, index);
 }
 
-function toReadableBulletList(value: string) {
+function toReadableNumberedList(value: string) {
   const normalized = value.replace(/\r/g, "").replace(/\s*\n+\s*/g, "\n").trim();
+  const cleanItem = (item: string) => item.replace(/^[-•]\s*/, "").replace(/^\d+[.)、]\s*/, "").trim();
   const lines = normalized
     .split("\n")
-    .map((line) => line.trim())
+    .map(cleanItem)
     .filter(Boolean);
 
   if (lines.length > 1) {
-    return lines.map((line) => (line.startsWith("- ") ? line : `- ${line.replace(/^[-•]\s*/, "")}`)).join("\n");
+    return lines.map((line, index) => `${index + 1}. ${line}`).join("\n");
   }
 
   const formulaParts = normalized
-    .split(/\s*[；;]\s*(?=[^；;\n]*(?:÷|=|×|UV|Session|次數|率))/)
-    .map((part) => part.trim())
+    .split(/\s*[；;]\s*/)
+    .map(cleanItem)
     .filter(Boolean);
 
   if (formulaParts.length > 1) {
-    return formulaParts.map((part) => (part.startsWith("- ") ? part : `- ${part}`)).join("\n");
+    return formulaParts.map((part, index) => `${index + 1}. ${part}`).join("\n");
   }
 
   return normalized;
@@ -936,7 +980,7 @@ function isGenericSentence(value: string) {
 function isWeakAnalysisReason(value: string) {
   const normalized = value.trim();
 
-  return isGenericSentence(normalized) || !normalized.includes("假設") || normalized.startsWith("可用於");
+  return isGenericSentence(normalized) || (!normalized.includes("假設") && !normalized.startsWith("驗證")) || normalized.startsWith("可用於");
 }
 
 function coerceEventType(value: unknown, label: string, index: number): EventType {
@@ -981,10 +1025,16 @@ function normalizeEvent(value: unknown, index: number, figmaContext: FigmaContex
   const normalizedEventType = coerceEventType(record.eventType, `${page} ${area}`, index);
   const priority = normalizePriority(record.priority, normalizedEventType, index);
   const eventName = normalizeEventName(asString(record.eventName), page, area, normalizedEventType, index);
+  const derivedMetricName = deriveMetricName(page, area, normalizedEventType);
+  const rawMetricName = cleanScopeName(asString(record.metricName, derivedMetricName), derivedMetricName, 36);
+  const metricName = isWeakMetricName(rawMetricName, eventName) ? derivedMetricName : rawMetricName;
+  const derivedAnalysisValue = toReadableNumberedList(deriveAnalysisValue(page, area, normalizedEventType));
   const trigger = asString(record.trigger);
   const purpose = asString(record.purpose);
-  const analysisValue = asString(record.analysisValue);
-  const metricCalculation = toReadableBulletList(
+  const analysisValue = toReadableNumberedList(
+    toSemicolonString(record.analysisValue, deriveAnalysisValue(page, area, normalizedEventType)),
+  );
+  const metricCalculation = toReadableNumberedList(
     toSemicolonString(record.metricCalculation, deriveMetricCalculation(page, area, normalizedEventType)),
   );
 
@@ -992,11 +1042,12 @@ function normalizeEvent(value: unknown, index: number, figmaContext: FigmaContex
     id: asString(record.id, `AI_${String(index + 1).padStart(3, "0")}`),
     page,
     area,
+    metricName,
     eventName,
     eventType: normalizedEventType,
     trigger: isGenericSentence(trigger) ? deriveTrigger(page, area, normalizedEventType) : trigger,
     purpose: isGenericSentence(purpose) ? derivePurpose(page, area, normalizedEventType) : purpose,
-    analysisValue: isWeakAnalysisReason(analysisValue) ? deriveAnalysisValue(page, area, normalizedEventType) : analysisValue,
+    analysisValue: isWeakAnalysisReason(analysisValue) ? derivedAnalysisValue : analysisValue,
     metricCalculation,
     properties: toSemicolonString(record.properties, "page_name; user_role; entry_source"),
     propertyDefinitions: toSemicolonString(record.propertyDefinitions, "頁面名稱; 使用者角色; 進入來源"),
@@ -1122,11 +1173,12 @@ function buildFallbackEvents(figmaContext: FigmaContext): TrackingEvent[] {
       id: `AI_${String(index + 1).padStart(3, "0")}`,
       page,
       area,
+      metricName: deriveMetricName(page, area, eventType),
       eventName: deriveEventName(page, area, eventType, index),
       eventType,
       trigger: deriveTrigger(page, area, eventType),
       purpose: derivePurpose(page, area, eventType),
-      analysisValue: deriveAnalysisValue(page, area, eventType),
+      analysisValue: toReadableNumberedList(deriveAnalysisValue(page, area, eventType)),
       metricCalculation: deriveMetricCalculation(page, area, eventType),
       properties: fieldSet.properties,
       propertyDefinitions: fieldSet.propertyDefinitions,

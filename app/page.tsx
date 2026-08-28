@@ -1,11 +1,13 @@
 "use client";
 
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type TrackingEvent = {
   id: string;
   page: string;
   area: string;
+  metricName: string;
   eventName: string;
   eventType: "PageView" | "Click" | "SearchFilter" | "FlowComplete" | "CreateEdit" | "ErrorDropoff" | "ExportDownload";
   trigger: string;
@@ -30,6 +32,16 @@ type SavedTrackingEvent = TrackingEvent & {
 type EventFilter = "All" | TrackingEvent["eventType"];
 type PriorityFilter = "All" | TrackingEvent["priority"];
 type FigmaSourceMode = "empty" | "file" | "node" | "unsupported" | "invalid";
+type LibraryColumnKey =
+  | "index"
+  | "page"
+  | "metricName"
+  | "eventName"
+  | "purpose"
+  | "analysisValue"
+  | "metricCalculation"
+  | "source"
+  | "actions";
 
 type FigmaPage = {
   id: string;
@@ -133,9 +145,30 @@ const openAIModelOptions: OpenAIModelOption[] = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", note: "較高品質，適合複雜頁面" },
 ];
 
+const libraryColumnConfig: Array<{ key: LibraryColumnKey; label: string; width: number; minWidth: number }> = [
+  { key: "index", label: "編號", width: 72, minWidth: 56 },
+  { key: "page", label: "頁面/區塊", width: 220, minWidth: 150 },
+  { key: "metricName", label: "指標名稱", width: 230, minWidth: 160 },
+  { key: "eventName", label: "事件名稱", width: 230, minWidth: 170 },
+  { key: "purpose", label: "追蹤目的", width: 270, minWidth: 190 },
+  { key: "analysisValue", label: "分析的原因", width: 320, minWidth: 220 },
+  { key: "metricCalculation", label: "指標計算", width: 300, minWidth: 210 },
+  { key: "source", label: "來源/優先級", width: 220, minWidth: 160 },
+  { key: "actions", label: "操作", width: 132, minWidth: 108 },
+];
+
+const libraryColumnLookup = Object.fromEntries(
+  libraryColumnConfig.map((column) => [column.key, column]),
+) as Record<LibraryColumnKey, (typeof libraryColumnConfig)[number]>;
+
+const defaultLibraryColumnWidths = Object.fromEntries(
+  libraryColumnConfig.map((column) => [column.key, column.width]),
+) as Record<LibraryColumnKey, number>;
+
 const exportColumns: Array<{ key: keyof TrackingEvent; label: string }> = [
   { key: "id", label: "編號" },
   { key: "page", label: "頁面/區塊" },
+  { key: "metricName", label: "指標名稱" },
   { key: "eventName", label: "事件名稱 (En)" },
   { key: "trigger", label: "觸發時機/事件定義 (Trigger/Event Definition)" },
   { key: "purpose", label: "追蹤目的" },
@@ -173,7 +206,7 @@ function normalizeNodeId(value: string) {
   return decodeURIComponent(value).replace(/-/g, ":");
 }
 
-function cleanScopeName(value: string, fallback = "Figma 分析範圍") {
+function cleanScopeName(value: string, fallback = "Figma 分析範圍", maxLength = 48) {
   const layerNoisePattern = /^(Arrow|Vector|Rectangle|ScrollerBar|ScrollBar|Action Button|Icon)\s*\d*$/i;
   const cleaned = value
     .replace(/[（(]\s*\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*[）)]/g, "")
@@ -185,7 +218,9 @@ function cleanScopeName(value: string, fallback = "Figma 分析範圍") {
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  return cleaned || fallback;
+  const result = cleaned || fallback;
+
+  return result.length > maxLength ? `${result.slice(0, maxLength - 1)}…` : result;
 }
 
 function normalizeFigmaPage(page: FigmaPage): FigmaPage {
@@ -218,6 +253,48 @@ function coerceEventType(value: unknown): TrackingEvent["eventType"] {
     default:
       return "Click";
   }
+}
+
+function deriveMetricName(page: string, area: string, eventType: TrackingEvent["eventType"]) {
+  const subject = cleanScopeName(area || page, cleanScopeName(page, "主要功能"), 28);
+
+  switch (eventType) {
+    case "PageView":
+      return `${cleanScopeName(page, "頁面")}瀏覽率`;
+    case "SearchFilter":
+      return `${subject}使用率`;
+    case "FlowComplete":
+      return `${subject}完成率`;
+    case "CreateEdit":
+      return `${subject}新增完成率`;
+    case "ErrorDropoff":
+      return `${subject}流失率`;
+    case "ExportDownload":
+      return `${subject}匯出下載率`;
+    case "Click":
+    default:
+      return `${subject}點擊率`;
+  }
+}
+
+function toNumberedDisplayList(value: string) {
+  const normalized = value.replace(/\r/g, "").replace(/\s*\n+\s*/g, "\n").trim();
+  const cleanItem = (item: string) => item.replace(/^[-•]\s*/, "").replace(/^\d+[.)、]\s*/, "").trim();
+  const lines = normalized
+    .split("\n")
+    .map(cleanItem)
+    .filter(Boolean);
+
+  if (lines.length > 1) {
+    return lines.map((line, index) => `${index + 1}. ${line}`).join("\n");
+  }
+
+  const parts = normalized
+    .split(/\s*[；;]\s*/)
+    .map(cleanItem)
+    .filter(Boolean);
+
+  return parts.length > 1 ? parts.map((part, index) => `${index + 1}. ${part}`).join("\n") : normalized;
 }
 
 function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
@@ -309,14 +386,26 @@ function isTrackingEventLike(value: unknown): value is SavedTrackingEvent {
 }
 
 function normalizeStoredEvent(row: SavedTrackingEvent): SavedTrackingEvent {
+  const page = cleanScopeName(row.page, "Figma 分析範圍");
+  const area = cleanScopeName(row.area, row.page || "主要區塊");
+  const eventType = coerceEventType(row.eventType);
+
   return {
     ...row,
-    page: cleanScopeName(row.page, "Figma 分析範圍"),
-    area: cleanScopeName(row.area, row.page || "主要區塊"),
-    eventType: coerceEventType(row.eventType),
+    page,
+    area,
+    metricName:
+      typeof row.metricName === "string" && row.metricName.trim()
+        ? cleanScopeName(row.metricName, deriveMetricName(page, area, eventType), 36)
+        : deriveMetricName(page, area, eventType),
+    eventType,
+    analysisValue:
+      typeof row.analysisValue === "string" && row.analysisValue.trim()
+        ? toNumberedDisplayList(row.analysisValue)
+        : "驗證此事件是否能回答目前頁面的核心使用假設。",
     metricCalculation:
       typeof row.metricCalculation === "string" && row.metricCalculation.trim()
-        ? row.metricCalculation.trim()
+        ? toNumberedDisplayList(row.metricCalculation)
         : "事件 UV ÷ 平台活躍 UV",
     sourceName: cleanScopeName(row.sourceName, row.sourceName || "Figma 來源"),
   };
@@ -436,6 +525,7 @@ function toExcelXml(rows: TrackingEvent[]) {
     <Table>
       <Column ss:Width="86"/>
       <Column ss:Width="132"/>
+      <Column ss:Width="158"/>
       <Column ss:Width="148"/>
       <Column ss:Width="260"/>
       <Column ss:Width="240"/>
@@ -491,8 +581,16 @@ export default function Home() {
   const [isClearLibraryConfirmOpen, setIsClearLibraryConfirmOpen] = useState(false);
   const [editingLibraryId, setEditingLibraryId] = useState("");
   const [libraryDraft, setLibraryDraft] = useState<SavedTrackingEvent | null>(null);
+  const [libraryColumnWidths, setLibraryColumnWidths] =
+    useState<Record<LibraryColumnKey, number>>(defaultLibraryColumnWidths);
+  const [resizingLibraryColumn, setResizingLibraryColumn] = useState<LibraryColumnKey | null>(null);
   const analysisRunId = useRef(0);
   const pageSelectRef = useRef<HTMLDivElement | null>(null);
+  const libraryColumnResizeRef = useRef<{
+    key: LibraryColumnKey;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
   const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
   const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
@@ -551,6 +649,49 @@ export default function Home() {
     };
   }, [isPageMenuOpen]);
 
+  useEffect(() => {
+    if (!resizingLibraryColumn) {
+      return;
+    }
+
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    function handlePointerMove(event: PointerEvent) {
+      const activeResize = libraryColumnResizeRef.current;
+
+      if (!activeResize) {
+        return;
+      }
+
+      const minimumWidth = libraryColumnLookup[activeResize.key].minWidth;
+      const nextWidth = Math.max(minimumWidth, activeResize.startWidth + event.clientX - activeResize.startX);
+
+      setLibraryColumnWidths((currentWidths) => ({
+        ...currentWidths,
+        [activeResize.key]: nextWidth,
+      }));
+    }
+
+    function handlePointerUp() {
+      libraryColumnResizeRef.current = null;
+      setResizingLibraryColumn(null);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [resizingLibraryColumn]);
+
   const visibleRows = useMemo(() => {
     if (!hasAppliedSource || !hasAnalyzed) {
       return [];
@@ -567,6 +708,7 @@ export default function Home() {
           row.id,
           row.page,
           row.area,
+          row.metricName,
           row.eventName,
           row.trigger,
           row.purpose,
@@ -604,6 +746,7 @@ export default function Home() {
           row.id,
           row.page,
           row.area,
+          row.metricName,
           row.eventName,
           row.eventType,
           row.trigger,
@@ -715,7 +858,7 @@ export default function Home() {
   }
 
   function handleExportLibrary() {
-    handleExportRowsExcel(makeSequentialRows(libraryVisibleRows), "追蹤事件庫.xls");
+    handleExportRowsExcel(makeSequentialRows(libraryVisibleRows), "埋點事件庫.xls");
   }
 
   function handleStartLibraryEdit(row: SavedTrackingEvent) {
@@ -765,6 +908,37 @@ export default function Home() {
     setIsLibraryOpen(false);
     setIsClearLibraryConfirmOpen(false);
     handleCancelLibraryEdit();
+  }
+
+  function handleLibraryColumnResizeStart(key: LibraryColumnKey, event: ReactPointerEvent<HTMLSpanElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    libraryColumnResizeRef.current = {
+      key,
+      startX: event.clientX,
+      startWidth: libraryColumnWidths[key] ?? libraryColumnLookup[key].width,
+    };
+    setResizingLibraryColumn(key);
+  }
+
+  function renderLibraryHeader(column: (typeof libraryColumnConfig)[number]) {
+    return (
+      <th
+        className={`resizable-header ${resizingLibraryColumn === column.key ? "resizing" : ""}`}
+        key={column.key}
+        scope="col"
+      >
+        <span className="resizable-header-content">
+          <span>{column.label}</span>
+          <span
+            aria-label={`調整${column.label}欄寬`}
+            className="column-resize-handle"
+            onPointerDown={(event) => handleLibraryColumnResizeStart(column.key, event)}
+            role="separator"
+          />
+        </span>
+      </th>
+    );
   }
 
   function resetAnalysisResult() {
@@ -1053,7 +1227,7 @@ export default function Home() {
             </button>
             <div>
               <p className="eyebrow">Product Analytics</p>
-              <h1>追蹤事件庫</h1>
+              <h1>埋點事件庫</h1>
             </div>
           </div>
           <div className="topbar-actions">
@@ -1076,17 +1250,17 @@ export default function Home() {
           </div>
         </header>
 
-        <section className="library-page" aria-label="追蹤事件庫表格">
+        <section className="library-page" aria-label="埋點事件庫表格">
           <div className="library-toolbar">
             <div>
               <p className="eyebrow">Selected Events</p>
-              <h2>已儲存 {libraryRows.length} 筆追蹤事件</h2>
+              <h2>已儲存 {libraryRows.length} 筆埋點事件</h2>
             </div>
             <div className="toolbar-controls library-controls">
               <label className="filter-field search-field">
                 <span>搜尋</span>
                 <input
-                  aria-label="搜尋追蹤事件庫"
+                  aria-label="搜尋埋點事件庫"
                   placeholder="搜尋事件、頁面或屬性"
                   value={libraryQuery}
                   onChange={(event) => setLibraryQuery(event.target.value)}
@@ -1096,7 +1270,7 @@ export default function Home() {
               <label className="filter-field">
                 <span>事件類型</span>
                 <select
-                  aria-label="追蹤事件庫事件類型篩選"
+                  aria-label="埋點事件庫事件類型篩選"
                   value={libraryTypeFilter}
                   onChange={(event) => setLibraryTypeFilter(event.target.value as EventFilter)}
                   disabled={!libraryRows.length}
@@ -1111,7 +1285,7 @@ export default function Home() {
               <label className="filter-field">
                 <span>優先級</span>
                 <select
-                  aria-label="追蹤事件庫優先級篩選"
+                  aria-label="埋點事件庫優先級篩選"
                   value={libraryPriorityFilter}
                   onChange={(event) => setLibraryPriorityFilter(event.target.value as PriorityFilter)}
                   disabled={!libraryRows.length}
@@ -1126,7 +1300,7 @@ export default function Home() {
               <label className="filter-field source-filter">
                 <span>來源</span>
                 <select
-                  aria-label="追蹤事件庫來源篩選"
+                  aria-label="埋點事件庫來源篩選"
                   value={effectiveLibrarySourceFilter}
                   onChange={(event) => setLibrarySourceFilter(event.target.value)}
                   disabled={!libraryRows.length || !librarySourceOptions.length}
@@ -1144,28 +1318,14 @@ export default function Home() {
 
           {libraryVisibleRows.length ? (
             <div className="library-table-wrap">
-              <table className="library-table">
+              <table className={`library-table ${resizingLibraryColumn ? "is-resizing" : ""}`}>
                 <colgroup>
-                  <col className="library-col-id" />
-                  <col className="library-col-page" />
-                  <col className="library-col-event" />
-                  <col className="library-col-purpose" />
-                  <col className="library-col-analysis" />
-                  <col className="library-col-metric" />
-                  <col className="library-col-meta" />
-                  <col className="library-col-actions" />
+                  {libraryColumnConfig.map((column) => (
+                    <col key={column.key} style={{ width: `${libraryColumnWidths[column.key]}px` }} />
+                  ))}
                 </colgroup>
                 <thead>
-                  <tr>
-                    <th>編號</th>
-                    <th>頁面/區塊</th>
-                    <th>事件名稱</th>
-                    <th>追蹤目的</th>
-                    <th>分析的原因</th>
-                    <th>指標計算</th>
-                    <th>來源/優先級</th>
-                    <th>操作</th>
-                  </tr>
+                  <tr>{libraryColumnConfig.map((column) => renderLibraryHeader(column))}</tr>
                 </thead>
                 <tbody>
                   {libraryVisibleRows.map((row, index) => (
@@ -1174,6 +1334,9 @@ export default function Home() {
                       <td>
                         <strong>{row.area}</strong>
                         <span>{row.page}</span>
+                      </td>
+                      <td>
+                        <strong>{row.metricName}</strong>
                       </td>
                       <td>
                         <code>{row.eventName}</code>
@@ -1207,7 +1370,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="library-page-empty">
-              <strong>{libraryRows.length ? "沒有符合條件的追蹤事件" : "尚未選取埋點追蹤事項"}</strong>
+              <strong>{libraryRows.length ? "沒有符合條件的埋點事件" : "尚未選取埋點追蹤事項"}</strong>
               <span>
                 {libraryRows.length
                   ? "請調整搜尋文字、事件類型、優先級或來源篩選。"
@@ -1218,13 +1381,13 @@ export default function Home() {
         </section>
 
         {libraryDraft ? (
-          <div className="library-drawer-layer" role="dialog" aria-modal="true" aria-label="編輯追蹤事件">
+          <div className="library-drawer-layer" role="dialog" aria-modal="true" aria-label="編輯埋點事件">
             <button className="drawer-scrim" type="button" onClick={handleCancelLibraryEdit} aria-label="關閉編輯抽屜" />
             <aside className="library-drawer">
               <div className="library-drawer-header">
                 <div>
                   <p className="eyebrow">Edit Event</p>
-                  <h2>編輯追蹤事件</h2>
+                  <h2>編輯埋點事件</h2>
                 </div>
                 <button className="icon-button" type="button" onClick={handleCancelLibraryEdit} aria-label="關閉編輯">
                   ×
@@ -1244,6 +1407,13 @@ export default function Home() {
                   <input
                     value={libraryDraft.area}
                     onChange={(event) => handleUpdateLibraryDraft("area", event.target.value)}
+                  />
+                </label>
+                <label>
+                  指標名稱
+                  <input
+                    value={libraryDraft.metricName}
+                    onChange={(event) => handleUpdateLibraryDraft("metricName", event.target.value)}
                   />
                 </label>
                 <label>
@@ -1307,7 +1477,7 @@ export default function Home() {
         ) : null}
 
         {isClearLibraryConfirmOpen ? (
-          <div className="confirm-layer" role="dialog" aria-modal="true" aria-label="清除全部追蹤事件確認">
+          <div className="confirm-layer" role="dialog" aria-modal="true" aria-label="清除全部埋點事件確認">
             <button
               className="drawer-scrim"
               type="button"
@@ -1317,7 +1487,7 @@ export default function Home() {
             <div className="confirm-dialog">
               <p className="eyebrow">Confirm</p>
               <h2>清除全部事件？</h2>
-              <p>會清除追蹤事件庫中的 {libraryRows.length} 筆事件，首頁目前的分析結果不會被刪除。</p>
+              <p>會清除埋點事件庫中的 {libraryRows.length} 筆事件，首頁目前的分析結果不會被刪除。</p>
               <div className="confirm-actions">
                 <button className="secondary-button" type="button" onClick={() => setIsClearLibraryConfirmOpen(false)}>
                   取消
@@ -1342,7 +1512,7 @@ export default function Home() {
         </div>
         <div className="topbar-actions" aria-label="匯出工具">
           <button className="secondary-button library-button" type="button" onClick={() => setIsLibraryOpen(true)}>
-            追蹤事件庫
+            埋點事件庫
             <span>{libraryRows.length}</span>
           </button>
           <button className="primary-button" type="button" onClick={handleExportExcel} disabled={!visibleRows.length}>
@@ -1613,6 +1783,7 @@ export default function Home() {
                 <col className="event-col-select" />
                 <col className="event-col-id" />
                 <col className="event-col-page" />
+                <col className="event-col-metric-name" />
                 <col className="event-col-name" />
                 <col className="event-col-trigger" />
                 <col className="event-col-purpose" />
@@ -1628,6 +1799,7 @@ export default function Home() {
                   </th>
                   <th>編號</th>
                   <th>頁面/區塊</th>
+                  <th>指標名稱</th>
                   <th>事件名稱</th>
                   <th>觸發時機</th>
                   <th>追蹤目的</th>
@@ -1640,7 +1812,7 @@ export default function Home() {
               <tbody>
                 {visibleRows.length === 0 ? (
                   <tr className="empty-row">
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <div className={`table-empty ${isAnalyzing ? "plain-loading" : ""}`}>
                         {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
                         <strong>{tableEmptyTitle}</strong>
@@ -1660,7 +1832,7 @@ export default function Home() {
                     >
                       <td className="select-column">
                         <input
-                          aria-label={`加入追蹤事件庫：${row.eventName}`}
+                          aria-label={`加入埋點事件庫：${row.eventName}`}
                           checked={rowInLibrary}
                           type="checkbox"
                           onChange={(event) => handleToggleLibraryRow(row, event.target.checked)}
@@ -1683,6 +1855,7 @@ export default function Home() {
                         <strong>{row.page}</strong>
                         <span>{row.area}</span>
                       </td>
+                      <td>{row.metricName}</td>
                       <td>
                         <code>{row.eventName}</code>
                         <span className={`type-pill type-${row.eventType.toLowerCase()}`}>
@@ -1726,6 +1899,10 @@ export default function Home() {
                 </div>
                 <h2>{selectedRow.area}</h2>
                 <dl className="detail-list">
+                  <div>
+                    <dt>指標名稱</dt>
+                    <dd>{selectedRow.metricName}</dd>
+                  </div>
                   <div>
                     <dt>追蹤目的</dt>
                     <dd>{selectedRow.purpose}</dd>
