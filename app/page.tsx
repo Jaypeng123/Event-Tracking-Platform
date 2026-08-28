@@ -7,10 +7,11 @@ type TrackingEvent = {
   page: string;
   area: string;
   eventName: string;
-  eventType: "View" | "Click" | "Feature" | "Flow" | "Validation";
+  eventType: "PageView" | "Click" | "SearchFilter" | "FlowComplete" | "CreateEdit" | "ErrorDropoff" | "ExportDownload";
   trigger: string;
   purpose: string;
   analysisValue: string;
+  metricCalculation: string;
   properties: string;
   propertyDefinitions: string;
   dataTypes: string;
@@ -97,11 +98,13 @@ const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes:
 
 const filterOptions: Array<{ value: EventFilter; label: string }> = [
   { value: "All", label: "全部" },
-  { value: "View", label: "瀏覽" },
-  { value: "Click", label: "點擊" },
-  { value: "Feature", label: "功能" },
-  { value: "Flow", label: "流程" },
-  { value: "Validation", label: "驗證" },
+  { value: "PageView", label: "頁面曝光" },
+  { value: "Click", label: "功能點擊" },
+  { value: "SearchFilter", label: "篩選／搜尋" },
+  { value: "FlowComplete", label: "流程完成" },
+  { value: "CreateEdit", label: "編輯／建立" },
+  { value: "ErrorDropoff", label: "錯誤／流失" },
+  { value: "ExportDownload", label: "匯出／下載" },
 ];
 
 const exportColumns: Array<{ key: keyof TrackingEvent; label: string }> = [
@@ -110,7 +113,8 @@ const exportColumns: Array<{ key: keyof TrackingEvent; label: string }> = [
   { key: "eventName", label: "事件名稱 (En)" },
   { key: "trigger", label: "觸發時機/事件定義 (Trigger/Event Definition)" },
   { key: "purpose", label: "追蹤目的" },
-  { key: "analysisValue", label: "目標/數據分析意義" },
+  { key: "analysisValue", label: "分析的原因" },
+  { key: "metricCalculation", label: "指標計算" },
   { key: "properties", label: "屬性參數 (Property)" },
   { key: "propertyDefinitions", label: "屬性定義 (Property Definition)" },
   { key: "dataTypes", label: "Data Type" },
@@ -120,11 +124,13 @@ const exportColumns: Array<{ key: keyof TrackingEvent; label: string }> = [
 ];
 
 const typeLabels: Record<TrackingEvent["eventType"], string> = {
-  View: "瀏覽",
-  Click: "點擊",
-  Feature: "功能",
-  Flow: "流程",
-  Validation: "驗證",
+  PageView: "頁面曝光",
+  Click: "功能點擊",
+  SearchFilter: "篩選／搜尋",
+  FlowComplete: "流程完成",
+  CreateEdit: "編輯／建立",
+  ErrorDropoff: "錯誤／流失",
+  ExportDownload: "匯出／下載",
 };
 
 function normalizeUrl(rawUrl: string) {
@@ -139,6 +145,53 @@ function normalizeUrl(rawUrl: string) {
 
 function normalizeNodeId(value: string) {
   return decodeURIComponent(value).replace(/-/g, ":");
+}
+
+function cleanScopeName(value: string, fallback = "Figma 分析範圍") {
+  const layerNoisePattern = /^(Arrow|Vector|Rectangle|ScrollerBar|ScrollBar|Action Button|Icon)\s*\d*$/i;
+  const cleaned = value
+    .replace(/[（(]\s*\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?\s*[）)]/g, "")
+    .replace(/\s+\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?\s*$/g, "")
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter((segment) => segment && !layerNoisePattern.test(segment))
+    .join(" / ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return cleaned || fallback;
+}
+
+function normalizeFigmaPage(page: FigmaPage): FigmaPage {
+  return {
+    ...page,
+    name: cleanScopeName(page.name, "未命名 Page"),
+    relatedEventPages: page.relatedEventPages?.map((name) => cleanScopeName(name, name)),
+  };
+}
+
+function coerceEventType(value: unknown): TrackingEvent["eventType"] {
+  switch (String(value)) {
+    case "PageView":
+    case "View":
+      return "PageView";
+    case "SearchFilter":
+      return "SearchFilter";
+    case "FlowComplete":
+    case "Flow":
+      return "FlowComplete";
+    case "CreateEdit":
+      return "CreateEdit";
+    case "ErrorDropoff":
+    case "Validation":
+      return "ErrorDropoff";
+    case "ExportDownload":
+      return "ExportDownload";
+    case "Click":
+    case "Feature":
+    default:
+      return "Click";
+  }
 }
 
 function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
@@ -173,8 +226,8 @@ function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
       fileKey,
       fileName,
       nodeId,
-      nodeName: nodeId ? knownFile?.nodes[nodeId] ?? "指定節點" : "",
-      pages: knownFile?.pages ?? [],
+      nodeName: nodeId ? cleanScopeName(knownFile?.nodes[nodeId] ?? "指定節點", "指定節點") : "",
+      pages: knownFile?.pages.map(normalizeFigmaPage) ?? [],
       normalizedUrl,
     };
   } catch {
@@ -229,12 +282,26 @@ function isTrackingEventLike(value: unknown): value is SavedTrackingEvent {
   );
 }
 
+function normalizeStoredEvent(row: SavedTrackingEvent): SavedTrackingEvent {
+  return {
+    ...row,
+    page: cleanScopeName(row.page, "Figma 分析範圍"),
+    area: cleanScopeName(row.area, row.page || "主要區塊"),
+    eventType: coerceEventType(row.eventType),
+    metricCalculation:
+      typeof row.metricCalculation === "string" && row.metricCalculation.trim()
+        ? row.metricCalculation.trim()
+        : "事件 UV ÷ 平台活躍 UV",
+    sourceName: cleanScopeName(row.sourceName, row.sourceName || "Figma 來源"),
+  };
+}
+
 function readStoredEventLibrary() {
   try {
     const storedLibrary = window.localStorage.getItem(EVENT_LIBRARY_STORAGE_KEY);
     const parsed = storedLibrary ? JSON.parse(storedLibrary) : [];
 
-    return Array.isArray(parsed) ? parsed.filter(isTrackingEventLike) : [];
+    return Array.isArray(parsed) ? parsed.filter(isTrackingEventLike).map(normalizeStoredEvent) : [];
   } catch {
     return [];
   }
@@ -347,6 +414,7 @@ function toExcelXml(rows: TrackingEvent[]) {
       <Column ss:Width="260"/>
       <Column ss:Width="240"/>
       <Column ss:Width="260"/>
+      <Column ss:Width="220"/>
       <Column ss:Width="200"/>
       <Column ss:Width="220"/>
       <Column ss:Width="130"/>
@@ -443,6 +511,7 @@ export default function Home() {
           row.trigger,
           row.purpose,
           row.analysisValue,
+          row.metricCalculation,
           row.properties,
         ]
           .join(" ")
@@ -456,13 +525,15 @@ export default function Home() {
   const summary = useMemo(() => {
     const p0Count = visibleRows.filter((row) => row.priority === "P0").length;
     const pages = new Set(visibleRows.map((row) => row.page));
-    const clickable = visibleRows.filter((row) => row.eventType === "Click" || row.eventType === "Feature").length;
+    const interactionCount = visibleRows.filter((row) =>
+      ["Click", "SearchFilter", "FlowComplete", "CreateEdit", "ExportDownload"].includes(row.eventType),
+    ).length;
 
     return [
-      { label: "建議事件", value: visibleRows.length, note: "第一階段可先開規格" },
-      { label: "核心頁面", value: pages.size, note: "含個案詳情與健康計畫" },
-      { label: "P0 事件", value: p0Count, note: "優先驗證使用率" },
-      { label: "點擊/功能", value: clickable, note: "主要看入口點擊率" },
+      { label: "建議事件", value: visibleRows.length, note: "第一階段可開規格" },
+      { label: "涵蓋頁面", value: pages.size, note: "依 Page 與區塊去重" },
+      { label: "高優先級", value: p0Count, note: "優先驗證核心假設" },
+      { label: "互動事件", value: interactionCount, note: "點擊、搜尋、建立與匯出" },
     ];
   }, [visibleRows]);
 
@@ -476,7 +547,9 @@ export default function Home() {
     return {
       ...row,
       libraryId: getLibraryId(row),
-      sourceName: selectedPage ? `${figmaInfo.fileName} / ${selectedPage.name}` : figmaInfo.fileName || "Figma 來源",
+      sourceName: selectedPage
+        ? `${cleanScopeName(figmaInfo.fileName, "Figma 來源")} / ${selectedPage.name}`
+        : cleanScopeName(figmaInfo.fileName || "Figma 來源", "Figma 來源"),
       sourceKey: [figmaInfo.fileKey, figmaInfo.nodeId || selectedPageId || "file"].filter(Boolean).join(" / "),
       savedAt: new Date().toISOString(),
     };
@@ -603,7 +676,7 @@ export default function Home() {
         throw new Error(result.message || "無法讀取 Figma Page 清單");
       }
 
-      const pages = Array.isArray(result.pages) ? result.pages : [];
+      const pages = Array.isArray(result.pages) ? result.pages.map(normalizeFigmaPage) : [];
 
       setLoadedPages(pages);
       setSelectedPageId("");
@@ -850,7 +923,7 @@ export default function Home() {
       <main className="app-shell library-shell">
         <header className="topbar library-topbar">
           <div>
-            <p className="eyebrow">Selected Events</p>
+            <p className="eyebrow">Product Analytics</p>
             <h1>追蹤事件庫</h1>
           </div>
           <div className="topbar-actions">
@@ -878,6 +951,7 @@ export default function Home() {
                   <col className="library-col-event" />
                   <col className="library-col-purpose" />
                   <col className="library-col-analysis" />
+                  <col className="library-col-metric" />
                   <col className="library-col-meta" />
                   <col className="library-col-actions" />
                 </colgroup>
@@ -887,7 +961,8 @@ export default function Home() {
                     <th>頁面/區塊</th>
                     <th>事件名稱</th>
                     <th>追蹤目的</th>
-                    <th>分析意義</th>
+                    <th>分析的原因</th>
+                    <th>指標計算</th>
                     <th>來源/優先級</th>
                     <th>操作</th>
                   </tr>
@@ -906,6 +981,7 @@ export default function Home() {
                       </td>
                       <td>{row.purpose}</td>
                       <td>{row.analysisValue}</td>
+                      <td>{row.metricCalculation}</td>
                       <td>
                         <span>{row.sourceName}</span>
                         <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>{row.priority}</span>
@@ -997,11 +1073,19 @@ export default function Home() {
                   />
                 </label>
                 <label className="wide-field">
-                  分析意義
+                  分析的原因
                   <textarea
                     value={libraryDraft.analysisValue}
                     onChange={(event) => handleUpdateLibraryDraft("analysisValue", event.target.value)}
                     rows={4}
+                  />
+                </label>
+                <label className="wide-field">
+                  指標計算
+                  <textarea
+                    value={libraryDraft.metricCalculation}
+                    onChange={(event) => handleUpdateLibraryDraft("metricCalculation", event.target.value)}
+                    rows={3}
                   />
                 </label>
               </div>
@@ -1025,8 +1109,8 @@ export default function Home() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Healthcare Analytics</p>
-          <h1>埋點分析建立工具</h1>
+          <p className="eyebrow">Product Analytics</p>
+          <h1>埋點規劃工具</h1>
         </div>
         <div className="topbar-actions" aria-label="匯出工具">
           <button className="secondary-button library-button" type="button" onClick={() => setIsLibraryOpen(true)}>
@@ -1062,7 +1146,7 @@ export default function Home() {
               {hasAppliedSource ? (
                 <div className="source-empty source-locked">
                   <strong>已匯入來源</strong>
-                  <span>{figmaInfo.fileName}。若要更換連結，請先清空目前連結。</span>
+                  <span>{cleanScopeName(figmaInfo.fileName, "Figma 來源")}。若要更換連結，請點擊更換 Figma 來源。</span>
                 </div>
               ) : activeInputInfo.mode === "empty" ? (
                 <div className="source-empty">
@@ -1090,7 +1174,7 @@ export default function Home() {
               <div className="source-actions single-action">
                 {hasAppliedSource ? (
                   <button className="secondary-button danger-button" type="button" onClick={handleClearSource}>
-                    清空連結
+                    更換 Figma 來源
                   </button>
                 ) : (
                   <>
@@ -1303,6 +1387,7 @@ export default function Home() {
                 <col className="event-col-trigger" />
                 <col className="event-col-purpose" />
                 <col className="event-col-analysis" />
+                <col className="event-col-metric" />
                 <col className="event-col-properties" />
                 <col className="event-col-priority" />
               </colgroup>
@@ -1316,7 +1401,8 @@ export default function Home() {
                   <th>事件名稱</th>
                   <th>觸發時機</th>
                   <th>追蹤目的</th>
-                  <th>分析意義</th>
+                  <th>分析的原因</th>
+                  <th>指標計算</th>
                   <th>屬性參數</th>
                   <th>優先級</th>
                 </tr>
@@ -1324,7 +1410,7 @@ export default function Home() {
               <tbody>
                 {visibleRows.length === 0 ? (
                   <tr className="empty-row">
-                    <td colSpan={9}>
+                    <td colSpan={10}>
                       <div className={`table-empty ${isAnalyzing ? "plain-loading" : ""}`}>
                         {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
                         <strong>{tableEmptyTitle}</strong>
@@ -1376,6 +1462,7 @@ export default function Home() {
                       <td>{row.trigger}</td>
                       <td>{row.purpose}</td>
                       <td>{row.analysisValue}</td>
+                      <td>{row.metricCalculation}</td>
                       <td>{row.properties}</td>
                       <td>
                         <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>
@@ -1418,8 +1505,12 @@ export default function Home() {
                     <dd>{selectedRow.trigger}</dd>
                   </div>
                   <div>
-                    <dt>數據分析意義</dt>
+                    <dt>分析的原因</dt>
                     <dd>{selectedRow.analysisValue}</dd>
+                  </div>
+                  <div>
+                    <dt>指標計算</dt>
+                    <dd>{selectedRow.metricCalculation}</dd>
                   </div>
                   <div>
                     <dt>屬性參數</dt>

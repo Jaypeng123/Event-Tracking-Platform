@@ -368,7 +368,7 @@ select:disabled {
 .library-table {
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 1420px;
+  min-width: 1660px;
   table-layout: fixed;
   width: 100%;
 }
@@ -414,11 +414,15 @@ select:disabled {
 }
 
 .library-col-purpose {
-  width: 270px;
+  width: 250px;
 }
 
 .library-col-analysis {
-  width: 340px;
+  width: 360px;
+}
+
+.library-col-metric {
+  width: 250px;
 }
 
 .library-col-meta {
@@ -882,12 +886,12 @@ select:disabled {
   box-shadow: 0 16px 36px rgb(24 32 24 / 18%);
   display: grid;
   gap: 2px;
-  left: -12px;
+  left: -28px;
   max-height: 280px;
   overflow: auto;
   padding: 6px;
   position: absolute;
-  right: 10px;
+  right: 18px;
   top: calc(100% + 6px);
   z-index: 10;
 }
@@ -971,7 +975,7 @@ select:disabled {
 .summary-item {
   background: var(--panel-soft);
   min-height: 112px;
-  padding: 16px;
+  padding: 18px;
 }
 
 .summary-item span,
@@ -987,7 +991,7 @@ select:disabled {
 
 .summary-item strong {
   display: block;
-  font-size: 34px;
+  font-size: 38px;
   line-height: 1.1;
   margin: 8px 0 6px;
 }
@@ -1027,7 +1031,7 @@ select:disabled {
 .event-table {
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 1500px;
+  min-width: 1780px;
   table-layout: fixed;
   width: 100%;
 }
@@ -1090,16 +1094,20 @@ select:disabled {
 }
 
 .event-col-name {
-  width: 180px;
+  width: 200px;
 }
 
 .event-col-trigger,
 .event-col-purpose {
-  width: 220px;
+  width: 230px;
 }
 
 .event-col-analysis {
-  width: 320px;
+  width: 360px;
+}
+
+.event-col-metric {
+  width: 260px;
 }
 
 .event-col-properties {
@@ -1192,7 +1200,7 @@ code {
   width: fit-content;
 }
 
-.type-view {
+.type-pageview {
   background: var(--blue-100);
   color: var(--blue-700);
 }
@@ -1202,19 +1210,29 @@ code {
   color: var(--green-700);
 }
 
-.type-feature {
+.type-searchfilter {
   background: #eee8fb;
   color: #6751a4;
 }
 
-.type-flow {
+.type-flowcomplete {
   background: var(--amber-100);
   color: var(--amber-700);
 }
 
-.type-validation {
+.type-createedit {
+  background: #e9f4ef;
+  color: #236251;
+}
+
+.type-errordropoff {
   background: var(--red-100);
   color: var(--red-700);
+}
+
+.type-exportdownload {
+  background: #f6edf5;
+  color: #854877;
 }
 
 .priority-p0 {

@@ -44,6 +44,16 @@ function extractFigmaError(payload: Record<string, unknown>, fallback: string) {
   return asString(payload.message, asString(payload.err, fallback));
 }
 
+function cleanPageName(value: string, fallback = "Untitled page") {
+  const cleaned = value
+    .replace(/[（(][^）)]*\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?[^）)]*[）)]/g, "")
+    .replace(/\s+\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return cleaned || fallback;
+}
+
 export async function POST(request: Request) {
   let requestBody: { fileKey?: string };
 
@@ -91,7 +101,7 @@ export async function POST(request: Request) {
       ?.filter((node) => node.type === "CANVAS" && node.id)
       .map((node) => ({
         id: asString(node.id),
-        name: asString(node.name, "Untitled page"),
+        name: cleanPageName(asString(node.name, "Untitled page")),
         childCount: node.children?.length ?? 0,
       })) ?? [];
 

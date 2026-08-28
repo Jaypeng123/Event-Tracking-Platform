@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '埋點分析建立工具',
+  title: '埋點規劃工具',
   description: '從 Figma 頁面盤點產品事件，整理第一階段埋點計畫並匯出 Excel 表格。',
 };
 
