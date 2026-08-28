@@ -29,6 +29,7 @@ type SavedTrackingEvent = TrackingEvent & {
 
 type EventFilter = "All" | TrackingEvent["eventType"];
 type PriorityFilter = "All" | TrackingEvent["priority"];
+type ModelProvider = "gemini" | "openai";
 type FigmaSourceMode = "empty" | "file" | "node" | "unsupported" | "invalid";
 
 type FigmaPage = {
@@ -63,9 +64,22 @@ type AnalyzeResponse = {
   message?: string;
 };
 
+type OpenAIModelOption = {
+  id: string;
+  label: string;
+  note: string;
+};
+
 type FigmaPagesResponse = {
   fileName?: string;
   pages?: FigmaPage[];
+  message?: string;
+};
+
+type OpenAIModelsResponse = {
+  models?: OpenAIModelOption[];
+  availableModelIds?: string[];
+  defaultModel?: string;
   message?: string;
 };
 
@@ -120,6 +134,12 @@ const priorityDescriptions: Record<TrackingEvent["priority"], string> = {
   P1: "有助於理解使用情境與功能價值",
   P2: "微互動與細節優化",
 };
+
+const openAIModelOptions: OpenAIModelOption[] = [
+  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna", note: "低成本，適合大量頁面初步分析" },
+  { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", note: "品質與成本平衡" },
+  { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", note: "較高品質，適合複雜頁面" },
+];
 
 const exportColumns: Array<{ key: keyof TrackingEvent; label: string }> = [
   { key: "id", label: "編號" },
@@ -381,6 +401,31 @@ async function readFigmaPagesResponse(response: Response): Promise<FigmaPagesRes
   };
 }
 
+async function readOpenAIModelsResponse(response: Response): Promise<OpenAIModelsResponse> {
+  const contentType = response.headers.get("content-type") ?? "";
+  const rawText = await response.text();
+  const trimmedText = rawText.trim();
+  const looksLikeJson = contentType.includes("application/json") || trimmedText.startsWith("{") || trimmedText.startsWith("[");
+
+  if (looksLikeJson) {
+    try {
+      return JSON.parse(trimmedText) as OpenAIModelsResponse;
+    } catch {
+      return { message: `OpenAI 模型清單 API 回傳了無法解析的 JSON（HTTP ${response.status}）。` };
+    }
+  }
+
+  if (response.status === 401) {
+    return {
+      message: "確認 OpenAI 可用模型需要 ChatGPT 登入授權。請重新整理並完成登入後再試。",
+    };
+  }
+
+  return {
+    message: `OpenAI 模型清單 API 回傳非 JSON 內容（HTTP ${response.status}）。請重新整理後再試。`,
+  };
+}
+
 function toExcelXml(rows: TrackingEvent[]) {
   const header = exportColumns
     .map(
@@ -465,6 +510,11 @@ export default function Home() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [modelProvider, setModelProvider] = useState<ModelProvider>("openai");
+  const [selectedOpenAIModel, setSelectedOpenAIModel] = useState(openAIModelOptions[0].id);
+  const [availableOpenAIModelIds, setAvailableOpenAIModelIds] = useState<string[]>([]);
+  const [openAIModelMessage, setOpenAIModelMessage] = useState("");
+  const [isCheckingOpenAIModels, setIsCheckingOpenAIModels] = useState(false);
   const [analysisRows, setAnalysisRows] = useState<TrackingEvent[]>([]);
   const [analysisProcess, setAnalysisProcess] = useState<string[]>([]);
   const [analysisError, setAnalysisError] = useState("");
@@ -489,6 +539,8 @@ export default function Home() {
     hasAppliedSource && (needsPageSelection || isLoadingPages || Boolean(pageOptions.length) || Boolean(pageLoadError));
   const canAnalyzeCurrentSource =
     hasAppliedSource && !isLoadingPages && hasImportedPages && Boolean(selectedPage);
+  const currentOpenAIModel =
+    openAIModelOptions.find((option) => option.id === selectedOpenAIModel) ?? openAIModelOptions[0];
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -785,6 +837,48 @@ export default function Home() {
     setAnalysisState(pageId ? "" : "請先選擇要分析的 Page");
   }
 
+  async function handleCheckOpenAIModels() {
+    setIsCheckingOpenAIModels(true);
+    setOpenAIModelMessage("");
+
+    try {
+      const response = await fetch("/api/openai-models", {
+        headers: {
+          Accept: "application/json",
+        },
+        cache: "no-store",
+        credentials: "include",
+      });
+      const result = await readOpenAIModelsResponse(response);
+
+      if (!response.ok) {
+        throw new Error(result.message || "無法確認 OpenAI 可用模型");
+      }
+
+      const nextAvailableModelIds = Array.isArray(result.availableModelIds) ? result.availableModelIds : [];
+
+      setAvailableOpenAIModelIds(nextAvailableModelIds);
+
+      if (nextAvailableModelIds.length && !nextAvailableModelIds.includes(selectedOpenAIModel)) {
+        setSelectedOpenAIModel(result.defaultModel ?? nextAvailableModelIds[0]);
+      }
+
+      setOpenAIModelMessage(
+        result.message ||
+          (nextAvailableModelIds.length
+            ? `這組 API key 可使用：${nextAvailableModelIds.join("、")}`
+            : "這組 API key 目前沒有回傳平台支援的 OpenAI 模型。"),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "無法確認 OpenAI 可用模型";
+
+      setAvailableOpenAIModelIds([]);
+      setOpenAIModelMessage(message);
+    } finally {
+      setIsCheckingOpenAIModels(false);
+    }
+  }
+
   async function handleAnalyze() {
     if (!canAnalyzeCurrentSource) {
       if (!hasAppliedSource) {
@@ -843,6 +937,10 @@ export default function Home() {
         body: JSON.stringify({
           source: sourceForAnalysis,
           scope: sourceForAnalysis.nodeId ? "node" : "file",
+          ai: {
+            provider: modelProvider,
+            openAIModel: selectedOpenAIModel,
+          },
         }),
         cache: "no-store",
         credentials: "include",
@@ -1226,6 +1324,65 @@ export default function Home() {
             <div className="section-heading">
               <span className="section-index">02</span>
               <h2>AI 分析</h2>
+            </div>
+
+            <div className="model-selector">
+              <div className="model-selector-header">
+                <span className="field-label">分析模型</span>
+                {modelProvider === "openai" ? (
+                  <button
+                    className="secondary-button small-button"
+                    type="button"
+                    onClick={handleCheckOpenAIModels}
+                    disabled={isCheckingOpenAIModels || isAnalyzing}
+                  >
+                    {isCheckingOpenAIModels ? "確認中" : "確認可用模型"}
+                  </button>
+                ) : null}
+              </div>
+              <div className="model-toggle" role="group" aria-label="模型來源">
+                <button
+                  className={modelProvider === "openai" ? "active" : ""}
+                  type="button"
+                  onClick={() => setModelProvider("openai")}
+                  disabled={isAnalyzing}
+                >
+                  OpenAI
+                </button>
+                <button
+                  className={modelProvider === "gemini" ? "active" : ""}
+                  type="button"
+                  onClick={() => setModelProvider("gemini")}
+                  disabled={isAnalyzing}
+                >
+                  Gemini
+                </button>
+              </div>
+              {modelProvider === "openai" ? (
+                <label className="model-select-field">
+                  <span>OpenAI 模型</span>
+                  <select
+                    aria-label="OpenAI 模型"
+                    value={selectedOpenAIModel}
+                    onChange={(event) => setSelectedOpenAIModel(event.target.value)}
+                    disabled={isAnalyzing}
+                  >
+                    {openAIModelOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <small>{currentOpenAIModel.note}</small>
+                </label>
+              ) : (
+                <p className="model-note">使用站台目前設定的 Gemini 模型。</p>
+              )}
+              {modelProvider === "openai" && openAIModelMessage ? (
+                <p className={`model-status ${availableOpenAIModelIds.length ? "" : "model-status-warning"}`}>
+                  {openAIModelMessage}
+                </p>
+              ) : null}
             </div>
 
             {canShowPageSelector ? (

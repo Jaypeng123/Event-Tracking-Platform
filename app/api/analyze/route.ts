@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 type EventType = "PageView" | "Click" | "SearchFilter" | "FlowComplete" | "CreateEdit" | "ErrorDropoff" | "ExportDownload";
 type Priority = "P0" | "P1" | "P2";
 type Scope = "file" | "node";
+type ModelProvider = "auto" | "gemini" | "openai";
 
 type TrackingEvent = {
   id: string;
@@ -24,6 +25,10 @@ type TrackingEvent = {
 
 type AnalyzeRequest = {
   scope?: Scope;
+  ai?: {
+    provider?: string;
+    openAIModel?: string;
+  };
   source?: {
     fileKey?: string;
     fileName?: string;
@@ -70,6 +75,13 @@ const GEMINI_GENERATE_CONTENT_BASE_URL = "https://generativelanguage.googleapis.
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
 const MAX_FIGMA_NODES = 180;
 const allowedPriorities = new Set<Priority>(["P0", "P1", "P2"]);
+const openAIModelOptions = [
+  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
+  { id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
+  { id: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
+] as const;
+const supportedOpenAIModelIds = new Set<string>(openAIModelOptions.map((option) => option.id));
+const DEFAULT_OPENAI_MODEL = openAIModelOptions[0].id;
 
 const eventSchema = {
   type: "object",
@@ -182,6 +194,25 @@ function stringifyListItem(value: unknown) {
 
 function normalizeScope(value: unknown): Scope {
   return value === "node" ? "node" : "file";
+}
+
+function normalizeModelProvider(value: unknown): ModelProvider {
+  return value === "openai" || value === "gemini" ? value : "auto";
+}
+
+function normalizeOpenAIModel(value: unknown) {
+  const requestedModel = asString(value);
+  const environmentModel = asString(process.env.OPENAI_MODEL);
+
+  if (supportedOpenAIModelIds.has(requestedModel)) {
+    return requestedModel;
+  }
+
+  if (supportedOpenAIModelIds.has(environmentModel)) {
+    return environmentModel;
+  }
+
+  return DEFAULT_OPENAI_MODEL;
 }
 
 function buildFigmaHeaders(token: string) {
@@ -1124,8 +1155,12 @@ function rebalancePriorities(events: TrackingEvent[]) {
   });
 }
 
-async function analyzeWithOpenAI(requestBody: AnalyzeRequest, figmaContext: FigmaContext, openAIKey: string) {
-  const model = process.env.OPENAI_MODEL?.trim() || "gpt-5-mini";
+async function analyzeWithOpenAI(
+  requestBody: AnalyzeRequest,
+  figmaContext: FigmaContext,
+  openAIKey: string,
+  model: string,
+) {
   const response = await fetch(OPENAI_RESPONSES_URL, {
     method: "POST",
     headers: {
@@ -1274,6 +1309,8 @@ export async function POST(request: Request) {
   }
 
   const fileKey = asString(requestBody.source?.fileKey);
+  const requestedProvider = normalizeModelProvider(requestBody.ai?.provider);
+  const selectedOpenAIModel = normalizeOpenAIModel(requestBody.ai?.openAIModel);
   const openAIKey = process.env.OPENAI_API_KEY?.trim();
   const geminiKey = (
     process.env.GEMINI_API_KEY ||
@@ -1293,6 +1330,26 @@ export async function POST(request: Request) {
         message: "整份 Figma 檔案請先匯入 Page 清單，選擇其中一個 Page 後再進行 AI 分析。",
       },
       { status: 400 },
+    );
+  }
+
+  if (requestedProvider === "openai" && !openAIKey) {
+    return Response.json(
+      {
+        code: "missing_openai_key",
+        message: "已選擇 OpenAI 模型，但尚未設定 OPENAI_API_KEY。請在 Sites 環境變數加入 OpenAI API key 後再分析。",
+      },
+      { status: 503 },
+    );
+  }
+
+  if (requestedProvider === "gemini" && !geminiKey) {
+    return Response.json(
+      {
+        code: "missing_gemini_key",
+        message: "已選擇 Gemini 模型，但尚未設定 GEMINI_API_KEY 或 GOOGLE_AI_API_KEY。請在 Sites 環境變數加入 Google AI key 後再分析。",
+      },
+      { status: 503 },
     );
   }
 
@@ -1327,7 +1384,11 @@ export async function POST(request: Request) {
       | null = null;
     let providerError: unknown = null;
 
-    if (geminiKey) {
+    if (requestedProvider === "openai") {
+      analysis = await analyzeWithOpenAI(requestBody, figmaContext, openAIKey as string, selectedOpenAIModel);
+    } else if (requestedProvider === "gemini") {
+      analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey as string);
+    } else if (geminiKey) {
       try {
         analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey);
       } catch (error) {
@@ -1337,7 +1398,7 @@ export async function POST(request: Request) {
 
     if (!analysis && openAIKey) {
       try {
-        analysis = await analyzeWithOpenAI(requestBody, figmaContext, openAIKey);
+        analysis = await analyzeWithOpenAI(requestBody, figmaContext, openAIKey, selectedOpenAIModel);
       } catch (error) {
         providerError = error;
       }
