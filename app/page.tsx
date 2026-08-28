@@ -519,7 +519,7 @@ export default function Home() {
   const [analysisProcess, setAnalysisProcess] = useState<string[]>([]);
   const [analysisError, setAnalysisError] = useState("");
   const [analysisMeta, setAnalysisMeta] = useState<AnalyzeResponse["figma"] | null>(null);
-  const [analysisState, setAnalysisState] = useState("尚未提供 Figma 連結");
+  const [, setAnalysisState] = useState("尚未提供 Figma 連結");
   const [libraryRows, setLibraryRows] = useState<SavedTrackingEvent[]>([]);
   const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -831,11 +831,7 @@ export default function Home() {
       setIsPageMenuOpen(false);
       setHasImportedPages(true);
       setPageLoadError(pages.length ? "" : "這份 Figma 檔案沒有讀到可分析的 Page");
-      setAnalysisState(
-        pages.length
-          ? "已匯入 Figma，請在 AI 分析區選擇要分析的 Page"
-          : "這份 Figma 檔案沒有讀到可分析的 Page",
-      );
+      setAnalysisState("");
     } catch (error) {
       const message = error instanceof Error ? error.message : "無法讀取 Figma Page 清單";
 
@@ -844,7 +840,7 @@ export default function Home() {
       setIsPageMenuOpen(false);
       setHasImportedPages(false);
       setPageLoadError(message);
-      setAnalysisState(message);
+      setAnalysisState("");
     } finally {
       setIsLoadingPages(false);
     }
@@ -879,7 +875,7 @@ export default function Home() {
     setFilter("All");
     setPriorityFilter("All");
     setQuery("");
-    setAnalysisState("正在讀取Figma稿件");
+    setAnalysisState("");
 
     await loadFigmaPages(nextInfo);
   }
@@ -956,7 +952,7 @@ export default function Home() {
       }
 
       if (isLoadingPages) {
-        setAnalysisState("正在讀取Figma稿件");
+        setAnalysisState("");
         return;
       }
 
@@ -1498,65 +1494,6 @@ export default function Home() {
               <h2>AI 分析</h2>
             </div>
 
-            <div className="model-selector">
-              <div className="model-selector-header">
-                <span className="field-label">分析模型</span>
-                {modelProvider === "openai" ? (
-                  <button
-                    className="secondary-button small-button"
-                    type="button"
-                    onClick={handleCheckOpenAIModels}
-                    disabled={isCheckingOpenAIModels || isAnalyzing}
-                  >
-                    {isCheckingOpenAIModels ? "確認中" : "確認可用模型"}
-                  </button>
-                ) : null}
-              </div>
-              <div className="model-toggle" role="group" aria-label="模型來源">
-                <button
-                  className={modelProvider === "openai" ? "active" : ""}
-                  type="button"
-                  onClick={() => setModelProvider("openai")}
-                  disabled={isAnalyzing}
-                >
-                  OpenAI
-                </button>
-                <button
-                  className={modelProvider === "gemini" ? "active" : ""}
-                  type="button"
-                  onClick={() => setModelProvider("gemini")}
-                  disabled={isAnalyzing}
-                >
-                  Gemini
-                </button>
-              </div>
-              {modelProvider === "openai" ? (
-                <label className="model-select-field">
-                  <span>OpenAI 模型</span>
-                  <select
-                    aria-label="OpenAI 模型"
-                    value={selectedOpenAIModel}
-                    onChange={(event) => setSelectedOpenAIModel(event.target.value)}
-                    disabled={isAnalyzing}
-                  >
-                    {openAIModelOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <small>{currentOpenAIModel.note}</small>
-                </label>
-              ) : (
-                <p className="model-note">使用站台目前設定的 Gemini 模型。</p>
-              )}
-              {modelProvider === "openai" && openAIModelMessage ? (
-                <p className={`model-status ${availableOpenAIModelIds.length ? "" : "model-status-warning"}`}>
-                  {openAIModelMessage}
-                </p>
-              ) : null}
-            </div>
-
             {canShowPageSelector ? (
               <div className={`page-selector ${pageLoadError ? "page-selector-error" : ""}`}>
                 <div className="page-selector-header">
@@ -1628,6 +1565,65 @@ export default function Home() {
               </div>
             ) : null}
 
+            <div className="model-selector">
+              <div className="model-selector-header">
+                <span className="field-label">分析模型</span>
+                {modelProvider === "openai" ? (
+                  <button
+                    className="secondary-button small-button"
+                    type="button"
+                    onClick={handleCheckOpenAIModels}
+                    disabled={isCheckingOpenAIModels || isAnalyzing}
+                  >
+                    {isCheckingOpenAIModels ? "確認中" : "確認可用模型"}
+                  </button>
+                ) : null}
+              </div>
+              <div className="model-toggle" role="group" aria-label="模型來源">
+                <button
+                  className={modelProvider === "openai" ? "active" : ""}
+                  type="button"
+                  onClick={() => setModelProvider("openai")}
+                  disabled={isAnalyzing}
+                >
+                  OpenAI
+                </button>
+                <button
+                  className={modelProvider === "gemini" ? "active" : ""}
+                  type="button"
+                  onClick={() => setModelProvider("gemini")}
+                  disabled={isAnalyzing}
+                >
+                  Gemini
+                </button>
+              </div>
+              {modelProvider === "openai" ? (
+                <label className="model-select-field">
+                  <span>OpenAI 模型</span>
+                  <select
+                    aria-label="OpenAI 模型"
+                    value={selectedOpenAIModel}
+                    onChange={(event) => setSelectedOpenAIModel(event.target.value)}
+                    disabled={isAnalyzing}
+                  >
+                    {openAIModelOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <small>{currentOpenAIModel.note}</small>
+                </label>
+              ) : (
+                <p className="model-note">使用站台目前設定的 Gemini 模型。</p>
+              )}
+              {modelProvider === "openai" && openAIModelMessage ? (
+                <p className={`model-status ${availableOpenAIModelIds.length ? "" : "model-status-warning"}`}>
+                  {openAIModelMessage}
+                </p>
+              ) : null}
+            </div>
+
             <button
               className="primary-button full-width"
               type="button"
@@ -1663,19 +1659,7 @@ export default function Home() {
                 </ol>
               </div>
             ) : null}
-            {analysisState ? (
-              <p
-                className={[
-                  "analysis-state",
-                  !hasAppliedSource ? "muted-state" : "",
-                  analysisError ? "error-state" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                {analysisState}
-              </p>
-            ) : null}
+            {analysisError ? <p className="analysis-state error-state">{analysisError}</p> : null}
             {!isAnalyzing && hasAnalyzed && analysisProcess.length ? (
               <div className="analysis-process">
                 <strong>分析流程</strong>
