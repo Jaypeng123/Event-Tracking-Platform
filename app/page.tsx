@@ -1429,11 +1429,61 @@ export default function Home() {
 
             {canShowPageSelector ? (
               <div className={`page-selector ${pageLoadError ? "page-selector-error" : ""}`}>
-                <div className="page-selector-header">
-                  <label className="field-label" htmlFor="figma-page">
-                    分析 Page
-                  </label>
-                  <label className="compact-model-field">
+                <div className="analysis-fields">
+                  <div className="analysis-field page-field">
+                    <label className="field-label" htmlFor="figma-page">
+                      分析 Page
+                    </label>
+                    {isLoadingPages ? (
+                      <div className="source-empty">
+                        <strong>正在讀取 Figma 稿件</strong>
+                        <span>正在讀取Figma稿件</span>
+                      </div>
+                    ) : pageOptions.length ? (
+                      <div className={`page-select ${isPageMenuOpen ? "open" : ""}`} id="figma-page" ref={pageSelectRef}>
+                        <button
+                          className="page-select-trigger"
+                          type="button"
+                          onClick={() => setIsPageMenuOpen((current) => !current)}
+                          disabled={!pageOptions.length || isAnalyzing}
+                          aria-expanded={isPageMenuOpen}
+                          aria-haspopup="listbox"
+                        >
+                          <span>{selectedPage?.name ?? "請選擇 Page"}</span>
+                          <span className="page-select-arrow" aria-hidden="true">
+                            ▾
+                          </span>
+                        </button>
+                        {isPageMenuOpen ? (
+                          <div className="page-select-menu" role="listbox" aria-label="分析 Page">
+                            {pageOptions.map((page) => (
+                              <button
+                                className={page.id === selectedPageId ? "page-select-option selected" : "page-select-option"}
+                                key={page.id}
+                                type="button"
+                                role="option"
+                                aria-selected={page.id === selectedPageId}
+                                onClick={() => handleSelectPage(page.id)}
+                              >
+                                <span>{page.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="source-empty">
+                        <strong>{hasImportedPages ? "尚未讀到 Page" : "尚未匯入 Page"}</strong>
+                        <span>
+                          {hasImportedPages
+                            ? "請確認 Figma 權限，或改貼指定 Page / 節點連結。"
+                            : "匯入 Figma 來源後，會列出這份檔案中的 Page。"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <label className="analysis-field compact-model-field">
                     <span>分析模型</span>
                     <select
                       aria-label="分析模型"
@@ -1449,58 +1499,9 @@ export default function Home() {
                     </select>
                   </label>
                 </div>
-                {isLoadingPages ? (
-                  <div className="source-empty">
-                    <strong>正在讀取 Figma 稿件</strong>
-                    <span>正在讀取Figma稿件</span>
-                  </div>
-                ) : pageOptions.length ? (
-                  <>
-                    <div className={`page-select ${isPageMenuOpen ? "open" : ""}`} id="figma-page" ref={pageSelectRef}>
-                      <button
-                        className="page-select-trigger"
-                        type="button"
-                        onClick={() => setIsPageMenuOpen((current) => !current)}
-                        disabled={!pageOptions.length || isAnalyzing}
-                        aria-expanded={isPageMenuOpen}
-                        aria-haspopup="listbox"
-                      >
-                        <span>{selectedPage?.name ?? "請選擇 Page"}</span>
-                        <span className="page-select-arrow" aria-hidden="true">
-                          ▾
-                        </span>
-                      </button>
-                      {isPageMenuOpen ? (
-                        <div className="page-select-menu" role="listbox" aria-label="分析 Page">
-                          {pageOptions.map((page) => (
-                            <button
-                              className={page.id === selectedPageId ? "page-select-option selected" : "page-select-option"}
-                              key={page.id}
-                              type="button"
-                              role="option"
-                              aria-selected={page.id === selectedPageId}
-                              onClick={() => handleSelectPage(page.id)}
-                            >
-                              <span>{page.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    <span>
-                      已載入 {pageOptions.length} 個 Page；選定 Page 後只會分析該頁，避免一次分析整份檔案。
-                    </span>
-                  </>
-                ) : (
-                  <div className="source-empty">
-                    <strong>{hasImportedPages ? "尚未讀到 Page" : "尚未匯入 Page"}</strong>
-                    <span>
-                      {hasImportedPages
-                        ? "請確認 Figma 權限，或改貼指定 Page / 節點連結。"
-                        : "匯入 Figma 來源後，會列出這份檔案中的 Page。"}
-                    </span>
-                  </div>
-                )}
+                {pageOptions.length && !isLoadingPages ? (
+                  <span>已載入 {pageOptions.length} 個 Page；選定 Page 後只會分析該頁，避免一次分析整份檔案。</span>
+                ) : null}
                 {pageLoadError ? <span className="page-selector-message">{pageLoadError}</span> : null}
               </div>
             ) : null}
