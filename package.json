@@ -1,5 +1,5 @@
 {
-  "name": "sites-project",
+  "name": "tracking-plan-builder",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -9,7 +9,9 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "preview:cloudflare": "WRANGLER_WRITE_LOGS=false WRANGLER_LOG_PATH=.wrangler/logs npm run build && WRANGLER_WRITE_LOGS=false WRANGLER_LOG_PATH=.wrangler/logs wrangler dev --config wrangler.deploy.jsonc",
+    "deploy:cloudflare": "WRANGLER_WRITE_LOGS=false WRANGLER_LOG_PATH=.wrangler/logs npm run build && WRANGLER_WRITE_LOGS=false WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --config wrangler.deploy.jsonc"
   },
   "dependencies": {
     "next": "16.2.6",
