@@ -184,8 +184,8 @@ function normalizeNodeId(value: string) {
 function cleanScopeName(value: string, fallback = "Figma 分析範圍") {
   const layerNoisePattern = /^(Arrow|Vector|Rectangle|ScrollerBar|ScrollBar|Action Button|Icon)\s*\d*$/i;
   const cleaned = value
-    .replace(/[（(]\s*\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?\s*[）)]/g, "")
-    .replace(/\s+\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?\s*$/g, "")
+    .replace(/[（(]\s*\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*[）)]/g, "")
+    .replace(/\s+\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*$/g, "")
     .split("/")
     .map((segment) => segment.trim())
     .filter((segment) => segment && !layerNoisePattern.test(segment))
@@ -523,6 +523,11 @@ export default function Home() {
   const [libraryRows, setLibraryRows] = useState<SavedTrackingEvent[]>([]);
   const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [libraryQuery, setLibraryQuery] = useState("");
+  const [libraryTypeFilter, setLibraryTypeFilter] = useState<EventFilter>("All");
+  const [libraryPriorityFilter, setLibraryPriorityFilter] = useState<PriorityFilter>("All");
+  const [librarySourceFilter, setLibrarySourceFilter] = useState("All");
+  const [isClearLibraryConfirmOpen, setIsClearLibraryConfirmOpen] = useState(false);
   const [editingLibraryId, setEditingLibraryId] = useState("");
   const [libraryDraft, setLibraryDraft] = useState<SavedTrackingEvent | null>(null);
   const analysisRunId = useRef(0);
@@ -589,6 +594,46 @@ export default function Home() {
       return typeMatch && priorityMatch && queryMatch;
     });
   }, [analysisRows, filter, hasAnalyzed, hasAppliedSource, priorityFilter, query]);
+
+  const librarySourceOptions = useMemo(
+    () => Array.from(new Set(libraryRows.map((row) => cleanScopeName(row.sourceName, "Figma 來源")).filter(Boolean))),
+    [libraryRows],
+  );
+  const effectiveLibrarySourceFilter =
+    librarySourceFilter === "All" || librarySourceOptions.includes(librarySourceFilter) ? librarySourceFilter : "All";
+
+  const libraryVisibleRows = useMemo(() => {
+    const normalizedQuery = libraryQuery.trim().toLowerCase();
+
+    return libraryRows.filter((row) => {
+      const typeMatch = libraryTypeFilter === "All" || row.eventType === libraryTypeFilter;
+      const priorityMatch = libraryPriorityFilter === "All" || row.priority === libraryPriorityFilter;
+      const sourceMatch =
+        effectiveLibrarySourceFilter === "All" ||
+        cleanScopeName(row.sourceName, "Figma 來源") === effectiveLibrarySourceFilter;
+      const queryMatch =
+        !normalizedQuery ||
+        [
+          row.id,
+          row.page,
+          row.area,
+          row.eventName,
+          row.eventType,
+          row.trigger,
+          row.purpose,
+          row.analysisValue,
+          row.metricCalculation,
+          row.properties,
+          row.sourceName,
+          row.priority,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery);
+
+      return typeMatch && priorityMatch && sourceMatch && queryMatch;
+    });
+  }, [effectiveLibrarySourceFilter, libraryPriorityFilter, libraryQuery, libraryRows, libraryTypeFilter]);
 
   const summary = useMemo(() => {
     const rows = hasAppliedSource && hasAnalyzed ? analysisRows : [];
@@ -673,6 +718,19 @@ export default function Home() {
     download(filename, toExcelXml(rows), "application/vnd.ms-excel;charset=utf-8");
   }
 
+  function makeSequentialRows(rows: TrackingEvent[]) {
+    return rows.map((row, index) => ({
+      ...row,
+      id: String(index + 1),
+      page: cleanScopeName(row.page, "Figma 分析範圍"),
+      area: cleanScopeName(row.area, row.page || "主要區塊"),
+    }));
+  }
+
+  function handleExportLibrary() {
+    handleExportRowsExcel(makeSequentialRows(libraryVisibleRows), "追蹤事件庫.xls");
+  }
+
   function handleStartLibraryEdit(row: SavedTrackingEvent) {
     setEditingLibraryId(row.libraryId);
     setLibraryDraft({ ...row });
@@ -706,8 +764,19 @@ export default function Home() {
     }
   }
 
+  function handleConfirmClearLibrary() {
+    setLibraryRows([]);
+    setLibraryQuery("");
+    setLibraryTypeFilter("All");
+    setLibraryPriorityFilter("All");
+    setLibrarySourceFilter("All");
+    setIsClearLibraryConfirmOpen(false);
+    handleCancelLibraryEdit();
+  }
+
   function handleCloseLibrary() {
     setIsLibraryOpen(false);
+    setIsClearLibraryConfirmOpen(false);
     handleCancelLibraryEdit();
   }
 
@@ -1049,19 +1118,29 @@ export default function Home() {
     return (
       <main className="app-shell library-shell">
         <header className="topbar library-topbar">
-          <div>
-            <p className="eyebrow">Product Analytics</p>
-            <h1>追蹤事件庫</h1>
+          <div className="library-heading-group">
+            <button className="icon-button back-button" type="button" onClick={handleCloseLibrary} aria-label="返回工具">
+              ‹
+            </button>
+            <div>
+              <p className="eyebrow">Product Analytics</p>
+              <h1>追蹤事件庫</h1>
+            </div>
           </div>
           <div className="topbar-actions">
-            <button className="secondary-button" type="button" onClick={handleCloseLibrary}>
-              返回工具
+            <button
+              className="secondary-button danger-button"
+              type="button"
+              onClick={() => setIsClearLibraryConfirmOpen(true)}
+              disabled={!libraryRows.length}
+            >
+              清除全部事件
             </button>
             <button
               className="primary-button"
               type="button"
-              onClick={() => handleExportRowsExcel(libraryRows, "追蹤事件庫.xls")}
-              disabled={!libraryRows.length}
+              onClick={handleExportLibrary}
+              disabled={!libraryVisibleRows.length}
             >
               匯出 Excel
             </button>
@@ -1069,7 +1148,72 @@ export default function Home() {
         </header>
 
         <section className="library-page" aria-label="追蹤事件庫表格">
-          {libraryRows.length ? (
+          <div className="library-toolbar">
+            <div>
+              <p className="eyebrow">Selected Events</p>
+              <h2>已儲存 {libraryRows.length} 筆追蹤事件</h2>
+            </div>
+            <div className="toolbar-controls library-controls">
+              <label className="filter-field search-field">
+                <span>搜尋</span>
+                <input
+                  aria-label="搜尋追蹤事件庫"
+                  placeholder="搜尋事件、頁面或屬性"
+                  value={libraryQuery}
+                  onChange={(event) => setLibraryQuery(event.target.value)}
+                  disabled={!libraryRows.length}
+                />
+              </label>
+              <label className="filter-field">
+                <span>事件類型</span>
+                <select
+                  aria-label="追蹤事件庫事件類型篩選"
+                  value={libraryTypeFilter}
+                  onChange={(event) => setLibraryTypeFilter(event.target.value as EventFilter)}
+                  disabled={!libraryRows.length}
+                >
+                  {filterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="filter-field">
+                <span>優先級</span>
+                <select
+                  aria-label="追蹤事件庫優先級篩選"
+                  value={libraryPriorityFilter}
+                  onChange={(event) => setLibraryPriorityFilter(event.target.value as PriorityFilter)}
+                  disabled={!libraryRows.length}
+                >
+                  {priorityOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="filter-field source-filter">
+                <span>來源</span>
+                <select
+                  aria-label="追蹤事件庫來源篩選"
+                  value={effectiveLibrarySourceFilter}
+                  onChange={(event) => setLibrarySourceFilter(event.target.value)}
+                  disabled={!libraryRows.length || !librarySourceOptions.length}
+                >
+                  <option value="All">全部</option>
+                  {librarySourceOptions.map((sourceName) => (
+                    <option key={sourceName} value={sourceName}>
+                      {sourceName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+
+          {libraryVisibleRows.length ? (
             <div className="library-table-wrap">
               <table className="library-table">
                 <colgroup>
@@ -1095,9 +1239,9 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {libraryRows.map((row) => (
+                  {libraryVisibleRows.map((row, index) => (
                     <tr key={row.libraryId}>
-                      <td>{row.id}</td>
+                      <td>{index + 1}</td>
                       <td>
                         <strong>{row.area}</strong>
                         <span>{row.page}</span>
@@ -1134,8 +1278,12 @@ export default function Home() {
             </div>
           ) : (
             <div className="library-page-empty">
-              <strong>尚未選取埋點追蹤事項</strong>
-              <span>回到工具頁，在分析結果表格勾選事件後，會加入這裡並保留到你自行刪除。</span>
+              <strong>{libraryRows.length ? "沒有符合條件的追蹤事件" : "尚未選取埋點追蹤事項"}</strong>
+              <span>
+                {libraryRows.length
+                  ? "請調整搜尋文字、事件類型、優先級或來源篩選。"
+                  : "回到工具頁，在分析結果表格勾選事件後，會加入這裡並保留到你自行刪除。"}
+              </span>
             </div>
           )}
         </section>
@@ -1226,6 +1374,30 @@ export default function Home() {
                 </button>
               </div>
             </aside>
+          </div>
+        ) : null}
+
+        {isClearLibraryConfirmOpen ? (
+          <div className="confirm-layer" role="dialog" aria-modal="true" aria-label="清除全部追蹤事件確認">
+            <button
+              className="drawer-scrim"
+              type="button"
+              onClick={() => setIsClearLibraryConfirmOpen(false)}
+              aria-label="取消清除全部事件"
+            />
+            <div className="confirm-dialog">
+              <p className="eyebrow">Confirm</p>
+              <h2>清除全部事件？</h2>
+              <p>會清除追蹤事件庫中的 {libraryRows.length} 筆事件，首頁目前的分析結果不會被刪除。</p>
+              <div className="confirm-actions">
+                <button className="secondary-button" type="button" onClick={() => setIsClearLibraryConfirmOpen(false)}>
+                  取消
+                </button>
+                <button className="primary-button danger-solid-button" type="button" onClick={handleConfirmClearLibrary}>
+                  清除全部
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
       </main>
@@ -1547,13 +1719,16 @@ export default function Home() {
               <h2>第一階段埋點建議</h2>
             </div>
             <div className="toolbar-controls">
-              <input
-                aria-label="搜尋事件"
-                placeholder="搜尋事件、頁面或屬性"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                disabled={!hasAnalyzed || isAnalyzing || !analysisRows.length}
-              />
+              <label className="filter-field search-field">
+                <span>搜尋</span>
+                <input
+                  aria-label="搜尋事件"
+                  placeholder="搜尋事件、頁面或屬性"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  disabled={!hasAnalyzed || isAnalyzing || !analysisRows.length}
+                />
+              </label>
               <label className="filter-field">
                 <span>事件類型</span>
                 <select
@@ -1678,7 +1853,6 @@ export default function Home() {
                         <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>
                           {row.priority}
                         </span>
-                        <small className="priority-description">{priorityDescriptions[row.priority]}</small>
                       </td>
                     </tr>
                   );

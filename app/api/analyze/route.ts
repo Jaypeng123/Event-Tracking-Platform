@@ -345,7 +345,7 @@ function buildInstructions() {
     "priority 必須使用 P0、P1、P2。P0：第一階段沒有這支，就無法回答核心產品問題。P1：有助於理解使用情境與功能價值。P2：微互動與細節優化。",
     "請只把真正關鍵的頁面曝光、核心入口、關鍵流程列為 P0；不要把全部事件都標成 P0。",
     "page 與 area 不可留空，也不可使用未命名頁面、未命名區塊等占位詞；若節點名稱不清楚，請根據畫面文字自行命名具體頁面與區塊。",
-    "page 與 area 不要保留版本號或頁碼範圍，例如 個人中心（1.4~1.8）要輸出 個人中心。",
+    "page 與 area 不要保留版本號或頁碼，例如 個人中心（1.4~1.8）要輸出 個人中心，慢病管理-待處理 (4) 要輸出 慢病管理-待處理。",
     "trigger、purpose、analysisValue、metricCalculation 不可每列重複相同模板句。",
     "properties、propertyDefinitions、dataTypes、sampleValues 都必須是以分號分隔的字串，不要輸出物件或陣列。",
     "追蹤目的要回答為什麼要追這個事件；analysisValue 欄位代表「分析的原因」，必須用可驗證假設來寫，例如：假設醫療人員需要快速查看待處理個案，因此追蹤此入口可驗證它是否承擔主要分流角色。",
@@ -570,8 +570,8 @@ const genericFallbackSentences = new Set([
 
 function stripVersionMarkers(value: string) {
   return value
-    .replace(/[（(][^）)]*\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?[^）)]*[）)]/g, "")
-    .replace(/\s+\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?\s*$/g, "")
+    .replace(/[（(]\s*\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*[）)]/g, "")
+    .replace(/\s+\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*$/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

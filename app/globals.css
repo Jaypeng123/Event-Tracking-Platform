@@ -71,6 +71,7 @@ button {
   margin: 0 auto 16px;
   max-width: 1720px;
   padding: 16px 18px;
+  width: 100%;
 }
 
 .topbar h1,
@@ -353,6 +354,20 @@ select:disabled {
   gap: 16px;
 }
 
+.library-heading-group {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.back-button {
+  border-radius: 999px;
+  font-size: 24px;
+  height: 38px;
+  width: 38px;
+}
+
 .library-page {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -361,19 +376,36 @@ select:disabled {
   margin: 0 auto;
   max-width: 1720px;
   min-height: calc(100vh - 142px);
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
 }
 
+.library-toolbar {
+  align-items: end;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.library-toolbar h2 {
+  font-size: 20px;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.library-controls {
+  align-items: end;
+}
+
 .library-table-wrap {
-  height: 100%;
-  overflow: auto;
+  border-top: 1px solid var(--line);
+  overflow: visible;
 }
 
 .library-table {
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 1660px;
   table-layout: fixed;
   width: 100%;
 }
@@ -407,35 +439,35 @@ select:disabled {
 }
 
 .library-col-id {
-  width: 92px;
+  width: 5%;
 }
 
 .library-col-page {
-  width: 220px;
+  width: 14%;
 }
 
 .library-col-event {
-  width: 210px;
+  width: 15%;
 }
 
 .library-col-purpose {
-  width: 250px;
+  width: 15%;
 }
 
 .library-col-analysis {
-  width: 360px;
+  width: 20%;
 }
 
 .library-col-metric {
-  width: 250px;
+  width: 13%;
 }
 
 .library-col-meta {
-  width: 190px;
+  width: 10%;
 }
 
 .library-col-actions {
-  width: 156px;
+  width: 8%;
 }
 
 .row-actions {
@@ -463,6 +495,52 @@ select:disabled {
 .library-page-empty span {
   color: var(--muted);
   font-size: 13px;
+}
+
+.confirm-layer {
+  align-items: center;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 40;
+}
+
+.confirm-dialog {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 24px 72px rgb(16 24 18 / 24%);
+  max-width: 420px;
+  padding: 20px;
+  position: relative;
+  width: min(420px, 100%);
+}
+
+.confirm-dialog h2 {
+  font-size: 22px;
+  line-height: 1.25;
+  margin: 0 0 10px;
+}
+
+.confirm-dialog p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.confirm-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 18px;
+}
+
+.danger-solid-button {
+  background: var(--red-700);
+  border-color: var(--red-700);
 }
 
 .library-drawer-layer {
@@ -1116,8 +1194,12 @@ select:disabled {
   font-size: 20px;
 }
 
-.toolbar-controls input {
+.search-field input {
   width: 248px;
+}
+
+.library-controls .search-field input {
+  width: 280px;
 }
 
 .filter-field {
@@ -1134,6 +1216,10 @@ select:disabled {
 
 .filter-field select {
   min-width: 128px;
+}
+
+.source-filter select {
+  max-width: 260px;
 }
 
 .event-table-wrap {
@@ -1496,7 +1582,8 @@ code {
   }
 
   .topbar,
-  .table-toolbar {
+  .table-toolbar,
+  .library-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
@@ -1507,11 +1594,17 @@ code {
   }
 
   .topbar-actions button,
-  .toolbar-controls input,
+  .search-field input,
+  .library-controls .search-field input,
   .filter-field,
   .filter-field select {
     flex: 1;
     min-width: 0;
+    width: 100%;
+  }
+
+  .source-filter select {
+    max-width: none;
   }
 
   .workspace,

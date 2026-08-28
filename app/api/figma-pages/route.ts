@@ -46,8 +46,8 @@ function extractFigmaError(payload: Record<string, unknown>, fallback: string) {
 
 function cleanPageName(value: string, fallback = "Untitled page") {
   const cleaned = value
-    .replace(/[（(][^）)]*\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?[^）)]*[）)]/g, "")
-    .replace(/\s+\d+(?:\.\d+)?\s*[~～\-–—]\s*\d+(?:\.\d+)?\s*$/g, "")
+    .replace(/[（(]\s*\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*[）)]/g, "")
+    .replace(/\s+\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*$/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 
