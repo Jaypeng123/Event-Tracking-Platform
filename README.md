@@ -18,7 +18,7 @@ npm run dev
 
 ## Cloudflare Workers Deployment
 
-這個 repo 已包含 `wrangler.deploy.jsonc` 與 GitHub Actions。推到 GitHub 後，`main` 分支會自動 build 並部署到 Cloudflare Workers。
+這個 repo 已包含 `wrangler.jsonc` 與 GitHub Actions。推到 GitHub 後，`main` 分支會自動 build 並部署到 Cloudflare Workers。
 
 GitHub repo 需要新增以下 Secrets：
 

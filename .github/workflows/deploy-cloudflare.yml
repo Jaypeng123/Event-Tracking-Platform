@@ -35,7 +35,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config wrangler.deploy.jsonc --keep-vars
+          command: deploy --keep-vars
           secrets: |
             FIGMA_ACCESS_TOKEN
             OPENAI_API_KEY
