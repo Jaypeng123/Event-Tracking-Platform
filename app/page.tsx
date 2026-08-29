@@ -106,6 +106,7 @@ type CachedAnalysisResult = {
 
 type ModelProvider = "openai" | "gemini";
 type AppView = "landing" | "planner";
+type ImportScope = Extract<FigmaSourceMode, "file" | "node">;
 
 type AnalysisModelOption = {
   id: string;
@@ -426,7 +427,7 @@ function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
     const fileName = knownFile?.name ?? decodeURIComponent(pathParts[2] ?? "Figma design file");
 
     return {
-      mode: nodeId ? "node" : "file",
+      mode: "file",
       fileKey,
       fileName,
       nodeId,
@@ -439,6 +440,27 @@ function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
   }
 }
 
+function resolveImportScope(sourceInfo: FigmaSourceInfo, importScope: ImportScope): FigmaSourceInfo {
+  if (sourceInfo.mode === "empty" || sourceInfo.mode === "invalid" || sourceInfo.mode === "unsupported") {
+    return sourceInfo;
+  }
+
+  if (importScope === "node" && sourceInfo.nodeId) {
+    return {
+      ...sourceInfo,
+      mode: "node",
+      nodeName: cleanScopeName(sourceInfo.nodeName || "指定節點", "指定節點"),
+    };
+  }
+
+  return {
+    ...sourceInfo,
+    mode: "file",
+    nodeId: "",
+    nodeName: "",
+  };
+}
+
 function createLocalFigmaPagesFallback(nextInfo: FigmaSourceInfo): FigmaPagesLoadResult | null {
   if (!nextInfo.fileKey || nextInfo.mode === "empty" || nextInfo.mode === "invalid" || nextInfo.mode === "unsupported") {
     return null;
@@ -446,7 +468,7 @@ function createLocalFigmaPagesFallback(nextInfo: FigmaSourceInfo): FigmaPagesLoa
 
   const knownPages = nextInfo.pages.map(normalizeFigmaPage);
 
-  if (nextInfo.nodeId) {
+  if (nextInfo.mode === "node" && nextInfo.nodeId) {
     const relatedEventPages = Array.from(new Set(knownPages.flatMap((page) => page.relatedEventPages ?? [])));
     const nodeName = cleanScopeName(nextInfo.nodeName || knownPages[0]?.name || nextInfo.fileName, "指定 Frame", 72);
     const pages: FigmaPage[] = [
@@ -470,7 +492,7 @@ function createLocalFigmaPagesFallback(nextInfo: FigmaSourceInfo): FigmaPagesLoa
     };
   }
 
-  if (knownPages.length) {
+  if (knownPages.length > 1) {
     return {
       pages: knownPages,
       sourceInfo: {
@@ -709,7 +731,7 @@ function isImportedFigmaSourceLike(value: unknown): value is ImportedFigmaSource
 }
 
 function getFigmaSourceId(projectId: string, source: FigmaSourceInfo) {
-  return `figma_${hashText([projectId, source.fileKey, source.nodeId || "file"].join("|"))}`;
+  return `figma_${hashText([projectId, source.fileKey, source.mode === "node" ? source.nodeId : "file"].join("|"))}`;
 }
 
 function getAnalysisResultCacheKey(projectId: string, fileKey: string, sourceNodeId: string, pageId: string) {
@@ -945,6 +967,7 @@ function toExcelXml(rows: TrackingEvent[]) {
 export default function Home() {
   const [activeView, setActiveView] = useState<AppView>("landing");
   const [draftFigmaUrl, setDraftFigmaUrl] = useState("");
+  const [draftImportScope, setDraftImportScope] = useState<ImportScope>("file");
   const [appliedFigmaUrl, setAppliedFigmaUrl] = useState("");
   const [projects, setProjects] = useState<TrackingProject[]>([]);
   const [activeProjectId, setActiveProjectId] = useState("");
@@ -1003,7 +1026,13 @@ export default function Home() {
     startWidth: number;
   } | null>(null);
 
-  const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
+  const draftUrlInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
+  const draftInfo = useMemo(
+    () => resolveImportScope(draftUrlInfo, draftImportScope),
+    [draftImportScope, draftUrlInfo],
+  );
+  const canImportSelectedFrame =
+    draftUrlInfo.mode === "file" && Boolean(draftUrlInfo.fileKey) && Boolean(draftUrlInfo.nodeId);
   const currentProject = projects.find((project) => project.id === activeProjectId) ?? null;
   const currentProjectSources = useMemo(
     () => importedSources.filter((source) => source.projectId === activeProjectId),
@@ -1519,7 +1548,7 @@ export default function Home() {
       mode: nextInfo.mode === "node" ? "node" : "file",
       fileKey: nextInfo.fileKey,
       fileName: sourceDisplayName,
-      nodeId: nextInfo.nodeId,
+      nodeId: nextInfo.mode === "node" ? nextInfo.nodeId : "",
       nodeName: nextInfo.mode === "node" ? sourceDisplayName : "",
       normalizedUrl: nextInfo.normalizedUrl,
       pages,
@@ -1671,6 +1700,7 @@ export default function Home() {
 
   function handleStartAddSource() {
     setDraftFigmaUrl("");
+    setDraftImportScope("file");
     setIsAddingSource(true);
     setIsSourceMenuOpen(false);
     setAnalysisState("");
@@ -1678,6 +1708,7 @@ export default function Home() {
 
   function handleCancelAddSource() {
     setDraftFigmaUrl("");
+    setDraftImportScope("file");
     setIsSourceMenuOpen(false);
 
     if (!currentProjectSources.length) {
@@ -1926,8 +1957,8 @@ export default function Home() {
         body: JSON.stringify({
           fileKey: nextInfo.fileKey,
           fileName: nextInfo.fileName,
-          nodeId: nextInfo.nodeId,
-          nodeName: nextInfo.nodeName,
+          nodeId: nextInfo.mode === "node" ? nextInfo.nodeId : "",
+          nodeName: nextInfo.mode === "node" ? nextInfo.nodeName : "",
         }),
         cache: "no-store",
         credentials: "include",
@@ -1999,7 +2030,7 @@ export default function Home() {
       return;
     }
 
-    const nextInfo = parseFigmaUrl(draftFigmaUrl);
+    const nextInfo = resolveImportScope(parseFigmaUrl(draftFigmaUrl), draftImportScope);
 
     if (nextInfo.mode === "empty") {
       showToast("請先貼上 Figma design/file 連結");
@@ -2050,6 +2081,7 @@ export default function Home() {
       }
 
       saveImportedSource(sourceInfo, pages);
+      setDraftImportScope("file");
     }
   }
 
@@ -3065,11 +3097,34 @@ export default function Home() {
                       <textarea
                         id="figma-url"
                         value={draftFigmaUrl}
-                        onChange={(event) => setDraftFigmaUrl(event.target.value)}
+                        onChange={(event) => {
+                          setDraftFigmaUrl(event.target.value);
+                          setDraftImportScope("file");
+                        }}
                         placeholder="貼上 Figma design/file/prototype 連結"
                         rows={3}
                         disabled={isLoadingPages}
                       />
+                      {canImportSelectedFrame ? (
+                        <div className="source-scope-toggle" role="group" aria-label="Figma 匯入範圍">
+                          <button
+                            className={draftImportScope === "file" ? "selected" : ""}
+                            type="button"
+                            onClick={() => setDraftImportScope("file")}
+                            disabled={isLoadingPages}
+                          >
+                            整份檔案
+                          </button>
+                          <button
+                            className={draftImportScope === "node" ? "selected" : ""}
+                            type="button"
+                            onClick={() => setDraftImportScope("node")}
+                            disabled={isLoadingPages}
+                          >
+                            目前選取 Frame
+                          </button>
+                        </div>
+                      ) : null}
                       {draftInfo.mode === "empty" ? (
                         <div className="source-empty">
                           <strong>{currentProjectSources.length ? "等待新增來源" : "尚未匯入來源"}</strong>
