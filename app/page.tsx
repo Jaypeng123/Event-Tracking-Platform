@@ -1931,7 +1931,7 @@ export default function Home() {
         {isAnalysisModelMenuOpen ? (
           <div className="model-menu-list" role="menu" aria-label="分析模型清單">
             <div className="model-menu-group-label" aria-hidden="true">
-              Open AI<span>（這模型會燒子傑的錢錢）</span>
+              Open AI<span>（這模型會燒子傑的錢錢🔥）</span>
             </div>
             {openAIModels.map((option) => (
               <button
@@ -2131,6 +2131,7 @@ export default function Home() {
             <span className="landing-orbit orbit-a" />
             <span className="landing-orbit orbit-b" />
             <div className="floating-cube figma-cube">
+              <span />
               <span />
               <span />
               <span />
@@ -2733,7 +2734,7 @@ export default function Home() {
             </div>
           </div>
 
-          {hasAppliedSource ? (
+          {hasAppliedSource && !isAddingSource ? (
             <div className="panel-section">
             <div className="section-heading">
               <span className="section-index">02</span>
