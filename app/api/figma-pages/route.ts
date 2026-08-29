@@ -42,7 +42,18 @@ async function readJsonResponse(response: Response) {
 }
 
 function extractFigmaError(payload: Record<string, unknown>, fallback: string) {
-  return asString(payload.message, asString(payload.err, fallback));
+  const rawSnippet =
+    typeof payload.raw === "string"
+      ? payload.raw
+          .replace(/<script[\s\S]*?<\/script>/gi, " ")
+          .replace(/<style[\s\S]*?<\/style>/gi, " ")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 160)
+      : "";
+
+  return asString(payload.message, asString(payload.err, rawSnippet || fallback));
 }
 
 function cleanPageName(value: string, fallback = "Untitled page") {
@@ -53,6 +64,28 @@ function cleanPageName(value: string, fallback = "Untitled page") {
     .trim();
 
   return cleaned || fallback;
+}
+
+async function fetchFigmaPayload(path: string, figmaToken: string) {
+  const response = await fetch(`${FIGMA_API_BASE_URL}${path}`, {
+    headers: buildFigmaHeaders(figmaToken),
+    cache: "no-store",
+  });
+  const payload = (await readJsonResponse(response)) as FigmaApiResponse & Record<string, unknown>;
+
+  return { response, payload };
+}
+
+function getFilePages(payload: FigmaApiResponse) {
+  return (
+    payload.document?.children
+      ?.filter((node) => node.type === "CANVAS" && node.id)
+      .map((node) => ({
+        id: asString(node.id),
+        name: cleanPageName(asString(node.name, "Untitled page")),
+        childCount: node.children?.length ?? 0,
+      })) ?? []
+  );
 }
 
 export async function POST(request: Request) {
@@ -82,71 +115,72 @@ export async function POST(request: Request) {
     );
   }
 
-  if (nodeId) {
-    const response = await fetch(
-      `${FIGMA_API_BASE_URL}/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}`,
-      {
-        headers: buildFigmaHeaders(figmaToken),
-        cache: "no-store",
-      },
+  try {
+    let nodeFallbackMessage = "";
+
+    if (nodeId) {
+      const { response, payload } = await fetchFigmaPayload(
+        `/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}`,
+        figmaToken,
+      );
+
+      if (response.ok) {
+        const node = payload.nodes?.[nodeId]?.document;
+
+        if (node && node.type !== "CANVAS") {
+          const frameName = cleanPageName(
+            asString(node.name, asString(requestBody.nodeName, asString(requestBody.fileName, "指定 Frame"))),
+            "指定 Frame",
+          );
+
+          return Response.json({
+            fileName: asString(payload.name, asString(requestBody.fileName, "Figma design file")),
+            mode: "node",
+            nodeId,
+            nodeName: frameName,
+            pages: [
+              {
+                id: nodeId,
+                name: frameName,
+                childCount: node.children?.length ?? 1,
+              },
+            ],
+          });
+        }
+      } else {
+        nodeFallbackMessage = extractFigmaError(payload, `Figma API 回傳 ${response.status}`);
+      }
+    }
+
+    const { response, payload } = await fetchFigmaPayload(
+      `/files/${encodeURIComponent(fileKey)}?depth=1`,
+      figmaToken,
     );
-    const payload = (await readJsonResponse(response)) as FigmaApiResponse & Record<string, unknown>;
 
     if (!response.ok) {
       return Response.json(
         {
-          code: "figma_node_failed",
-          message: extractFigmaError(payload, `Figma API 回傳 ${response.status}`),
+          code: "figma_pages_failed",
+          message: extractFigmaError(payload, nodeFallbackMessage || `Figma API 回傳 ${response.status}`),
         },
         { status: 502 },
       );
     }
 
-    const node = payload.nodes?.[nodeId]?.document;
-    const frameName = cleanPageName(
-      asString(node?.name, asString(requestBody.nodeName, asString(requestBody.fileName, "指定 Frame"))),
-      "指定 Frame",
-    );
-
     return Response.json({
-      fileName: asString(payload.name, asString(requestBody.fileName, "Figma design file")),
-      pages: [
-        {
-          id: nodeId,
-          name: frameName,
-          childCount: node?.children?.length ?? 1,
-        },
-      ],
+      fileName: asString(payload.name, "Figma design file"),
+      mode: "file",
+      nodeId: "",
+      nodeName: "",
+      pages: getFilePages(payload),
     });
-  }
-
-  const response = await fetch(`${FIGMA_API_BASE_URL}/files/${encodeURIComponent(fileKey)}?depth=1`, {
-    headers: buildFigmaHeaders(figmaToken),
-    cache: "no-store",
-  });
-  const payload = (await readJsonResponse(response)) as FigmaApiResponse & Record<string, unknown>;
-
-  if (!response.ok) {
+  } catch {
     return Response.json(
       {
-        code: "figma_pages_failed",
-        message: extractFigmaError(payload, `Figma API 回傳 ${response.status}`),
+        code: "figma_connection_failed",
+        message: "Figma API 暫時無法回應，請稍後再匯入一次。",
       },
       { status: 502 },
     );
   }
-
-  const pages =
-    payload.document?.children
-      ?.filter((node) => node.type === "CANVAS" && node.id)
-      .map((node) => ({
-        id: asString(node.id),
-        name: cleanPageName(asString(node.name, "Untitled page")),
-        childCount: node.children?.length ?? 0,
-      })) ?? [];
-
-  return Response.json({
-    fileName: asString(payload.name, "Figma design file"),
-    pages,
-  });
 }

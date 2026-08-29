@@ -111,8 +111,16 @@ type AnalysisModelOption = {
 
 type FigmaPagesResponse = {
   fileName?: string;
+  mode?: Extract<FigmaSourceMode, "file" | "node">;
+  nodeId?: string;
+  nodeName?: string;
   pages?: FigmaPage[];
   message?: string;
+};
+
+type FigmaPagesLoadResult = {
+  pages: FigmaPage[];
+  sourceInfo: FigmaSourceInfo;
 };
 
 const EMPTY_FIGMA_SOURCE: FigmaSourceInfo = {
@@ -575,14 +583,16 @@ function getDefaultSelectedPageId(pages: FigmaPage[], preferredPageId = "") {
 function normalizeStoredFigmaSource(source: ImportedFigmaSource): ImportedFigmaSource {
   const now = new Date().toISOString();
   const pages = Array.isArray(source.pages) ? source.pages.map(normalizeFigmaPage) : [];
+  const mode = source.mode === "node" ? "node" : "file";
 
   return {
     ...source,
     id: source.id || `figma_${hashText(source.normalizedUrl || source.fileKey)}`,
     projectId: source.projectId || LEGACY_PROJECT_ID,
-    mode: source.mode === "node" ? "node" : "file",
+    mode,
     fileName: cleanScopeName(source.fileName, "Figma 來源", 48),
-    nodeName: source.nodeName ? cleanScopeName(source.nodeName, "指定節點", 48) : "",
+    nodeId: mode === "node" ? source.nodeId : "",
+    nodeName: mode === "node" && source.nodeName ? cleanScopeName(source.nodeName, "指定節點", 48) : "",
     pages,
     selectedPageId: getDefaultSelectedPageId(pages, source.selectedPageId),
     importedAt: typeof source.importedAt === "string" ? source.importedAt : now,
@@ -802,13 +812,27 @@ export default function Home() {
   } | null>(null);
 
   const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
-  const figmaInfo = useMemo(() => parseFigmaUrl(appliedFigmaUrl), [appliedFigmaUrl]);
   const currentProject = projects.find((project) => project.id === activeProjectId) ?? null;
   const currentProjectSources = useMemo(
     () => importedSources.filter((source) => source.projectId === activeProjectId),
     [activeProjectId, importedSources],
   );
   const selectedImportedSource = currentProjectSources.find((source) => source.id === activeSourceId) ?? null;
+  const figmaInfo = useMemo(() => {
+    if (selectedImportedSource) {
+      return {
+        mode: selectedImportedSource.mode,
+        fileKey: selectedImportedSource.fileKey,
+        fileName: selectedImportedSource.fileName,
+        nodeId: selectedImportedSource.mode === "node" ? selectedImportedSource.nodeId : "",
+        nodeName: selectedImportedSource.mode === "node" ? selectedImportedSource.nodeName : "",
+        pages: selectedImportedSource.pages,
+        normalizedUrl: selectedImportedSource.normalizedUrl,
+      };
+    }
+
+    return parseFigmaUrl(appliedFigmaUrl);
+  }, [appliedFigmaUrl, selectedImportedSource]);
   const currentProjectLibraryRows = useMemo(
     () =>
       libraryRows.filter((row) =>
@@ -1604,13 +1628,15 @@ export default function Home() {
     }, 2000);
   }
 
-  async function loadFigmaPages(nextInfo: FigmaSourceInfo) {
+  async function loadFigmaPages(nextInfo: FigmaSourceInfo): Promise<FigmaPagesLoadResult> {
+    const emptyResult = { pages: [], sourceInfo: nextInfo };
+
     if (!nextInfo.fileKey || nextInfo.mode === "empty" || nextInfo.mode === "invalid" || nextInfo.mode === "unsupported") {
       setLoadedPages([]);
       setSelectedPageId("");
       setHasImportedPages(false);
       setPageLoadError("");
-      return [];
+      return emptyResult;
     }
 
     setIsLoadingPages(true);
@@ -1642,6 +1668,18 @@ export default function Home() {
       }
 
       const pages = Array.isArray(result.pages) ? result.pages.map(normalizeFigmaPage) : [];
+      const resolvedMode = result.mode === "file" || result.mode === "node" ? result.mode : nextInfo.mode;
+      const sourceInfo: FigmaSourceInfo = {
+        ...nextInfo,
+        mode: resolvedMode,
+        fileName: cleanScopeName(result.fileName ?? nextInfo.fileName, "Figma design file", 72),
+        nodeId: resolvedMode === "node" ? result.nodeId ?? nextInfo.nodeId : "",
+        nodeName:
+          resolvedMode === "node"
+            ? cleanScopeName(result.nodeName ?? pages[0]?.name ?? nextInfo.nodeName, "指定節點", 72)
+            : "",
+        pages,
+      };
       const nextSelectedPageId = getDefaultSelectedPageId(pages);
 
       setLoadedPages(pages);
@@ -1650,7 +1688,7 @@ export default function Home() {
       setHasImportedPages(true);
       setPageLoadError(pages.length ? "" : "這份 Figma 檔案沒有讀到可分析的 Page");
       setAnalysisState("");
-      return pages;
+      return { pages, sourceInfo };
     } catch (error) {
       const message = error instanceof Error ? error.message : "無法讀取 Figma Page 清單";
 
@@ -1660,7 +1698,7 @@ export default function Home() {
       setHasImportedPages(false);
       setPageLoadError(message);
       setAnalysisState("");
-      return [];
+      return emptyResult;
     } finally {
       setIsLoadingPages(false);
     }
@@ -1708,10 +1746,19 @@ export default function Home() {
     setQuery("");
     setAnalysisState("");
 
-    const pages = await loadFigmaPages(nextInfo);
+    const { pages, sourceInfo } = await loadFigmaPages(nextInfo);
 
     if (pages.length) {
-      saveImportedSource(nextInfo, pages);
+      const resolvedSourceId = getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, sourceInfo);
+      const duplicatedResolvedSource = currentProjectSources.find((source) => source.id === resolvedSourceId);
+
+      if (resolvedSourceId !== nextSourceId && duplicatedResolvedSource) {
+        showToast("這個 Figma 連結已經匯入過了");
+        applyImportedSourceToState(duplicatedResolvedSource);
+        return;
+      }
+
+      saveImportedSource(sourceInfo, pages);
     }
   }
 
@@ -1930,7 +1977,7 @@ export default function Home() {
         {isAnalysisModelMenuOpen ? (
           <div className="model-menu-list" role="menu" aria-label="分析模型清單">
             <div className="model-menu-group-label" aria-hidden="true">
-              Open AI<span>（會燒子傑錢呀🔥）</span>
+              OPEN AI<span>（會燒子傑錢呀🔥）</span>
             </div>
             {openAIModels.map((option) => (
               <button
@@ -2829,7 +2876,6 @@ export default function Home() {
                   <div className="analysis-field compact-model-field">
                     <span className="field-label">分析模型</span>
                     {renderAnalysisModelMenu()}
-                    <small>{selectedAnalysisModel.note}</small>
                   </div>
                 </div>
                 {pageOptions.length && !isLoadingPages ? (

@@ -1175,11 +1175,11 @@ select:focus {
 
 .figma-cube {
   --cube-rotate: -14deg;
-  --cube-x: -50%;
-  --cube-y: -50%;
+  --cube-x: 0px;
+  --cube-y: 0px;
   background: rgb(75 222 128 / 12%);
-  left: 50%;
-  top: 50%;
+  left: -86px;
+  top: -24px;
 }
 
 .figma-cube span {
@@ -1799,6 +1799,7 @@ select:disabled {
   display: grid;
   gap: 8px;
   grid-template-columns: 1fr 1fr;
+  margin-top: 6px;
 }
 
 .source-actions.single-action {
@@ -2204,6 +2205,10 @@ select:disabled {
   padding: 14px;
 }
 
+.page-selector + .primary-button.full-width {
+  margin-top: 16px;
+}
+
 .analysis-fields {
   align-items: end;
   display: grid;
@@ -2363,14 +2368,6 @@ select:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.compact-model-field small {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  grid-column: 1 / -1;
-  line-height: 1.5;
 }
 
 .page-select {
