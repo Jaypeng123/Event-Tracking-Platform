@@ -1753,6 +1753,48 @@ select:disabled {
   min-width: 0;
 }
 
+.figma-token-panel {
+  background: #f7faf6;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.figma-token-heading {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.figma-token-heading .field-label {
+  margin-bottom: 0;
+}
+
+.figma-token-state {
+  color: var(--muted);
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.figma-token-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-width: 0;
+}
+
+.figma-token-row input {
+  min-width: 0;
+  width: 100%;
+}
+
 .source-card {
   background: #fbfcfa;
   border: 1px solid var(--line);
@@ -3120,6 +3162,10 @@ code {
   }
 
   .source-switcher {
+    grid-template-columns: 1fr;
+  }
+
+  .figma-token-row {
     grid-template-columns: 1fr;
   }
 

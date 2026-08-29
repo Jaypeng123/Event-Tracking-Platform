@@ -15,6 +15,16 @@ type FigmaApiResponse = {
   err?: string;
 };
 
+type FigmaTokenSource = "user" | "site";
+
+type FigmaPagesRequest = {
+  fileKey?: string;
+  fileName?: string;
+  nodeId?: string;
+  nodeName?: string;
+  figmaAccessToken?: string;
+};
+
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
 
 function asString(value: unknown, fallback = "") {
@@ -73,11 +83,32 @@ function extractFigmaError(payload: Record<string, unknown>, fallback: string) {
 function isFigmaAuthError(response: Response, payload: Record<string, unknown>) {
   const message = extractFigmaError(payload, "");
 
-  return response.status === 401 || response.status === 403 || /invalid token|invalid access token|unauthorized|forbidden/i.test(message);
+  return (
+    response.status === 401 ||
+    response.status === 403 ||
+    (response.status === 404 && /not found|file not found|missing file/i.test(message)) ||
+    /invalid token|invalid access token|unauthorized|forbidden|not found|file not found/i.test(message)
+  );
 }
 
-function getFigmaAuthErrorMessage() {
-  return "Figma token 無效或已過期，請在站台環境變數重新設定有效的 FIGMA_ACCESS_TOKEN。若你貼的是 Personal Access Token，請只貼 token 本身，不要包含 Bearer 或 X-Figma-Token。";
+function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
+  if (tokenSource === "user") {
+    return "你的本機 Figma token 無法讀取這份檔案。請確認 token 沒有過期或被撤銷、具備 file_content:read scope，且產生 token 的 Figma 帳號能開啟這份檔案。Personal Access Token 請只貼 token 本身，不要包含 Bearer 或 X-Figma-Token。";
+  }
+
+  return "站台預設 Figma token 無法讀取這份檔案。請改用你自己的本機 Figma token，或請管理者設定具 file_content:read 且能開啟此檔案的 FIGMA_ACCESS_TOKEN。";
+}
+
+function resolveFigmaToken(requestToken: unknown) {
+  const userToken = asString(requestToken);
+  const siteToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
+  const rawToken = userToken || siteToken;
+
+  return {
+    rawToken,
+    tokenValue: normalizeFigmaToken(rawToken).tokenValue,
+    tokenSource: userToken ? ("user" as const) : ("site" as const),
+  };
 }
 
 function cleanPageName(value: string, fallback = "Untitled page") {
@@ -113,18 +144,19 @@ function getFilePages(payload: FigmaApiResponse) {
 }
 
 export async function POST(request: Request) {
-  let requestBody: { fileKey?: string; fileName?: string; nodeId?: string; nodeName?: string };
+  let requestBody: FigmaPagesRequest;
 
   try {
-    requestBody = (await request.json()) as { fileKey?: string };
+    requestBody = (await request.json()) as FigmaPagesRequest;
   } catch {
     return Response.json({ message: "請提供有效的 JSON request body" }, { status: 400 });
   }
 
   const fileKey = asString(requestBody.fileKey);
   const nodeId = asString(requestBody.nodeId).replace(/-/g, ":");
-  const rawFigmaToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
-  const figmaToken = normalizeFigmaToken(rawFigmaToken).tokenValue;
+  const { rawToken: rawFigmaToken, tokenValue: figmaToken, tokenSource } = resolveFigmaToken(
+    requestBody.figmaAccessToken,
+  );
 
   if (!fileKey) {
     return Response.json({ message: "缺少 Figma file key" }, { status: 400 });
@@ -134,7 +166,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         code: "missing_figma_token",
-        message: "尚未設定 FIGMA_ACCESS_TOKEN，因此無法讀取 Figma Page 清單。",
+        message: "尚未設定 Figma 存取權限。請先貼上你的本機 Figma token，或由站台管理者設定 FIGMA_ACCESS_TOKEN。",
       },
       { status: 503 },
     );
@@ -151,7 +183,7 @@ export async function POST(request: Request) {
         return Response.json(
           {
             code: "invalid_figma_token",
-            message: getFigmaAuthErrorMessage(),
+            message: getFigmaAuthErrorMessage(tokenSource),
           },
           { status: 401 },
         );

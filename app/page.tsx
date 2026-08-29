@@ -144,6 +144,7 @@ const EVENT_LIBRARY_STORAGE_KEY = "tracking-plan-event-library-v1";
 const PROJECTS_STORAGE_KEY = "tracking-plan-projects-v1";
 const ACTIVE_PROJECT_STORAGE_KEY = "tracking-plan-active-project-v1";
 const FIGMA_SOURCES_STORAGE_KEY = "tracking-plan-figma-sources-v1";
+const FIGMA_ACCESS_TOKEN_STORAGE_KEY = "tracking-plan-figma-access-token-v1";
 const ANALYSIS_RESULTS_STORAGE_KEY = "tracking-plan-analysis-results-v1";
 const LEGACY_PROJECT_ID = "legacy-project";
 
@@ -693,6 +694,14 @@ function readStoredActiveProjectId() {
   }
 }
 
+function readStoredFigmaAccessToken() {
+  try {
+    return window.localStorage.getItem(FIGMA_ACCESS_TOKEN_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function isImportedFigmaSourceLike(value: unknown): value is ImportedFigmaSource {
   if (!value || typeof value !== "object") {
     return false;
@@ -971,6 +980,8 @@ export default function Home() {
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [hasLoadedWorkspace, setHasLoadedWorkspace] = useState(false);
+  const [figmaAccessToken, setFigmaAccessToken] = useState("");
+  const [figmaTokenDraft, setFigmaTokenDraft] = useState("");
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [projectDeleteTarget, setProjectDeleteTarget] = useState<TrackingProject | null>(null);
@@ -1052,6 +1063,7 @@ export default function Home() {
     [activeProjectId, libraryRows],
   );
   const hasDraftSource = Boolean(draftFigmaUrl.trim());
+  const hasPersonalFigmaToken = Boolean(figmaAccessToken.trim());
   const hasAppliedSource = Boolean(appliedFigmaUrl && figmaInfo.mode !== "invalid" && figmaInfo.mode !== "unsupported");
   const showImportForm = !currentProjectSources.length || isAddingSource;
   const pageOptions = hasImportedPages ? loadedPages : [];
@@ -1068,6 +1080,7 @@ export default function Home() {
       const storedProjects = readStoredProjects();
       const storedSources = readStoredFigmaSources();
       const storedAnalysisResults = readStoredAnalysisResults();
+      const storedFigmaAccessToken = readStoredFigmaAccessToken();
       const storedActiveProjectId = readStoredActiveProjectId();
       const nextActiveProjectId =
         storedProjects.find((project) => project.id === storedActiveProjectId)?.id ?? storedProjects[0]?.id ?? "";
@@ -1075,6 +1088,7 @@ export default function Home() {
 
       setProjects(storedProjects);
       setImportedSources(storedSources);
+      setFigmaAccessToken(storedFigmaAccessToken);
       cachedAnalysisResultsRef.current = storedAnalysisResults;
       setCachedAnalysisResults(storedAnalysisResults);
       setActiveProjectId(nextActiveProjectId);
@@ -1137,6 +1151,20 @@ export default function Home() {
 
     window.localStorage.setItem(FIGMA_SOURCES_STORAGE_KEY, JSON.stringify(importedSources));
   }, [hasLoadedWorkspace, importedSources]);
+
+  useEffect(() => {
+    if (!hasLoadedWorkspace) {
+      return;
+    }
+
+    const token = figmaAccessToken.trim();
+
+    if (token) {
+      window.localStorage.setItem(FIGMA_ACCESS_TOKEN_STORAGE_KEY, token);
+    } else {
+      window.localStorage.removeItem(FIGMA_ACCESS_TOKEN_STORAGE_KEY);
+    }
+  }, [figmaAccessToken, hasLoadedWorkspace]);
 
   useEffect(() => {
     if (!hasLoadedWorkspace) {
@@ -1917,6 +1945,24 @@ export default function Home() {
     }, 2000);
   }
 
+  function handleSaveFigmaAccessToken() {
+    const nextToken = figmaTokenDraft.trim();
+
+    if (!nextToken) {
+      return;
+    }
+
+    setFigmaAccessToken(nextToken);
+    setFigmaTokenDraft("");
+    showToast("已更新本機 Figma 存取權限");
+  }
+
+  function handleClearFigmaAccessToken() {
+    setFigmaAccessToken("");
+    setFigmaTokenDraft("");
+    showToast("已清除本機 Figma 存取權限");
+  }
+
   async function loadFigmaPages(nextInfo: FigmaSourceInfo): Promise<FigmaPagesLoadResult> {
     const emptyResult = { pages: [], sourceInfo: nextInfo };
 
@@ -1946,6 +1992,7 @@ export default function Home() {
           fileName: nextInfo.fileName,
           nodeId: nextInfo.nodeId,
           nodeName: nextInfo.nodeName,
+          figmaAccessToken: figmaAccessToken.trim() || undefined,
         }),
         cache: "no-store",
         credentials: "include",
@@ -2162,6 +2209,7 @@ export default function Home() {
         body: JSON.stringify({
           source: sourceForAnalysis,
           scope: sourceForAnalysis.nodeId ? "node" : "file",
+          figmaAccessToken: figmaAccessToken.trim() || undefined,
           ai: {
             provider: selectedAnalysisModel.provider,
             openAIModel: selectedAnalysisModel.provider === "openai" ? selectedAnalysisModel.model : undefined,
@@ -2998,6 +3046,46 @@ export default function Home() {
                 </div>
               ) : (
                 <>
+                  <div className="figma-token-panel">
+                    <div className="figma-token-heading">
+                      <label className="field-label" htmlFor="figma-access-token">
+                        Figma 存取權限
+                      </label>
+                      <span className="figma-token-state">
+                        {hasPersonalFigmaToken ? "已使用本機權限" : "使用站台預設權限"}
+                      </span>
+                    </div>
+                    <div className="figma-token-row">
+                      <input
+                        id="figma-access-token"
+                        type="password"
+                        value={figmaTokenDraft}
+                        onChange={(event) => setFigmaTokenDraft(event.target.value)}
+                        placeholder={hasPersonalFigmaToken ? "貼上新 token 可更新" : "貼上自己的 Figma token"}
+                        autoComplete="off"
+                        spellCheck={false}
+                        disabled={isLoadingPages || isAnalyzing}
+                      />
+                      <button
+                        className="secondary-button small-button"
+                        type="button"
+                        onClick={handleSaveFigmaAccessToken}
+                        disabled={!figmaTokenDraft.trim() || isLoadingPages || isAnalyzing}
+                      >
+                        儲存
+                      </button>
+                      {hasPersonalFigmaToken ? (
+                        <button
+                          className="secondary-button small-button"
+                          type="button"
+                          onClick={handleClearFigmaAccessToken}
+                          disabled={isLoadingPages || isAnalyzing}
+                        >
+                          清除
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
                   {currentProjectSources.length && !isAddingSource ? (
                     <>
                       <label className="field-label" htmlFor="imported-source">

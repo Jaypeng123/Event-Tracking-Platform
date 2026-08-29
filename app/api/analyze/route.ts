@@ -26,6 +26,7 @@ type TrackingEvent = {
 
 type AnalyzeRequest = {
   scope?: Scope;
+  figmaAccessToken?: string;
   ai?: {
     provider?: string;
     openAIModel?: string;
@@ -72,6 +73,8 @@ type FigmaContext = {
   nodes: string[];
   isPartial: boolean;
 };
+
+type FigmaTokenSource = "user" | "site";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const GEMINI_GENERATE_CONTENT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
@@ -303,11 +306,32 @@ function isFigmaRequestTooLarge(response: Response, payload: Record<string, unkn
 function isFigmaAuthError(response: Response, payload: Record<string, unknown>) {
   const message = extractFigmaError(payload, "");
 
-  return response.status === 401 || response.status === 403 || /invalid token|invalid access token|unauthorized|forbidden/i.test(message);
+  return (
+    response.status === 401 ||
+    response.status === 403 ||
+    (response.status === 404 && /not found|file not found|missing file/i.test(message)) ||
+    /invalid token|invalid access token|unauthorized|forbidden|not found|file not found/i.test(message)
+  );
 }
 
-function getFigmaAuthErrorMessage() {
-  return "Figma token 無效或已過期，請在站台環境變數重新設定有效的 FIGMA_ACCESS_TOKEN。若你貼的是 Personal Access Token，請只貼 token 本身，不要包含 Bearer 或 X-Figma-Token。";
+function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
+  if (tokenSource === "user") {
+    return "你的本機 Figma token 無法讀取這份檔案。請確認 token 沒有過期或被撤銷、具備 file_content:read scope，且產生 token 的 Figma 帳號能開啟這份檔案。Personal Access Token 請只貼 token 本身，不要包含 Bearer 或 X-Figma-Token。";
+  }
+
+  return "站台預設 Figma token 無法讀取這份檔案。請改用你自己的本機 Figma token，或請管理者設定具 file_content:read 且能開啟此檔案的 FIGMA_ACCESS_TOKEN。";
+}
+
+function resolveFigmaToken(requestToken: unknown) {
+  const userToken = asString(requestToken);
+  const siteToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
+  const rawToken = userToken || siteToken;
+
+  return {
+    rawToken,
+    tokenValue: normalizeFigmaToken(rawToken).tokenValue,
+    tokenSource: userToken ? ("user" as const) : ("site" as const),
+  };
 }
 
 function truncate(value: string, maxLength: number) {
@@ -513,7 +537,11 @@ function getEventCountTarget(figmaContext: FigmaContext) {
   return { minimum: 3, preferred: 6, maximum: 12 };
 }
 
-async function fetchFigmaContext(requestBody: AnalyzeRequest, figmaToken: string): Promise<FigmaContext> {
+async function fetchFigmaContext(
+  requestBody: AnalyzeRequest,
+  figmaToken: string,
+  figmaTokenSource: FigmaTokenSource,
+): Promise<FigmaContext> {
   const fileKey = asString(requestBody.source?.fileKey);
   const nodeId = asString(requestBody.source?.nodeId);
   const targetId = nodeId;
@@ -532,7 +560,7 @@ async function fetchFigmaContext(requestBody: AnalyzeRequest, figmaToken: string
 
     if (!response.ok) {
       if (isFigmaAuthError(response, payload)) {
-        throw new Error(getFigmaAuthErrorMessage());
+        throw new Error(getFigmaAuthErrorMessage(figmaTokenSource));
       }
 
       if (isFigmaRequestTooLarge(response, payload)) {
@@ -1815,8 +1843,9 @@ export async function POST(request: Request) {
     process.env.GOOGLE_AI_API_KEY ||
     process.env.GOOGLE_STUDIO_API_KEY
   )?.trim();
-  const rawFigmaToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
-  const figmaToken = normalizeFigmaToken(rawFigmaToken).tokenValue;
+  const { rawToken: rawFigmaToken, tokenValue: figmaToken, tokenSource: figmaTokenSource } = resolveFigmaToken(
+    requestBody.figmaAccessToken,
+  );
 
   if (!fileKey) {
     return Response.json({ message: "缺少 Figma file key，請先套用有效的 Figma 連結" }, { status: 400 });
@@ -1866,14 +1895,14 @@ export async function POST(request: Request) {
     return Response.json(
       {
         code: "missing_figma_token",
-        message: "尚未設定 FIGMA_ACCESS_TOKEN，因此 AI 無法讀取 Figma 檔案內容。請加入 Figma personal access token 後再分析。",
+        message: "尚未設定 Figma 存取權限。請先貼上你的本機 Figma token，或由站台管理者設定 FIGMA_ACCESS_TOKEN。",
       },
       { status: 503 },
     );
   }
 
   try {
-    const figmaContext = await fetchFigmaContext(requestBody, rawFigmaToken);
+    const figmaContext = await fetchFigmaContext(requestBody, rawFigmaToken, figmaTokenSource);
     let analysis:
       | {
           model: string;
