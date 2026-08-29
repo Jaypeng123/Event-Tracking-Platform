@@ -2441,13 +2441,16 @@ select:disabled {
 }
 
 .page-select-option {
+  align-items: center;
   background: transparent;
   border: 0;
   border-radius: 6px;
   color: var(--foreground);
-  display: block;
+  display: flex;
   font-size: 13px;
   font-weight: 700;
+  gap: 8px;
+  justify-content: space-between;
   line-height: 1.35;
   padding: 9px 10px;
   text-align: left;
@@ -2462,9 +2465,23 @@ select:disabled {
 
 .page-select-option span {
   display: block;
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.page-select-option small {
+  background: var(--green-100);
+  border: 1px solid #bdd9bf;
+  border-radius: 999px;
+  color: var(--green-900);
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 4px 7px;
 }
 
 .page-selector > span {

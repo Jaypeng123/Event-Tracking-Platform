@@ -98,6 +98,12 @@ type AnalyzeResponse = {
   message?: string;
 };
 
+type CachedAnalysisResult = {
+  rows: TrackingEvent[];
+  modelId: string;
+  analyzedAt: string;
+};
+
 type ModelProvider = "openai" | "gemini";
 type AppView = "landing" | "planner";
 
@@ -572,6 +578,15 @@ function getFigmaSourceId(projectId: string, source: FigmaSourceInfo) {
   return `figma_${hashText([projectId, source.fileKey, source.nodeId || "file"].join("|"))}`;
 }
 
+function getAnalysisResultCacheKey(projectId: string, fileKey: string, sourceNodeId: string, pageId: string) {
+  return [
+    projectId || LEGACY_PROJECT_ID,
+    fileKey || "unknown-file",
+    sourceNodeId || "file",
+    pageId || "unknown-page",
+  ].join("|");
+}
+
 function getDefaultSelectedPageId(pages: FigmaPage[], preferredPageId = "") {
   if (preferredPageId && pages.some((page) => page.id === preferredPageId)) {
     return preferredPageId;
@@ -784,6 +799,7 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedAnalysisModelId, setSelectedAnalysisModelId] = useState(analysisModelOptions[0].id);
   const [analysisRows, setAnalysisRows] = useState<TrackingEvent[]>([]);
+  const [cachedAnalysisResults, setCachedAnalysisResults] = useState<Record<string, CachedAnalysisResult>>({});
   const [analysisError, setAnalysisError] = useState("");
   const [, setAnalysisState] = useState("尚未提供 Figma 連結");
   const [libraryRows, setLibraryRows] = useState<SavedTrackingEvent[]>([]);
@@ -1195,6 +1211,54 @@ export default function Home() {
     ];
   }, [analysisRows, hasAnalyzed, hasAppliedSource]);
 
+  function getCurrentAnalysisCacheKey(pageId = selectedPageId) {
+    return getAnalysisResultCacheKey(
+      activeProjectId || LEGACY_PROJECT_ID,
+      figmaInfo.fileKey,
+      figmaInfo.nodeId,
+      pageId,
+    );
+  }
+
+  function getSourceAnalysisCacheKey(source: ImportedFigmaSource, pageId: string) {
+    return getAnalysisResultCacheKey(
+      source.projectId || LEGACY_PROJECT_ID,
+      source.fileKey,
+      source.mode === "node" ? source.nodeId : "",
+      pageId,
+    );
+  }
+
+  function restoreCachedAnalysisResult(cacheKey: string, emptyStateMessage = "") {
+    analysisRunId.current += 1;
+
+    const cachedResult = cachedAnalysisResults[cacheKey] ?? null;
+
+    setIsAnalyzing(false);
+    setAnalysisError("");
+    setSelectedId("");
+    setIsDetailOpen(false);
+    setIsAnalysisModelMenuOpen(false);
+
+    if (cachedResult) {
+      setAnalysisRows(cachedResult.rows);
+      setHasAnalyzed(true);
+      setAnalysisState("");
+      return;
+    }
+
+    setAnalysisRows([]);
+    setHasAnalyzed(false);
+    setAnalysisState(emptyStateMessage);
+  }
+
+  function restoreCachedAnalysisResultForSource(source: ImportedFigmaSource, pageId: string) {
+    restoreCachedAnalysisResult(
+      getSourceAnalysisCacheKey(source, pageId),
+      pageId ? "" : "請先選擇要分析的 Page",
+    );
+  }
+
   function applyImportedSourceToState(source: ImportedFigmaSource | null) {
     if (!source) {
       setActiveSourceId("");
@@ -1224,11 +1288,10 @@ export default function Home() {
     setHasImportedPages(true);
     setPageLoadError(source.pages.length ? "" : "這個來源沒有讀到可分析的 Page");
     setIsAddingSource(false);
-    resetAnalysisResult();
+    restoreCachedAnalysisResultForSource(source, selectedSourcePageId);
     setFilter("All");
     setPriorityFilter("All");
     setQuery("");
-    setAnalysisState("");
   }
 
   function createImportedSource(nextInfo: FigmaSourceInfo, pages: FigmaPage[]): ImportedFigmaSource {
@@ -1776,8 +1839,7 @@ export default function Home() {
       ),
     );
     setIsPageMenuOpen(false);
-    resetAnalysisResult();
-    setAnalysisState(pageId ? "" : "請先選擇要分析的 Page");
+    restoreCachedAnalysisResult(getCurrentAnalysisCacheKey(pageId), pageId ? "" : "請先選擇要分析的 Page");
   }
 
   async function handleAnalyze() {
@@ -1807,6 +1869,7 @@ export default function Home() {
     }
 
     const runId = analysisRunId.current + 1;
+    const cacheKey = getCurrentAnalysisCacheKey();
 
     analysisRunId.current = runId;
     setIsAnalyzing(true);
@@ -1817,6 +1880,15 @@ export default function Home() {
     setAnalysisError("");
     setAnalysisState("");
     setIsAnalysisModelMenuOpen(false);
+    setCachedAnalysisResults((currentResults) => {
+      if (!cacheKey || !currentResults[cacheKey]) {
+        return currentResults;
+      }
+
+      const nextResults = { ...currentResults };
+      delete nextResults[cacheKey];
+      return nextResults;
+    });
 
     try {
       const sourceForAnalysis = selectedPage
@@ -1862,6 +1934,14 @@ export default function Home() {
       setIsDetailOpen(false);
       setHasAnalyzed(true);
       setAnalysisState("");
+      setCachedAnalysisResults((currentResults) => ({
+        ...currentResults,
+        [cacheKey]: {
+          rows,
+          modelId: selectedAnalysisModel.id,
+          analyzedAt: new Date().toISOString(),
+        },
+      }));
     } catch (error) {
       if (analysisRunId.current !== runId) {
         return;
@@ -2846,18 +2926,23 @@ export default function Home() {
                         </button>
                         {isPageMenuOpen ? (
                           <div className="page-select-menu" role="listbox" aria-label="分析 Page">
-                            {pageOptions.map((page) => (
-                              <button
-                                className={page.id === selectedPageId ? "page-select-option selected" : "page-select-option"}
-                                key={page.id}
-                                type="button"
-                                role="option"
-                                aria-selected={page.id === selectedPageId}
-                                onClick={() => handleSelectPage(page.id)}
-                              >
-                                <span>{page.name}</span>
-                              </button>
-                            ))}
+                            {pageOptions.map((page) => {
+                              const hasCachedResult = Boolean(cachedAnalysisResults[getCurrentAnalysisCacheKey(page.id)]);
+
+                              return (
+                                <button
+                                  className={page.id === selectedPageId ? "page-select-option selected" : "page-select-option"}
+                                  key={page.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={page.id === selectedPageId}
+                                  onClick={() => handleSelectPage(page.id)}
+                                >
+                                  <span>{page.name}</span>
+                                  {hasCachedResult ? <small>已分析</small> : null}
+                                </button>
+                              );
+                            })}
                           </div>
                         ) : null}
                       </div>
