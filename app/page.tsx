@@ -81,6 +81,7 @@ type ImportedFigmaSource = {
   selectedPageId: string;
   importedAt: string;
   updatedAt: string;
+  importBehavior?: "auto";
 };
 
 type AnalyzeResponse = {
@@ -708,6 +709,18 @@ function isImportedFigmaSourceLike(value: unknown): value is ImportedFigmaSource
   );
 }
 
+function isLegacyFrameImport(source: ImportedFigmaSource) {
+  const parsedSource = parseFigmaUrl(source.normalizedUrl);
+
+  return (
+    source.mode === "node" &&
+    source.importBehavior !== "auto" &&
+    parsedSource.mode === "file" &&
+    parsedSource.fileKey === source.fileKey &&
+    Boolean(parsedSource.nodeId)
+  );
+}
+
 function getFigmaSourceId(projectId: string, source: FigmaSourceInfo) {
   return `figma_${hashText([projectId, source.fileKey, source.mode === "node" ? source.nodeId : "file"].join("|"))}`;
 }
@@ -746,6 +759,7 @@ function normalizeStoredFigmaSource(source: ImportedFigmaSource): ImportedFigmaS
     selectedPageId: getDefaultSelectedPageId(pages, source.selectedPageId),
     importedAt: typeof source.importedAt === "string" ? source.importedAt : now,
     updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : now,
+    ...(source.importBehavior === "auto" ? { importBehavior: source.importBehavior } : {}),
   };
 }
 
@@ -755,7 +769,10 @@ function readStoredFigmaSources() {
     const parsed = storedSources ? JSON.parse(storedSources) : [];
 
     return Array.isArray(parsed)
-      ? parsed.filter(isImportedFigmaSourceLike).map(normalizeStoredFigmaSource)
+      ? parsed
+          .filter(isImportedFigmaSourceLike)
+          .map(normalizeStoredFigmaSource)
+          .filter((source) => !isLegacyFrameImport(source))
       : [];
   } catch {
     return [];
@@ -1526,6 +1543,7 @@ export default function Home() {
       selectedPageId: selectedSourcePageId,
       importedAt: existingSource?.importedAt ?? now,
       updatedAt: now,
+      importBehavior: "auto",
     };
   }
 
