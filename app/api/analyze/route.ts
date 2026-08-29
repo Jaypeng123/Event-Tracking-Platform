@@ -70,12 +70,14 @@ type FigmaContext = {
   nodeCount: number;
   textCount: number;
   nodes: string[];
+  isPartial: boolean;
 };
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const GEMINI_GENERATE_CONTENT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
-const MAX_FIGMA_NODES = 180;
+const MAX_FIGMA_NODES = 220;
+const MAX_FIGMA_CONTEXT_CHARS = 16000;
 const allowedPriorities = new Set<Priority>(["P0", "P1", "P2"]);
 const openAIModelOptions = [
   { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
@@ -263,7 +265,24 @@ async function readJsonResponse(response: Response) {
 }
 
 function extractFigmaError(payload: Record<string, unknown>, fallback: string) {
-  return asString(payload.message, asString(payload.err, fallback));
+  const rawSnippet =
+    typeof payload.raw === "string"
+      ? payload.raw
+          .replace(/<script[\s\S]*?<\/script>/gi, " ")
+          .replace(/<style[\s\S]*?<\/style>/gi, " ")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 160)
+      : "";
+
+  return asString(payload.message, asString(payload.err, rawSnippet || fallback));
+}
+
+function isFigmaRequestTooLarge(response: Response, payload: Record<string, unknown>) {
+  const message = extractFigmaError(payload, "");
+
+  return response.status === 413 || /request too large|too large|filter by query params/i.test(message);
 }
 
 function truncate(value: string, maxLength: number) {
@@ -282,8 +301,28 @@ function describeNode(node: FigmaNode, path: string) {
   return `[${nodeType}] ${truncate(path ? `${path} / ${nodeName}` : nodeName, 180)}${size}${textPart}`;
 }
 
-function collectFigmaContext(payload: FigmaApiResponse, targetId: string) {
-  const root = targetId ? payload.nodes?.[targetId]?.document : payload.document;
+function findNodeById(node: FigmaNode | undefined, targetId: string): FigmaNode | undefined {
+  if (!node) {
+    return undefined;
+  }
+
+  if (node.id === targetId) {
+    return node;
+  }
+
+  for (const child of node.children ?? []) {
+    const result = findNodeById(child, targetId);
+
+    if (result) {
+      return result;
+    }
+  }
+
+  return undefined;
+}
+
+function collectFigmaContext(payload: FigmaApiResponse, targetId: string, isPartial = false) {
+  const root = targetId ? payload.nodes?.[targetId]?.document ?? findNodeById(payload.document, targetId) : payload.document;
   const fileRoot = payload.document;
   const pages =
     fileRoot?.children
@@ -292,9 +331,10 @@ function collectFigmaContext(payload: FigmaApiResponse, targetId: string) {
   const nodes: string[] = [];
   let nodeCount = 0;
   let textCount = 0;
+  let contextLength = 0;
 
   function walk(node: FigmaNode | undefined, ancestors: string[], depth: number) {
-    if (!node || nodes.length >= MAX_FIGMA_NODES || depth > 6) {
+    if (!node || nodes.length >= MAX_FIGMA_NODES || contextLength >= MAX_FIGMA_CONTEXT_CHARS || depth > 6) {
       return;
     }
 
@@ -317,7 +357,13 @@ function collectFigmaContext(payload: FigmaApiResponse, targetId: string) {
     }
 
     if (isMeaningful) {
-      nodes.push(describeNode(node, ancestors.join(" / ")));
+      const description = describeNode(node, ancestors.join(" / "));
+      const remainingLength = MAX_FIGMA_CONTEXT_CHARS - contextLength;
+
+      if (remainingLength > 80) {
+        nodes.push(truncate(description, Math.min(description.length, remainingLength)));
+        contextLength += description.length;
+      }
     }
 
     const nextAncestors = [...ancestors, nodeName].slice(-5);
@@ -335,6 +381,63 @@ function collectFigmaContext(payload: FigmaApiResponse, targetId: string) {
     nodeCount,
     textCount,
     nodes,
+    isPartial,
+  };
+}
+
+async function fetchFigmaPayload(path: string, figmaToken: string) {
+  const response = await fetch(`${FIGMA_API_BASE_URL}${path}`, {
+    headers: buildFigmaHeaders(figmaToken),
+    cache: "no-store",
+  });
+  const payload = (await readJsonResponse(response)) as FigmaApiResponse & Record<string, unknown>;
+
+  return { response, payload };
+}
+
+function buildDomainFallbackNodes(targetName: string) {
+  if (/個案詳情|病患詳情|patient\s*detail|case\s*detail/i.test(targetName)) {
+    return [
+      `[PAGE] ${targetName}`,
+      "[SECTION] 個案基本資料",
+      "[SECTION] 待處理任務",
+      "[SECTION] 健康計畫",
+      "[SECTION] 量測數據",
+      "[SECTION] 異常警報",
+      "[SECTION] 照護紀錄",
+      "[ACTION] 切換資料頁籤",
+      "[ACTION] 查看量測趨勢",
+      "[ACTION] 建立或編輯健康計畫",
+      "[ACTION] 下載報告",
+    ];
+  }
+
+  return [
+    `[PAGE] ${targetName}`,
+    "[SECTION] 主要內容",
+    "[SECTION] 搜尋與篩選",
+    "[SECTION] 資料列表",
+    "[ACTION] 查看詳情",
+    "[ACTION] 切換狀態",
+    "[ACTION] 匯出資料",
+  ];
+}
+
+function buildPartialFigmaContext(requestBody: AnalyzeRequest, reason: string): FigmaContext {
+  const source = requestBody.source ?? {};
+  const fileName = cleanScopeName(asString(source.fileName, "Figma design file"), "Figma design file", 80);
+  const targetName = cleanScopeName(asString(source.nodeName, fileName), "Figma 分析範圍", 80);
+  const fallbackNodes = buildDomainFallbackNodes(targetName);
+
+  return {
+    fileName,
+    targetName,
+    targetType: "PARTIAL_FIGMA_CONTEXT",
+    pages: targetName ? [targetName] : [],
+    nodeCount: fallbackNodes.length,
+    textCount: fallbackNodes.length,
+    nodes: [`[PARTIAL] Figma 頁面內容過大，已改用頁面名稱與可推論結構分析。${reason ? ` Figma 訊息：${reason}` : ""}`, ...fallbackNodes],
+    isPartial: true,
   };
 }
 
@@ -342,20 +445,36 @@ async function fetchFigmaContext(requestBody: AnalyzeRequest, figmaToken: string
   const fileKey = asString(requestBody.source?.fileKey);
   const nodeId = asString(requestBody.source?.nodeId);
   const targetId = nodeId;
-  const endpoint = targetId
-    ? `${FIGMA_API_BASE_URL}/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(targetId)}&depth=5`
-    : `${FIGMA_API_BASE_URL}/files/${encodeURIComponent(fileKey)}?depth=3`;
-  const response = await fetch(endpoint, {
-    headers: buildFigmaHeaders(figmaToken),
-    cache: "no-store",
-  });
-  const payload = (await readJsonResponse(response)) as FigmaApiResponse & Record<string, unknown>;
+  const encodedFileKey = encodeURIComponent(fileKey);
+  const encodedTargetId = encodeURIComponent(targetId);
+  const candidatePaths = targetId
+    ? [
+        ...[5, 4, 3, 2, 1].map((depth) => `/files/${encodedFileKey}/nodes?ids=${encodedTargetId}&depth=${depth}`),
+        ...[3, 2, 1].map((depth) => `/files/${encodedFileKey}?ids=${encodedTargetId}&depth=${depth}`),
+      ]
+    : [3, 2, 1].map((depth) => `/files/${encodedFileKey}?depth=${depth}`);
+  let lastTooLargeMessage = "";
 
-  if (!response.ok) {
-    throw new Error(extractFigmaError(payload, `Figma API 回傳 ${response.status}`));
+  for (const [index, path] of candidatePaths.entries()) {
+    const { response, payload } = await fetchFigmaPayload(path, figmaToken);
+
+    if (!response.ok) {
+      if (isFigmaRequestTooLarge(response, payload)) {
+        lastTooLargeMessage = extractFigmaError(payload, `Figma API 回傳 ${response.status}`);
+        continue;
+      }
+
+      throw new Error(extractFigmaError(payload, `Figma API 回傳 ${response.status}`));
+    }
+
+    const context = collectFigmaContext(payload, targetId, index > 0);
+
+    if (context.nodeCount > 0 || context.nodes.length > 0) {
+      return context;
+    }
   }
 
-  return collectFigmaContext(payload, targetId);
+  return buildPartialFigmaContext(requestBody, lastTooLargeMessage);
 }
 
 function buildInstructions() {
@@ -1614,8 +1733,13 @@ export async function POST(request: Request) {
       };
     }
 
+    const analysisProcess = figmaContext.isPartial
+      ? Array.from(new Set(["Figma 頁面過大，已改用精簡摘要分析", ...analysis.analysisProcess])).slice(0, 6)
+      : analysis.analysisProcess;
+
     return Response.json({
       ...analysis,
+      analysisProcess,
       figma: {
         fileName: figmaContext.fileName,
         targetName: figmaContext.targetName,
@@ -1623,6 +1747,7 @@ export async function POST(request: Request) {
         pages: figmaContext.pages,
         nodeCount: figmaContext.nodeCount,
         textCount: figmaContext.textCount,
+        isPartial: figmaContext.isPartial,
       },
     });
   } catch (error) {
