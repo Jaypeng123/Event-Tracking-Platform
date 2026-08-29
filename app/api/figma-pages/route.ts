@@ -21,14 +21,28 @@ function asString(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
-function buildFigmaHeaders(token: string) {
-  const trimmed = token.trim();
+function normalizeFigmaToken(rawToken: string) {
+  const withoutHeaderName = rawToken
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/^authorization\s*:\s*/i, "")
+    .replace(/^x-figma-token\s*:\s*/i, "")
+    .trim();
+  const bearerMatch = withoutHeaderName.match(/^bearer\s+(.+)$/i);
+  const tokenValue = (bearerMatch?.[1] ?? withoutHeaderName).trim().replace(/^["']|["']$/g, "");
+  const isOAuthToken = Boolean(bearerMatch) && !/^figd_/i.test(tokenValue);
 
-  if (trimmed.toLowerCase().startsWith("bearer ")) {
-    return { Authorization: trimmed };
+  return { tokenValue, isOAuthToken };
+}
+
+function buildFigmaHeaders(token: string) {
+  const { tokenValue, isOAuthToken } = normalizeFigmaToken(token);
+
+  if (isOAuthToken) {
+    return { Authorization: `Bearer ${tokenValue}` };
   }
 
-  return { "X-Figma-Token": trimmed };
+  return { "X-Figma-Token": tokenValue };
 }
 
 async function readJsonResponse(response: Response) {
@@ -60,6 +74,16 @@ function isFigmaRequestTooLarge(response: Response, payload: Record<string, unkn
   const message = extractFigmaError(payload, "");
 
   return response.status === 413 || /request too large|too large|filter by query params/i.test(message);
+}
+
+function isFigmaAuthError(response: Response, payload: Record<string, unknown>) {
+  const message = extractFigmaError(payload, "");
+
+  return response.status === 401 || response.status === 403 || /invalid token|invalid access token|unauthorized|forbidden/i.test(message);
+}
+
+function getFigmaAuthErrorMessage() {
+  return "Figma token 無效或已過期，請在站台環境變數重新設定有效的 FIGMA_ACCESS_TOKEN。若你貼的是 Personal Access Token，請只貼 token 本身，不要包含 Bearer 或 X-Figma-Token。";
 }
 
 function cleanPageName(value: string, fallback = "Untitled page") {
@@ -126,7 +150,8 @@ export async function POST(request: Request) {
 
   const fileKey = asString(requestBody.fileKey);
   const nodeId = asString(requestBody.nodeId).replace(/-/g, ":");
-  const figmaToken = (process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN)?.trim();
+  const rawFigmaToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
+  const figmaToken = normalizeFigmaToken(rawFigmaToken).tokenValue;
 
   if (!fileKey) {
     return Response.json({ message: "缺少 Figma file key" }, { status: 400 });
@@ -148,7 +173,7 @@ export async function POST(request: Request) {
     if (nodeId) {
       const { response, payload } = await fetchFigmaPayload(
         `/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}&depth=1`,
-        figmaToken,
+        rawFigmaToken,
       );
 
       if (response.ok) {
@@ -177,6 +202,16 @@ export async function POST(request: Request) {
       } else {
         nodeFallbackMessage = extractFigmaError(payload, `Figma API 回傳 ${response.status}`);
 
+        if (isFigmaAuthError(response, payload)) {
+          return Response.json(
+            {
+              code: "invalid_figma_token",
+              message: getFigmaAuthErrorMessage(),
+            },
+            { status: 401 },
+          );
+        }
+
         if (isFigmaRequestTooLarge(response, payload)) {
           return Response.json(createNodePageFallback(requestBody, nodeId));
         }
@@ -185,10 +220,20 @@ export async function POST(request: Request) {
 
     const { response, payload } = await fetchFigmaPayload(
       `/files/${encodeURIComponent(fileKey)}?depth=1`,
-      figmaToken,
+      rawFigmaToken,
     );
 
     if (!response.ok) {
+      if (isFigmaAuthError(response, payload)) {
+        return Response.json(
+          {
+            code: "invalid_figma_token",
+            message: getFigmaAuthErrorMessage(),
+          },
+          { status: 401 },
+        );
+      }
+
       if (nodeId && isFigmaRequestTooLarge(response, payload)) {
         return Response.json(createNodePageFallback(requestBody, nodeId));
       }

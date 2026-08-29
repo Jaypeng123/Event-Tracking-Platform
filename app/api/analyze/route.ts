@@ -245,14 +245,28 @@ function normalizeGeminiModel(value: unknown) {
   return DEFAULT_GEMINI_MODEL;
 }
 
-function buildFigmaHeaders(token: string) {
-  const trimmed = token.trim();
+function normalizeFigmaToken(rawToken: string) {
+  const withoutHeaderName = rawToken
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/^authorization\s*:\s*/i, "")
+    .replace(/^x-figma-token\s*:\s*/i, "")
+    .trim();
+  const bearerMatch = withoutHeaderName.match(/^bearer\s+(.+)$/i);
+  const tokenValue = (bearerMatch?.[1] ?? withoutHeaderName).trim().replace(/^["']|["']$/g, "");
+  const isOAuthToken = Boolean(bearerMatch) && !/^figd_/i.test(tokenValue);
 
-  if (trimmed.toLowerCase().startsWith("bearer ")) {
-    return { Authorization: trimmed };
+  return { tokenValue, isOAuthToken };
+}
+
+function buildFigmaHeaders(token: string) {
+  const { tokenValue, isOAuthToken } = normalizeFigmaToken(token);
+
+  if (isOAuthToken) {
+    return { Authorization: `Bearer ${tokenValue}` };
   }
 
-  return { "X-Figma-Token": trimmed };
+  return { "X-Figma-Token": tokenValue };
 }
 
 async function readJsonResponse(response: Response) {
@@ -284,6 +298,16 @@ function isFigmaRequestTooLarge(response: Response, payload: Record<string, unkn
   const message = extractFigmaError(payload, "");
 
   return response.status === 413 || /request too large|too large|filter by query params/i.test(message);
+}
+
+function isFigmaAuthError(response: Response, payload: Record<string, unknown>) {
+  const message = extractFigmaError(payload, "");
+
+  return response.status === 401 || response.status === 403 || /invalid token|invalid access token|unauthorized|forbidden/i.test(message);
+}
+
+function getFigmaAuthErrorMessage() {
+  return "Figma token 無效或已過期，請在站台環境變數重新設定有效的 FIGMA_ACCESS_TOKEN。若你貼的是 Personal Access Token，請只貼 token 本身，不要包含 Bearer 或 X-Figma-Token。";
 }
 
 function truncate(value: string, maxLength: number) {
@@ -507,6 +531,10 @@ async function fetchFigmaContext(requestBody: AnalyzeRequest, figmaToken: string
     const { response, payload } = await fetchFigmaPayload(path, figmaToken);
 
     if (!response.ok) {
+      if (isFigmaAuthError(response, payload)) {
+        throw new Error(getFigmaAuthErrorMessage());
+      }
+
       if (isFigmaRequestTooLarge(response, payload)) {
         lastTooLargeMessage = extractFigmaError(payload, `Figma API 回傳 ${response.status}`);
         continue;
@@ -1787,7 +1815,8 @@ export async function POST(request: Request) {
     process.env.GOOGLE_AI_API_KEY ||
     process.env.GOOGLE_STUDIO_API_KEY
   )?.trim();
-  const figmaToken = (process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN)?.trim();
+  const rawFigmaToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
+  const figmaToken = normalizeFigmaToken(rawFigmaToken).tokenValue;
 
   if (!fileKey) {
     return Response.json({ message: "缺少 Figma file key，請先套用有效的 Figma 連結" }, { status: 400 });
@@ -1844,7 +1873,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const figmaContext = await fetchFigmaContext(requestBody, figmaToken);
+    const figmaContext = await fetchFigmaContext(requestBody, rawFigmaToken);
     let analysis:
       | {
           model: string;

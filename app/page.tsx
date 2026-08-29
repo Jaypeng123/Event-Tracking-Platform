@@ -439,6 +439,54 @@ function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
   }
 }
 
+function createLocalFigmaPagesFallback(nextInfo: FigmaSourceInfo): FigmaPagesLoadResult | null {
+  if (!nextInfo.fileKey || nextInfo.mode === "empty" || nextInfo.mode === "invalid" || nextInfo.mode === "unsupported") {
+    return null;
+  }
+
+  const knownPages = nextInfo.pages.map(normalizeFigmaPage);
+
+  if (nextInfo.nodeId) {
+    const relatedEventPages = Array.from(new Set(knownPages.flatMap((page) => page.relatedEventPages ?? [])));
+    const nodeName = cleanScopeName(nextInfo.nodeName || knownPages[0]?.name || nextInfo.fileName, "指定 Frame", 72);
+    const pages: FigmaPage[] = [
+      {
+        id: nextInfo.nodeId,
+        name: nodeName,
+        childCount: 1,
+        ...(relatedEventPages.length ? { relatedEventPages } : {}),
+      },
+    ];
+
+    return {
+      pages,
+      sourceInfo: {
+        ...nextInfo,
+        mode: "node",
+        fileName: cleanScopeName(nextInfo.fileName, "Figma design file", 72),
+        nodeName,
+        pages,
+      },
+    };
+  }
+
+  if (knownPages.length) {
+    return {
+      pages: knownPages,
+      sourceInfo: {
+        ...nextInfo,
+        mode: "file",
+        fileName: cleanScopeName(nextInfo.fileName, "Figma design file", 72),
+        nodeId: "",
+        nodeName: "",
+        pages: knownPages,
+      },
+    };
+  }
+
+  return null;
+}
+
 function escapeXml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -1914,6 +1962,24 @@ export default function Home() {
       return { pages, sourceInfo };
     } catch (error) {
       const message = error instanceof Error ? error.message : "無法讀取 Figma Page 清單";
+      const fallbackResult = createLocalFigmaPagesFallback(nextInfo);
+
+      if (fallbackResult) {
+        const fallbackPages = fallbackResult.pages;
+
+        setLoadedPages(fallbackPages);
+        setSelectedPageId(getDefaultSelectedPageId(fallbackPages));
+        setIsPageMenuOpen(false);
+        setHasImportedPages(true);
+        setPageLoadError("");
+        setAnalysisState("");
+        showToast(
+          /token/i.test(message)
+            ? "已先匯入連結；更新 Figma token 後可讀取完整內容"
+            : "已先使用連結資訊匯入",
+        );
+        return fallbackResult;
+      }
 
       setLoadedPages([]);
       setSelectedPageId("");
