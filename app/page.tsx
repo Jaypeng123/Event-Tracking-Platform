@@ -2097,35 +2097,118 @@ export default function Home() {
       <main className="landing-shell">
         <section className="landing-hero" aria-label="埋點規劃工具入口">
           <div className="landing-copy">
-            <p className="eyebrow">Product Analytics</p>
+            <p className="landing-eyebrow"><span aria-hidden="true" />Product Analytics</p>
             <h1>埋點規劃工具</h1>
             <p>以專案管理 Figma 來源、Page 分析與埋點事件庫，讓團隊先回答真正影響產品決策的追蹤問題。</p>
             <button className="primary-button landing-cta" type="button" onClick={handleEnterPlanner}>
-              前往埋點規劃
+              <span>前往埋點規劃</span>
+              <span aria-hidden="true">→</span>
             </button>
+            <div className="landing-feature-grid" aria-label="首頁功能亮點">
+              <div className="landing-feature">
+                <span className="feature-icon">▧</span>
+                <strong>Figma 整合</strong>
+                <small>自動解析 Page 與元件</small>
+              </div>
+              <div className="landing-feature">
+                <span className="feature-icon">⌁</span>
+                <strong>事件庫</strong>
+                <small>管理標準事件與屬性</small>
+              </div>
+              <div className="landing-feature">
+                <span className="feature-icon">▦</span>
+                <strong>數據驅動</strong>
+                <small>用數據驗證產品假設</small>
+              </div>
+              <div className="landing-feature">
+                <span className="feature-icon">↥</span>
+                <strong>匯出分享</strong>
+                <small>一鍵匯出 Excel 協作</small>
+              </div>
+            </div>
           </div>
           <div className="landing-visual" aria-hidden="true">
-            <div className="signal-map">
-              <span className="signal-label label-a">Figma Page</span>
-              <span className="signal-label label-b">AI Analysis</span>
-              <span className="signal-label label-c">Event Library</span>
-              <span className="signal-node node-a" />
-              <span className="signal-node node-b" />
-              <span className="signal-node node-c" />
-              <span className="signal-lane lane-a" />
-              <span className="signal-lane lane-b" />
-              <span className="signal-lane lane-c" />
-              <div className="metric-card metric-card-a">
-                <span>P0</span>
-                <strong>核心入口</strong>
+            <span className="landing-orbit orbit-a" />
+            <span className="landing-orbit orbit-b" />
+            <div className="floating-cube figma-cube">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+            <div className="floating-cube cursor-cube">▲</div>
+            <div className="floating-cube chart-cube">⌁</div>
+            <div className="floating-cube data-cube">▰</div>
+            <div className="dashboard-preview">
+              <div className="dashboard-header">
+                <strong>埋點規劃</strong>
+                <span>⌘</span>
               </div>
-              <div className="metric-card metric-card-b">
-                <span>P1</span>
-                <strong>功能價值</strong>
+              <div className="dashboard-metrics">
+                <div>
+                  <small>追蹤 Page 數</small>
+                  <strong>42</strong>
+                  <span>↑ 12%</span>
+                </div>
+                <div>
+                  <small>埋點事件數</small>
+                  <strong>128</strong>
+                  <span>↑ 18%</span>
+                </div>
+                <div>
+                  <small>關鍵事件數</small>
+                  <strong>26</strong>
+                  <span>↑ 8%</span>
+                </div>
+                <div>
+                  <small>資料品質</small>
+                  <strong>96%</strong>
+                  <span>良好</span>
+                </div>
               </div>
-              <div className="metric-card metric-card-c">
-                <span>P2</span>
-                <strong>微互動</strong>
+              <div className="dashboard-grid">
+                <div className="flow-card">
+                  <div className="card-title">Page 流程地圖</div>
+                  <div className="flow-map">
+                    <span className="flow-ring ring-one" />
+                    <span className="flow-ring ring-two" />
+                    <span className="flow-line line-one" />
+                    <span className="flow-line line-two" />
+                    <span className="flow-line line-three" />
+                    <div className="flow-node flow-p0"><span>P0</span><strong>核心入口</strong><small>35 事件</small></div>
+                    <div className="flow-node flow-p1"><span>P1</span><strong>功能價值</strong><small>28 事件</small></div>
+                    <div className="flow-node flow-p2"><span>P2</span><strong>微互動</strong><small>16 事件</small></div>
+                    <div className="flow-node flow-p3"><span>P3</span><strong>結果頁</strong><small>22 事件</small></div>
+                  </div>
+                  <div className="flow-legend">
+                    <span><i />高流量</span>
+                    <span><i />中流量</span>
+                    <span><i />低流量</span>
+                  </div>
+                </div>
+                <div className="trend-card">
+                  <div className="card-title">
+                    事件趨勢
+                    <span>近 30 天</span>
+                  </div>
+                  <div className="trend-chart">
+                    <span className="chart-grid-line chart-line-one" />
+                    <span className="chart-grid-line chart-line-two" />
+                    <span className="trend-fill" />
+                    <span className="trend-stroke" />
+                    <span className="trend-dot" />
+                    <div className="trend-tooltip"><strong>05/22</strong><small>事件數 162</small></div>
+                  </div>
+                </div>
+                <div className="hot-card">
+                  <div className="card-title">
+                    熱門事件
+                    <span>查看全部</span>
+                  </div>
+                  <div className="hot-row"><strong>按鈕點擊</strong><span><i style={{ width: "72%" }} /></span><em>1,245</em></div>
+                  <div className="hot-row"><strong>頁面瀏覽</strong><span><i style={{ width: "52%" }} /></span><em>980</em></div>
+                  <div className="hot-row"><strong>表單提交</strong><span><i style={{ width: "32%" }} /></span><em>562</em></div>
+                </div>
               </div>
             </div>
           </div>
