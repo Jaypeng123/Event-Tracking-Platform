@@ -99,6 +99,7 @@ type AnalyzeResponse = {
 };
 
 type ModelProvider = "openai" | "gemini";
+type AppView = "landing" | "planner";
 
 type AnalysisModelOption = {
   id: string;
@@ -742,6 +743,7 @@ function toExcelXml(rows: TrackingEvent[]) {
 }
 
 export default function Home() {
+  const [activeView, setActiveView] = useState<AppView>("landing");
   const [draftFigmaUrl, setDraftFigmaUrl] = useState("");
   const [appliedFigmaUrl, setAppliedFigmaUrl] = useState("");
   const [projects, setProjects] = useState<TrackingProject[]>([]);
@@ -762,6 +764,7 @@ export default function Home() {
   const [hasImportedPages, setHasImportedPages] = useState(false);
   const [isLoadingPages, setIsLoadingPages] = useState(false);
   const [pageLoadError, setPageLoadError] = useState("");
+  const [isAnalysisModelMenuOpen, setIsAnalysisModelMenuOpen] = useState(false);
   const [filter, setFilter] = useState<EventFilter>("All");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("All");
   const [query, setQuery] = useState("");
@@ -790,6 +793,7 @@ export default function Home() {
   const pageSelectRef = useRef<HTMLDivElement | null>(null);
   const projectMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceMenuRef = useRef<HTMLDivElement | null>(null);
+  const analysisModelMenuRef = useRef<HTMLDivElement | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const libraryColumnResizeRef = useRef<{
     key: LibraryColumnKey;
@@ -838,7 +842,7 @@ export default function Home() {
       setProjects(storedProjects);
       setImportedSources(storedSources);
       setActiveProjectId(nextActiveProjectId);
-      setIsProjectModalOpen(!storedProjects.length);
+      setIsProjectModalOpen(false);
       setIsAddingSource(!nextSource);
       if (nextSource) {
         const selectedSourcePageId = getDefaultSelectedPageId(nextSource.pages, nextSource.selectedPageId);
@@ -984,6 +988,38 @@ export default function Home() {
       document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [isSourceMenuOpen]);
+
+  useEffect(() => {
+    if (!isAnalysisModelMenuOpen) {
+      return;
+    }
+
+    function handleOutsidePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (
+        target instanceof Node &&
+        analysisModelMenuRef.current &&
+        !analysisModelMenuRef.current.contains(target)
+      ) {
+        setIsAnalysisModelMenuOpen(false);
+      }
+    }
+
+    function handleEscapeKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsAnalysisModelMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    document.addEventListener("keydown", handleEscapeKey);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+      document.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, [isAnalysisModelMenuOpen]);
 
   useEffect(
     () => () => {
@@ -1209,6 +1245,25 @@ export default function Home() {
     applyImportedSourceToState(source);
   }
 
+  function handleEnterPlanner() {
+    setActiveView("planner");
+    setIsLibraryOpen(false);
+    setIsProjectModalOpen(false);
+    setProjectDeleteTarget(null);
+    setIsAnalysisModelMenuOpen(false);
+  }
+
+  function handleReturnHome() {
+    setActiveView("landing");
+    setIsLibraryOpen(false);
+    setIsProjectModalOpen(false);
+    setProjectDeleteTarget(null);
+    setIsProjectMenuOpen(false);
+    setIsSourceMenuOpen(false);
+    setIsPageMenuOpen(false);
+    setIsAnalysisModelMenuOpen(false);
+  }
+
   function handleSwitchProject(projectId: string) {
     const nextProject = projects.find((project) => project.id === projectId);
 
@@ -1227,9 +1282,16 @@ export default function Home() {
     applyImportedSourceToState(nextSource);
     setIsProjectMenuOpen(false);
     setIsSourceMenuOpen(false);
+    setIsAnalysisModelMenuOpen(false);
   }
 
   function handleOpenProjectModal() {
+    if (!projects.length) {
+      setActiveView("planner");
+      setIsProjectModalOpen(false);
+      return;
+    }
+
     setProjectNameDraft("");
     setIsProjectMenuOpen(false);
     setIsSourceMenuOpen(false);
@@ -1307,7 +1369,8 @@ export default function Home() {
 
     if (!remainingProjects.length) {
       setIsLibraryOpen(false);
-      setIsProjectModalOpen(true);
+      setIsProjectModalOpen(false);
+      setActiveView("planner");
     }
   }
 
@@ -1521,6 +1584,12 @@ export default function Home() {
     setSelectedId("");
     setIsDetailOpen(false);
     setHasAnalyzed(false);
+    setIsAnalysisModelMenuOpen(false);
+  }
+
+  function handleSelectAnalysisModel(modelId: string) {
+    setSelectedAnalysisModelId(modelId);
+    setIsAnalysisModelMenuOpen(false);
   }
 
   function showToast(message: string) {
@@ -1701,6 +1770,7 @@ export default function Home() {
     setHasAnalyzed(false);
     setAnalysisError("");
     setAnalysisState("");
+    setIsAnalysisModelMenuOpen(false);
 
     try {
       const sourceForAnalysis = selectedPage
@@ -1823,10 +1893,163 @@ export default function Home() {
                       ? "按下分析頁面內容後會列出事件。"
                       : "左側套用連結後再開始分析。";
 
+  function renderPlannerNav() {
+    return (
+      <nav className="planner-nav" aria-label="頁面導覽">
+        <button className="planner-nav-link" type="button" onClick={handleReturnHome}>
+          首頁
+        </button>
+        <span aria-hidden="true">/</span>
+        <span>埋點規劃</span>
+      </nav>
+    );
+  }
+
+  function renderAnalysisModelMenu() {
+    const openAIModels = analysisModelOptions.filter((option) => option.provider === "openai");
+    const geminiModels = analysisModelOptions.filter((option) => option.provider === "gemini");
+
+    return (
+      <div className={`model-menu ${isAnalysisModelMenuOpen ? "open" : ""}`} ref={analysisModelMenuRef}>
+        <button
+          className="model-menu-trigger"
+          type="button"
+          onClick={() => {
+            setIsProjectMenuOpen(false);
+            setIsSourceMenuOpen(false);
+            setIsPageMenuOpen(false);
+            setIsAnalysisModelMenuOpen((current) => !current);
+          }}
+          disabled={isAnalyzing}
+          aria-label="切換分析模型"
+          aria-expanded={isAnalysisModelMenuOpen}
+          aria-haspopup="menu"
+        >
+          <span>{selectedAnalysisModel.label}</span>
+          <span className="page-select-arrow" aria-hidden="true">
+            ▾
+          </span>
+        </button>
+        {isAnalysisModelMenuOpen ? (
+          <div className="model-menu-list" role="menu" aria-label="分析模型清單">
+            <div className="model-menu-group-label" aria-hidden="true">
+              Open AI<span>（這模型會燒子傑的錢錢）</span>
+            </div>
+            {openAIModels.map((option) => (
+              <button
+                className={option.id === selectedAnalysisModelId ? "model-menu-choice selected" : "model-menu-choice"}
+                key={option.id}
+                type="button"
+                role="menuitem"
+                onClick={() => handleSelectAnalysisModel(option.id)}
+              >
+                <strong>{option.label}</strong>
+                <span>{option.note}</span>
+              </button>
+            ))}
+            <div className="model-menu-group-label" aria-hidden="true">
+              Gemini
+            </div>
+            {geminiModels.map((option) => (
+              <button
+                className={option.id === selectedAnalysisModelId ? "model-menu-choice selected" : "model-menu-choice"}
+                key={option.id}
+                type="button"
+                role="menuitem"
+                onClick={() => handleSelectAnalysisModel(option.id)}
+              >
+                <strong>{option.label}</strong>
+                <span>{option.note}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderProjectForm({
+    autoFocus = false,
+    onCancel,
+    submitLabel = "建立專案",
+  }: {
+    autoFocus?: boolean;
+    onCancel?: () => void;
+    submitLabel?: string;
+  } = {}) {
+    return (
+      <form
+        className="project-dialog"
+        onSubmit={(event) => {
+          event.preventDefault();
+          handleSaveProject();
+        }}
+      >
+        <p className="eyebrow">Project</p>
+        <h2>{projects.length ? "新增專案" : "建立第一個專案"}</h2>
+        <p>每個專案會有自己的 Figma 連結與埋點事件庫，方便不同產品或版本分開管理。</p>
+        <label className="project-name-field">
+          專案名稱
+          <input
+            autoFocus={autoFocus}
+            value={projectNameDraft}
+            onChange={(event) => setProjectNameDraft(event.target.value)}
+            placeholder="請輸入專案名稱"
+          />
+        </label>
+        <div className={onCancel ? "confirm-actions" : "confirm-actions single-action"}>
+          {onCancel ? (
+            <button className="secondary-button" type="button" onClick={onCancel}>
+              取消
+            </button>
+          ) : null}
+          <button className="primary-button" type="submit" disabled={!projectNameDraft.trim()}>
+            {submitLabel}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  function renderProjectSetupPage() {
+    return (
+      <main className="app-shell planner-shell">
+        {renderPlannerNav()}
+        <section className="project-setup-page" aria-label="建立專案">
+          <div className="project-setup-copy">
+            <p className="eyebrow">Project</p>
+            <h1>先建立專案</h1>
+            <p>專案會把 Figma 來源、AI 分析結果與埋點事件庫分開保存，適合同時管理不同產品、版本或團隊需求。</p>
+          </div>
+          <div className="project-setup-card">{renderProjectForm({ autoFocus: true })}</div>
+        </section>
+      </main>
+    );
+  }
+
+  function renderPlannerLoadingPage() {
+    return (
+      <main className="app-shell planner-shell">
+        {renderPlannerNav()}
+        <section className="project-setup-page" aria-label="載入專案">
+          <div className="project-setup-copy">
+            <p className="eyebrow">Project</p>
+            <h1>正在載入專案</h1>
+            <p>正在讀取目前瀏覽器中的專案、Figma 來源與埋點事件庫。</p>
+          </div>
+          <div className="project-setup-card loading-card" role="status" aria-live="polite">
+            <span className="loading-spinner" aria-hidden="true" />
+            <strong>載入中</strong>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   function renderProjectModal() {
     const canCloseProjectModal = projects.length > 0;
 
-    return isProjectModalOpen ? (
+    return isProjectModalOpen && projects.length ? (
       <div className="confirm-layer project-modal-layer" role="dialog" aria-modal="true" aria-label="新增專案">
         {canCloseProjectModal ? (
           <button
@@ -1838,36 +2061,9 @@ export default function Home() {
         ) : (
           <span className="drawer-scrim" aria-hidden="true" />
         )}
-        <form
-          className="confirm-dialog project-dialog"
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleSaveProject();
-          }}
-        >
-          <p className="eyebrow">Project</p>
-          <h2>{projects.length ? "新增專案" : "建立第一個專案"}</h2>
-          <p>每個專案會有自己的 Figma 連結與埋點事件庫，方便不同產品或版本分開管理。</p>
-          <label className="project-name-field">
-            專案名稱
-            <input
-              autoFocus
-              value={projectNameDraft}
-              onChange={(event) => setProjectNameDraft(event.target.value)}
-              placeholder="請輸入專案名稱"
-            />
-          </label>
-          <div className={projects.length ? "confirm-actions" : "confirm-actions single-action"}>
-            {projects.length ? (
-              <button className="secondary-button" type="button" onClick={() => setIsProjectModalOpen(false)}>
-                取消
-              </button>
-            ) : null}
-            <button className="primary-button" type="submit" disabled={!projectNameDraft.trim()}>
-              建立專案
-            </button>
-          </div>
-        </form>
+        <div className="confirm-dialog">
+          {renderProjectForm({ autoFocus: true, onCancel: () => setIsProjectModalOpen(false) })}
+        </div>
       </div>
     ) : null;
   }
@@ -1898,7 +2094,7 @@ export default function Home() {
     ) : null;
   }
 
-  if (hasLoadedWorkspace && !currentProject) {
+  if (activeView === "landing") {
     return (
       <main className="landing-shell">
         <section className="landing-hero" aria-label="埋點規劃工具入口">
@@ -1906,8 +2102,8 @@ export default function Home() {
             <p className="eyebrow">Product Analytics</p>
             <h1>埋點規劃工具</h1>
             <p>以專案管理 Figma 來源、Page 分析與埋點事件庫，讓團隊先回答真正影響產品決策的追蹤問題。</p>
-            <button className="primary-button landing-cta" type="button" onClick={handleOpenProjectModal}>
-              建立第一個專案
+            <button className="primary-button landing-cta" type="button" onClick={handleEnterPlanner}>
+              前往埋點規劃
             </button>
           </div>
           <div className="landing-visual" aria-hidden="true">
@@ -1936,15 +2132,22 @@ export default function Home() {
             </div>
           </div>
         </section>
-        {renderProjectModal()}
-        {renderProjectDeleteConfirm()}
       </main>
     );
   }
 
+  if (!hasLoadedWorkspace) {
+    return renderPlannerLoadingPage();
+  }
+
+  if (!currentProject) {
+    return renderProjectSetupPage();
+  }
+
   if (isLibraryOpen) {
     return (
-      <main className="app-shell library-shell">
+      <main className="app-shell planner-shell library-shell">
+        {renderPlannerNav()}
         <header className="topbar library-topbar">
           <div className="library-heading-group">
             <button className="icon-button back-button" type="button" onClick={handleCloseLibrary} aria-label="返回工具">
@@ -2226,18 +2429,24 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell planner-shell">
+      {renderPlannerNav()}
       <header className="topbar">
         <div className="topbar-title">
           <div>
-            <p className="eyebrow">Product Analytics</p>
-            <h1>埋點規劃工具</h1>
+            <p className="eyebrow">Project</p>
+            <h1>專案</h1>
           </div>
           <div className={`project-switcher ${isProjectMenuOpen ? "open" : ""}`} ref={projectMenuRef}>
             <button
               className="project-menu-trigger"
               type="button"
-              onClick={() => setIsProjectMenuOpen((current) => !current)}
+              onClick={() => {
+                setIsSourceMenuOpen(false);
+                setIsPageMenuOpen(false);
+                setIsAnalysisModelMenuOpen(false);
+                setIsProjectMenuOpen((current) => !current);
+              }}
               disabled={!projects.length}
               aria-label="切換專案"
               aria-expanded={isProjectMenuOpen}
@@ -2313,7 +2522,12 @@ export default function Home() {
                         <button
                           className="source-menu-trigger"
                           type="button"
-                          onClick={() => setIsSourceMenuOpen((current) => !current)}
+                          onClick={() => {
+                            setIsProjectMenuOpen(false);
+                            setIsPageMenuOpen(false);
+                            setIsAnalysisModelMenuOpen(false);
+                            setIsSourceMenuOpen((current) => !current);
+                          }}
                           disabled={isLoadingPages || isAnalyzing}
                           aria-expanded={isSourceMenuOpen}
                           aria-haspopup="menu"
@@ -2463,7 +2677,12 @@ export default function Home() {
                         <button
                           className="page-select-trigger"
                           type="button"
-                          onClick={() => setIsPageMenuOpen((current) => !current)}
+                          onClick={() => {
+                            setIsProjectMenuOpen(false);
+                            setIsSourceMenuOpen(false);
+                            setIsAnalysisModelMenuOpen(false);
+                            setIsPageMenuOpen((current) => !current);
+                          }}
                           disabled={!pageOptions.length || isAnalyzing}
                           aria-expanded={isPageMenuOpen}
                           aria-haspopup="listbox"
@@ -2502,35 +2721,11 @@ export default function Home() {
                     )}
                   </div>
 
-                  <label className="analysis-field compact-model-field">
-                    <span>分析模型</span>
-                    <select
-                      aria-label="分析模型"
-                      value={selectedAnalysisModelId}
-                      onChange={(event) => setSelectedAnalysisModelId(event.target.value)}
-                      disabled={isAnalyzing}
-                    >
-                      <optgroup label="OpenAI">
-                        {analysisModelOptions
-                          .filter((option) => option.provider === "openai")
-                          .map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.label}
-                            </option>
-                          ))}
-                      </optgroup>
-                      <optgroup label="Gemini">
-                        {analysisModelOptions
-                          .filter((option) => option.provider === "gemini")
-                          .map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.label}
-                            </option>
-                          ))}
-                      </optgroup>
-                    </select>
+                  <div className="analysis-field compact-model-field">
+                    <span className="field-label">分析模型</span>
+                    {renderAnalysisModelMenu()}
                     <small>{selectedAnalysisModel.note}</small>
-                  </label>
+                  </div>
                 </div>
                 {pageOptions.length && !isLoadingPages ? (
                   <span>已載入 {pageOptions.length} 個 Page；選定 Page 後只會分析該頁，避免一次分析整份檔案。</span>
