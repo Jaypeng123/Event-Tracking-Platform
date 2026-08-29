@@ -350,6 +350,7 @@ button {
 
 .panel-section {
   border-bottom: 1px solid var(--line);
+  min-width: 0;
   padding-bottom: 16px;
 }
 
@@ -1174,10 +1175,11 @@ select:focus {
 
 .figma-cube {
   --cube-rotate: -14deg;
+  --cube-x: -50%;
+  --cube-y: -50%;
   background: rgb(75 222 128 / 12%);
-  left: -70px;
-  top: -8px;
-  transform: rotate(var(--cube-rotate));
+  left: 50%;
+  top: 50%;
 }
 
 .figma-cube span {
@@ -1215,39 +1217,6 @@ select:focus {
   background: #55dc92;
   left: 30px;
   top: 56px;
-}
-
-.cursor-cube {
-  --cube-rotate: 13deg;
-  animation-delay: 0.6s;
-  background: linear-gradient(145deg, #d5ad55, #715424);
-  color: #ffffff;
-  font-size: 42px;
-  right: -28px;
-  top: 68px;
-  transform: rotate(var(--cube-rotate));
-}
-
-.chart-cube {
-  --cube-rotate: 13deg;
-  animation-delay: 1s;
-  background: linear-gradient(145deg, #57d58a, #174e31);
-  bottom: 36px;
-  color: #dfffe8;
-  font-size: 40px;
-  right: -32px;
-  transform: rotate(var(--cube-rotate));
-}
-
-.data-cube {
-  --cube-rotate: -14deg;
-  animation-delay: 1.5s;
-  background: linear-gradient(145deg, #7b67b6, #2c214f);
-  bottom: 76px;
-  color: #f0eaff;
-  font-size: 34px;
-  left: -46px;
-  transform: rotate(var(--cube-rotate));
 }
 
 .icon-button {
@@ -1759,6 +1728,8 @@ select:disabled {
 .source-card {
   display: grid;
   gap: 10px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .source-card {
@@ -1791,6 +1762,19 @@ select:disabled {
   display: block;
   font-size: 14px;
   line-height: 1.35;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-empty span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .source-card code {
@@ -1807,6 +1791,7 @@ select:disabled {
   border-radius: 8px;
   display: grid;
   gap: 4px;
+  min-width: 0;
   padding: 12px;
 }
 
@@ -1837,6 +1822,8 @@ select:disabled {
 }
 
 .source-menu {
+  max-width: 100%;
+  min-width: 0;
   position: relative;
   width: 100%;
 }
@@ -1853,7 +1840,9 @@ select:disabled {
   height: 42px;
   justify-content: space-between;
   line-height: 1.2;
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
   padding: 0 14px;
   text-align: left;
   width: 100%;
@@ -1866,6 +1855,8 @@ select:disabled {
 }
 
 .source-menu-trigger span:first-child {
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1880,7 +1871,9 @@ select:disabled {
   display: grid;
   gap: 4px;
   left: 0;
+  max-width: 100%;
   max-height: 260px;
+  min-width: 0;
   overflow: auto;
   padding: 8px;
   position: absolute;
@@ -1921,14 +1914,25 @@ select:disabled {
 }
 
 .source-menu-choice strong {
+  display: block;
   font-size: 13px;
-  overflow-wrap: anywhere;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .source-menu-choice span {
   color: var(--muted);
+  display: block;
   font-size: 11px;
   font-weight: 800;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .source-delete-button {
@@ -1977,9 +1981,14 @@ select:disabled {
 
 .source-hint {
   color: var(--muted);
+  display: block;
   font-size: 12px;
   line-height: 1.5;
   margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-dialog {
@@ -2152,11 +2161,11 @@ select:disabled {
 @keyframes cubeFloat {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) rotate(var(--cube-rotate));
+    transform: translate3d(var(--cube-x, 0), var(--cube-y, 0), 0) rotate(var(--cube-rotate));
   }
 
   50% {
-    transform: translate3d(0, -14px, 0) rotate(var(--cube-rotate));
+    transform: translate3d(var(--cube-x, 0), calc(var(--cube-y, 0px) - 14px), 0) rotate(var(--cube-rotate));
   }
 }
 
@@ -2189,6 +2198,8 @@ select:disabled {
   border-radius: 8px;
   display: grid;
   gap: 12px;
+  max-width: 100%;
+  min-width: 0;
   overflow: visible;
   padding: 14px;
 }
@@ -2198,11 +2209,13 @@ select:disabled {
   display: grid;
   gap: 12px;
   grid-template-columns: 1fr;
+  min-width: 0;
 }
 
 .analysis-field {
   display: grid;
   gap: 6px;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -2228,7 +2241,7 @@ select:disabled {
 
 .model-menu {
   justify-self: stretch;
-  max-width: none;
+  max-width: 100%;
   min-width: 0;
   position: relative;
   width: 100%;
@@ -2246,7 +2259,9 @@ select:disabled {
   height: 42px;
   justify-content: space-between;
   line-height: 1.2;
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
   padding: 0 14px;
   text-align: left;
   width: 100%;
@@ -2259,6 +2274,8 @@ select:disabled {
 }
 
 .model-menu-trigger span:first-child {
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2313,6 +2330,7 @@ select:disabled {
   color: var(--foreground);
   display: grid;
   gap: 3px;
+  min-width: 0;
   padding: 9px 10px;
   text-align: left;
   width: 100%;
@@ -2324,15 +2342,27 @@ select:disabled {
 }
 
 .model-menu-choice strong {
+  display: block;
   font-size: 13px;
   line-height: 1.25;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .model-menu-choice span {
   color: var(--muted);
+  display: block;
   font-size: 11px;
   font-weight: 800;
   line-height: 1.4;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .compact-model-field small {
@@ -2344,6 +2374,8 @@ select:disabled {
 }
 
 .page-select {
+  max-width: 100%;
+  min-width: 0;
   position: relative;
   width: 100%;
 }
@@ -2360,6 +2392,9 @@ select:disabled {
   height: 42px;
   justify-content: space-between;
   line-height: 1.2;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 0 14px;
   text-align: left;
   width: 100%;
@@ -2372,6 +2407,8 @@ select:disabled {
 }
 
 .page-select-trigger span:first-child {
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2395,11 +2432,14 @@ select:disabled {
   gap: 2px;
   left: 0;
   max-height: 280px;
+  max-width: 100%;
+  min-width: 0;
   overflow: auto;
   padding: 6px;
   position: absolute;
   right: 0;
   top: calc(100% + 8px);
+  width: 100%;
   z-index: 10;
 }
 
@@ -2432,8 +2472,13 @@ select:disabled {
 
 .page-selector > span {
   color: var(--muted);
+  display: block;
   font-size: 12px;
   line-height: 1.45;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .page-selector-error {

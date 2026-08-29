@@ -1697,7 +1697,6 @@ export default function Home() {
     }
 
     setAppliedFigmaUrl(nextInfo.normalizedUrl);
-    setDraftFigmaUrl("");
     setLoadedPages([]);
     setSelectedPageId("");
     setIsPageMenuOpen(false);
@@ -2164,9 +2163,6 @@ export default function Home() {
               <span />
               <span />
             </div>
-            <div className="floating-cube cursor-cube">▲</div>
-            <div className="floating-cube chart-cube">⌁</div>
-            <div className="floating-cube data-cube">▰</div>
             <div className="dashboard-preview">
               <div className="dashboard-header">
                 <strong>埋點規劃</strong>
