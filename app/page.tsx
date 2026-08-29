@@ -563,6 +563,14 @@ function getFigmaSourceId(projectId: string, source: FigmaSourceInfo) {
   return `figma_${hashText([projectId, source.fileKey, source.nodeId || "file"].join("|"))}`;
 }
 
+function getDefaultSelectedPageId(pages: FigmaPage[], preferredPageId = "") {
+  if (preferredPageId && pages.some((page) => page.id === preferredPageId)) {
+    return preferredPageId;
+  }
+
+  return pages.length === 1 ? pages[0].id : "";
+}
+
 function normalizeStoredFigmaSource(source: ImportedFigmaSource): ImportedFigmaSource {
   const now = new Date().toISOString();
   const pages = Array.isArray(source.pages) ? source.pages.map(normalizeFigmaPage) : [];
@@ -575,7 +583,7 @@ function normalizeStoredFigmaSource(source: ImportedFigmaSource): ImportedFigmaS
     fileName: cleanScopeName(source.fileName, "Figma 來源", 48),
     nodeName: source.nodeName ? cleanScopeName(source.nodeName, "指定節點", 48) : "",
     pages,
-    selectedPageId: pages.some((page) => page.id === source.selectedPageId) ? source.selectedPageId : "",
+    selectedPageId: getDefaultSelectedPageId(pages, source.selectedPageId),
     importedAt: typeof source.importedAt === "string" ? source.importedAt : now,
     updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : now,
   };
@@ -741,6 +749,8 @@ export default function Home() {
   const [importedSources, setImportedSources] = useState<ImportedFigmaSource[]>([]);
   const [activeSourceId, setActiveSourceId] = useState("");
   const [isAddingSource, setIsAddingSource] = useState(false);
+  const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
   const [hasLoadedWorkspace, setHasLoadedWorkspace] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
@@ -779,6 +789,8 @@ export default function Home() {
   const analysisRunId = useRef(0);
   const pageSelectRef = useRef<HTMLDivElement | null>(null);
   const projectMenuRef = useRef<HTMLDivElement | null>(null);
+  const sourceMenuRef = useRef<HTMLDivElement | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
   const libraryColumnResizeRef = useRef<{
     key: LibraryColumnKey;
     startX: number;
@@ -829,9 +841,7 @@ export default function Home() {
       setIsProjectModalOpen(!storedProjects.length);
       setIsAddingSource(!nextSource);
       if (nextSource) {
-        const selectedSourcePageId = nextSource.pages.some((page) => page.id === nextSource.selectedPageId)
-          ? nextSource.selectedPageId
-          : "";
+        const selectedSourcePageId = getDefaultSelectedPageId(nextSource.pages, nextSource.selectedPageId);
 
         setActiveSourceId(nextSource.id);
         setDraftFigmaUrl("");
@@ -946,6 +956,43 @@ export default function Home() {
       document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [isProjectMenuOpen]);
+
+  useEffect(() => {
+    if (!isSourceMenuOpen) {
+      return;
+    }
+
+    function handleOutsidePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (target instanceof Node && sourceMenuRef.current && !sourceMenuRef.current.contains(target)) {
+        setIsSourceMenuOpen(false);
+      }
+    }
+
+    function handleEscapeKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsSourceMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    document.addEventListener("keydown", handleEscapeKey);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+      document.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, [isSourceMenuOpen]);
+
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!resizingLibraryColumn) {
@@ -1106,9 +1153,7 @@ export default function Home() {
       return;
     }
 
-    const selectedSourcePageId = source.pages.some((page) => page.id === source.selectedPageId)
-      ? source.selectedPageId
-      : "";
+    const selectedSourcePageId = getDefaultSelectedPageId(source.pages, source.selectedPageId);
 
     setActiveSourceId(source.id);
     setDraftFigmaUrl("");
@@ -1130,20 +1175,21 @@ export default function Home() {
     const existingSource = importedSources.find(
       (source) => source.id === getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo),
     );
-    const selectedSourcePageId =
-      existingSource?.selectedPageId && pages.some((page) => page.id === existingSource.selectedPageId)
-        ? existingSource.selectedPageId
-        : "";
+    const selectedSourcePageId = getDefaultSelectedPageId(pages, existingSource?.selectedPageId);
     const now = new Date().toISOString();
+    const sourceDisplayName =
+      nextInfo.mode === "node"
+        ? cleanScopeName(pages[0]?.name || nextInfo.nodeName || nextInfo.fileName, "指定 Frame", 48)
+        : cleanScopeName(nextInfo.fileName, "Figma 來源", 48);
 
     return {
       id: getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo),
       projectId: activeProjectId || LEGACY_PROJECT_ID,
       mode: nextInfo.mode === "node" ? "node" : "file",
       fileKey: nextInfo.fileKey,
-      fileName: cleanScopeName(nextInfo.fileName, "Figma 來源", 48),
+      fileName: sourceDisplayName,
       nodeId: nextInfo.nodeId,
-      nodeName: nextInfo.nodeName ? cleanScopeName(nextInfo.nodeName, "指定節點", 48) : "",
+      nodeName: nextInfo.mode === "node" ? sourceDisplayName : "",
       normalizedUrl: nextInfo.normalizedUrl,
       pages,
       selectedPageId: selectedSourcePageId,
@@ -1180,11 +1226,13 @@ export default function Home() {
     setIsAddingSource(!nextSource);
     applyImportedSourceToState(nextSource);
     setIsProjectMenuOpen(false);
+    setIsSourceMenuOpen(false);
   }
 
   function handleOpenProjectModal() {
     setProjectNameDraft("");
     setIsProjectMenuOpen(false);
+    setIsSourceMenuOpen(false);
     setIsProjectModalOpen(true);
   }
 
@@ -1264,16 +1312,24 @@ export default function Home() {
   }
 
   function handleStartAddSource() {
+    setDraftFigmaUrl("");
     setIsAddingSource(true);
-    applyImportedSourceToState(null);
+    setIsSourceMenuOpen(false);
+    setAnalysisState("");
   }
 
   function handleCancelAddSource() {
-    const nextSource =
-      currentProjectSources.find((source) => source.id === activeSourceId) ?? currentProjectSources[0] ?? null;
+    setDraftFigmaUrl("");
+    setIsSourceMenuOpen(false);
 
-    setIsAddingSource(!nextSource);
-    applyImportedSourceToState(nextSource);
+    if (!currentProjectSources.length) {
+      setIsAddingSource(true);
+      applyImportedSourceToState(null);
+      return;
+    }
+
+    setIsAddingSource(false);
+    setAnalysisState("");
   }
 
   function handleSelectImportedSource(sourceId: string) {
@@ -1281,6 +1337,7 @@ export default function Home() {
 
     if (source) {
       applyImportedSourceToState(source);
+      setIsSourceMenuOpen(false);
     }
   }
 
@@ -1289,6 +1346,7 @@ export default function Home() {
     const nextSource = remainingProjectSources[0] ?? null;
 
     setImportedSources((currentSources) => currentSources.filter((source) => source.id !== sourceId));
+    setIsSourceMenuOpen(false);
 
     if (sourceId === activeSourceId || !nextSource) {
       setIsAddingSource(!nextSource);
@@ -1465,6 +1523,18 @@ export default function Home() {
     setHasAnalyzed(false);
   }
 
+  function showToast(message: string) {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+
+    setToastMessage(message);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage("");
+      toastTimerRef.current = null;
+    }, 2000);
+  }
+
   async function loadFigmaPages(nextInfo: FigmaSourceInfo) {
     if (!nextInfo.fileKey || nextInfo.mode === "empty" || nextInfo.mode === "invalid" || nextInfo.mode === "unsupported") {
       setLoadedPages([]);
@@ -1487,7 +1557,12 @@ export default function Home() {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ fileKey: nextInfo.fileKey }),
+        body: JSON.stringify({
+          fileKey: nextInfo.fileKey,
+          fileName: nextInfo.fileName,
+          nodeId: nextInfo.nodeId,
+          nodeName: nextInfo.nodeName,
+        }),
         cache: "no-store",
         credentials: "include",
       });
@@ -1498,9 +1573,10 @@ export default function Home() {
       }
 
       const pages = Array.isArray(result.pages) ? result.pages.map(normalizeFigmaPage) : [];
+      const nextSelectedPageId = getDefaultSelectedPageId(pages);
 
       setLoadedPages(pages);
-      setSelectedPageId("");
+      setSelectedPageId(nextSelectedPageId);
       setIsPageMenuOpen(false);
       setHasImportedPages(true);
       setPageLoadError(pages.length ? "" : "這份 Figma 檔案沒有讀到可分析的 Page");
@@ -1530,17 +1606,24 @@ export default function Home() {
     const nextInfo = parseFigmaUrl(draftFigmaUrl);
 
     if (nextInfo.mode === "empty") {
-      setAnalysisState("請先貼上 Figma 設計檔連結");
+      showToast("請先貼上 Figma design/file 連結");
       return;
     }
 
     if (nextInfo.mode === "invalid") {
-      setAnalysisState("這看起來不是有效的 Figma 連結");
+      showToast("這看起來不是有效的 Figma 連結");
       return;
     }
 
     if (nextInfo.mode === "unsupported") {
-      setAnalysisState("目前請提供 Figma design/file 連結；簡報 deck 可作欄位參考，但不作頁面分析");
+      showToast("目前請改貼 Figma design/file 連結");
+      return;
+    }
+
+    const nextSourceId = getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo);
+
+    if (currentProjectSources.some((source) => source.id === nextSourceId)) {
+      showToast("這個 Figma 連結已經匯入過了");
       return;
     }
 
@@ -2215,99 +2298,142 @@ export default function Home() {
                   <strong>請先建立專案</strong>
                   <span>建立專案後，就能匯入 Figma 連結並產出埋點建議。</span>
                 </div>
-              ) : showImportForm ? (
-                <>
-                  <label className="field-label" htmlFor="figma-url">
-                    Figma 連結
-                  </label>
-                  <textarea
-                    id="figma-url"
-                    value={draftFigmaUrl}
-                    onChange={(event) => setDraftFigmaUrl(event.target.value)}
-                    placeholder="貼上 Figma design/file 連結"
-                    rows={3}
-                    disabled={isLoadingPages}
-                  />
-                  {draftInfo.mode === "empty" ? (
-                    <div className="source-empty">
-                      <strong>尚未匯入來源</strong>
-                      <span>貼上 Figma 連結後按下匯入，系統會先讀取可分析的 Page。</span>
-                    </div>
-                  ) : (
-                    <div className={`source-empty source-${draftInfo.mode}`}>
-                      <strong>
-                        {draftInfo.mode === "node"
-                          ? "將匯入這份 Figma 稿件"
-                          : draftInfo.mode === "file"
-                            ? "將匯入整份檔案"
-                            : draftInfo.mode === "unsupported"
-                              ? "目前不支援這種 Figma 連結"
-                              : "這看起來不是有效的 Figma 連結"}
-                      </strong>
-                      <span>
-                        {draftInfo.mode === "file" || draftInfo.mode === "node"
-                          ? "匯入後會列出 Page，請選定一頁再進行 AI 分析。"
-                          : "請改貼 Figma design/file 連結。"}
-                      </span>
-                    </div>
-                  )}
-                  <div className={currentProjectSources.length ? "source-actions" : "source-actions single-action"}>
-                    <button
-                      className="primary-button"
-                      type="button"
-                      onClick={handleApplySource}
-                      disabled={!hasDraftSource || isLoadingPages}
-                    >
-                      {isLoadingPages ? "讀取中" : "匯入"}
-                    </button>
-                    {currentProjectSources.length ? (
-                      <button className="secondary-button" type="button" onClick={handleCancelAddSource} disabled={isLoadingPages}>
-                        取消
-                      </button>
-                    ) : null}
-                  </div>
-                </>
               ) : (
                 <>
-                  <label className="field-label" htmlFor="imported-source">
-                    Figma 連結
-                  </label>
-                  <div className="source-switcher">
-                    <select
-                      id="imported-source"
-                      aria-label="切換已匯入 Figma 來源"
-                      value={activeSourceId}
-                      onChange={(event) => handleSelectImportedSource(event.target.value)}
-                      disabled={isLoadingPages || isAnalyzing}
-                    >
-                      {currentProjectSources.map((source) => (
-                        <option key={source.id} value={source.id}>
-                          {source.fileName}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className="secondary-button danger-button"
-                      type="button"
-                      onClick={() => handleDeleteImportedSource(activeSourceId)}
-                      disabled={!activeSourceId || isLoadingPages || isAnalyzing}
-                    >
-                      刪除來源
-                    </button>
-                  </div>
-                  <p className="source-hint">
-                    已載入 {selectedImportedSource?.pages.length ?? pageOptions.length} 個 Page。可切換已匯入連結或新增其他 Figma 連結。
-                  </p>
-                  <div className="source-actions single-action">
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={handleStartAddSource}
-                      disabled={isLoadingPages || isAnalyzing}
-                    >
-                      新增 Figma 連結
-                    </button>
-                  </div>
+                  {currentProjectSources.length ? (
+                    <>
+                      <label className="field-label" htmlFor="imported-source">
+                        Figma 連結
+                      </label>
+                      <div
+                        className={`source-menu ${isSourceMenuOpen ? "open" : ""}`}
+                        id="imported-source"
+                        ref={sourceMenuRef}
+                      >
+                        <button
+                          className="source-menu-trigger"
+                          type="button"
+                          onClick={() => setIsSourceMenuOpen((current) => !current)}
+                          disabled={isLoadingPages || isAnalyzing}
+                          aria-expanded={isSourceMenuOpen}
+                          aria-haspopup="menu"
+                        >
+                          <span>{selectedImportedSource?.fileName ?? "請選擇 Figma 來源"}</span>
+                          <span className="page-select-arrow" aria-hidden="true">
+                            ▾
+                          </span>
+                        </button>
+                        {isSourceMenuOpen ? (
+                          <div className="source-menu-list" role="menu" aria-label="已匯入 Figma 來源">
+                            {currentProjectSources.map((source) => (
+                              <div
+                                className={source.id === activeSourceId ? "source-menu-item selected" : "source-menu-item"}
+                                key={source.id}
+                                role="none"
+                              >
+                                <button
+                                  className="source-menu-choice"
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => handleSelectImportedSource(source.id)}
+                                >
+                                  <strong>{source.fileName}</strong>
+                                  <span>{source.mode === "node" ? "指定 Frame" : `${source.pages.length} 個 Page`}</span>
+                                </button>
+                                <button
+                                  className="source-delete-button"
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleDeleteImportedSource(source.id);
+                                  }}
+                                  disabled={isLoadingPages || isAnalyzing}
+                                  aria-label={`刪除來源：${source.fileName}`}
+                                >
+                                  刪除
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <p className="source-hint">
+                        已載入 {selectedImportedSource?.pages.length ?? pageOptions.length} 個 Page。可切換已匯入連結或新增其他 Figma 連結。
+                      </p>
+                      {!isAddingSource ? (
+                        <div className="source-actions single-action">
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            onClick={handleStartAddSource}
+                            disabled={isLoadingPages || isAnalyzing}
+                          >
+                            新增 Figma 連結
+                          </button>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+                  {showImportForm ? (
+                    <div className={currentProjectSources.length ? "source-add-panel" : ""}>
+                      <label className="field-label" htmlFor="figma-url">
+                        {currentProjectSources.length ? "新增 Figma 連結" : "Figma 連結"}
+                      </label>
+                      <textarea
+                        id="figma-url"
+                        value={draftFigmaUrl}
+                        onChange={(event) => setDraftFigmaUrl(event.target.value)}
+                        placeholder="貼上 Figma design/file 連結"
+                        rows={3}
+                        disabled={isLoadingPages}
+                      />
+                      {draftInfo.mode === "empty" ? (
+                        <div className="source-empty">
+                          <strong>{currentProjectSources.length ? "等待新增來源" : "尚未匯入來源"}</strong>
+                          <span>貼上 Figma 連結後按下匯入，系統會先讀取可分析的 Page。</span>
+                        </div>
+                      ) : (
+                        <div className={`source-empty source-${draftInfo.mode}`}>
+                          <strong>
+                            {draftInfo.mode === "node"
+                              ? "將匯入這個 Figma Frame"
+                              : draftInfo.mode === "file"
+                                ? "將匯入整份檔案"
+                                : draftInfo.mode === "unsupported"
+                                  ? "目前不支援這種 Figma 連結"
+                                  : "這看起來不是有效的 Figma 連結"}
+                          </strong>
+                          <span>
+                            {draftInfo.mode === "file"
+                              ? "匯入後會列出 Page，請選定一頁再進行 AI 分析。"
+                              : draftInfo.mode === "node"
+                                ? "匯入後 Page 選單只會顯示這個 Frame。"
+                                : "請改貼 Figma design/file 連結。"}
+                          </span>
+                        </div>
+                      )}
+                      <div className={currentProjectSources.length ? "source-actions" : "source-actions single-action"}>
+                        <button
+                          className="primary-button"
+                          type="button"
+                          onClick={handleApplySource}
+                          disabled={!hasDraftSource || isLoadingPages}
+                        >
+                          {isLoadingPages ? "讀取中" : "匯入"}
+                        </button>
+                        {currentProjectSources.length ? (
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            onClick={handleCancelAddSource}
+                            disabled={isLoadingPages}
+                          >
+                            取消
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               )}
             </div>
@@ -2676,6 +2802,11 @@ export default function Home() {
         {renderProjectModal()}
         {renderProjectDeleteConfirm()}
       </section>
+      {toastMessage ? (
+        <div className="app-toast" role="status" aria-live="polite">
+          {toastMessage}
+        </div>
+      ) : null}
     </main>
   );
 }

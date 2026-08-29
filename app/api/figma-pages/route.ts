@@ -10,6 +10,7 @@ type FigmaNode = {
 type FigmaApiResponse = {
   name?: string;
   document?: FigmaNode;
+  nodes?: Record<string, { document?: FigmaNode } | null>;
   message?: string;
   err?: string;
 };
@@ -55,7 +56,7 @@ function cleanPageName(value: string, fallback = "Untitled page") {
 }
 
 export async function POST(request: Request) {
-  let requestBody: { fileKey?: string };
+  let requestBody: { fileKey?: string; fileName?: string; nodeId?: string; nodeName?: string };
 
   try {
     requestBody = (await request.json()) as { fileKey?: string };
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
   }
 
   const fileKey = asString(requestBody.fileKey);
+  const nodeId = asString(requestBody.nodeId).replace(/-/g, ":");
   const figmaToken = (process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN)?.trim();
 
   if (!fileKey) {
@@ -78,6 +80,44 @@ export async function POST(request: Request) {
       },
       { status: 503 },
     );
+  }
+
+  if (nodeId) {
+    const response = await fetch(
+      `${FIGMA_API_BASE_URL}/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}`,
+      {
+        headers: buildFigmaHeaders(figmaToken),
+        cache: "no-store",
+      },
+    );
+    const payload = (await readJsonResponse(response)) as FigmaApiResponse & Record<string, unknown>;
+
+    if (!response.ok) {
+      return Response.json(
+        {
+          code: "figma_node_failed",
+          message: extractFigmaError(payload, `Figma API 回傳 ${response.status}`),
+        },
+        { status: 502 },
+      );
+    }
+
+    const node = payload.nodes?.[nodeId]?.document;
+    const frameName = cleanPageName(
+      asString(node?.name, asString(requestBody.nodeName, asString(requestBody.fileName, "指定 Frame"))),
+      "指定 Frame",
+    );
+
+    return Response.json({
+      fileName: asString(payload.name, asString(requestBody.fileName, "Figma design file")),
+      pages: [
+        {
+          id: nodeId,
+          name: frameName,
+          childCount: node?.children?.length ?? 1,
+        },
+      ],
+    });
   }
 
   const response = await fetch(`${FIGMA_API_BASE_URL}/files/${encodeURIComponent(fileKey)}?depth=1`, {
