@@ -1896,11 +1896,9 @@ export default function Home() {
   function renderPlannerNav() {
     return (
       <nav className="planner-nav" aria-label="頁面導覽">
-        <button className="planner-nav-link" type="button" onClick={handleReturnHome}>
-          首頁
+        <button className="planner-back-icon" type="button" onClick={handleReturnHome} aria-label="返回首頁">
+          <span aria-hidden="true">‹</span>
         </button>
-        <span aria-hidden="true">/</span>
-        <span>埋點規劃</span>
       </nav>
     );
   }
@@ -2568,24 +2566,23 @@ export default function Home() {
                                 </button>
                               </div>
                             ))}
+                            {!isAddingSource ? (
+                              <button
+                                className="source-menu-add"
+                                type="button"
+                                role="menuitem"
+                                onClick={handleStartAddSource}
+                                disabled={isLoadingPages || isAnalyzing}
+                              >
+                                新增 Figma 連結
+                              </button>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>
                       <p className="source-hint">
                         已載入 {selectedImportedSource?.pages.length ?? pageOptions.length} 個 Page。可切換已匯入連結或新增其他 Figma 連結。
                       </p>
-                      {!isAddingSource ? (
-                        <div className="source-actions single-action">
-                          <button
-                            className="secondary-button"
-                            type="button"
-                            onClick={handleStartAddSource}
-                            disabled={isLoadingPages || isAnalyzing}
-                          >
-                            新增 Figma 連結
-                          </button>
-                        </div>
-                      ) : null}
                     </>
                   ) : null}
                   {showImportForm ? (

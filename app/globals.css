@@ -76,29 +76,46 @@ button {
 
 .planner-nav {
   align-items: center;
-  background: rgb(255 255 255 / 74%);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--muted);
+  background: transparent;
+  border: 0;
   display: flex;
-  font-size: 12px;
-  font-weight: 800;
-  gap: 8px;
-  height: 36px;
   justify-content: flex-start;
-  margin: 0 auto 10px;
+  margin: 0 auto 8px;
   max-width: 1720px;
-  padding: 0 12px;
   width: 100%;
 }
 
-.planner-nav-link {
-  background: transparent;
-  border: 0;
+.planner-back-icon {
+  align-items: center;
+  background: rgb(255 255 255 / 78%);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 12px 30px rgb(16 24 18 / 8%);
   color: var(--green-900);
-  font-size: 12px;
+  display: inline-flex;
+  font-size: 28px;
   font-weight: 900;
+  height: 38px;
+  justify-content: center;
+  line-height: 1;
   padding: 0;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+  width: 38px;
+}
+
+.planner-back-icon:hover,
+.planner-back-icon:focus {
+  background: #ffffff;
+  border-color: #b8cbb6;
+  transform: translateX(-1px);
+}
+
+.planner-back-icon span {
+  display: block;
+  transform: translateY(-1px);
 }
 
 .topbar h1,
@@ -1421,7 +1438,8 @@ select:disabled {
 }
 
 .source-menu-choice,
-.source-delete-button {
+.source-delete-button,
+.source-menu-add {
   border-radius: 6px;
   min-width: 0;
   text-align: left;
@@ -1462,6 +1480,25 @@ select:disabled {
 .source-delete-button:hover,
 .source-delete-button:focus {
   background: #fff8f5;
+}
+
+.source-menu-add {
+  align-items: center;
+  background: #f7faf6;
+  border: 1px dashed #bfcebd;
+  color: var(--green-900);
+  display: flex;
+  font-size: 13px;
+  font-weight: 900;
+  justify-content: center;
+  margin-top: 4px;
+  min-height: 38px;
+  padding: 9px 10px;
+}
+
+.source-menu-add:hover,
+.source-menu-add:focus {
+  background: var(--green-100);
 }
 
 .source-add-panel {
@@ -2438,11 +2475,21 @@ code {
     width: 100%;
   }
 
-  .topbar-title,
-  .project-switcher,
-  .project-menu-trigger {
-    align-items: stretch;
+  .topbar-title {
+    align-items: center;
+    flex-wrap: nowrap;
+    justify-content: space-between;
     width: 100%;
+  }
+
+  .topbar-title > div:first-child {
+    flex: 0 0 auto;
+  }
+
+  .project-switcher {
+    flex: 1 1 180px;
+    min-width: 160px;
+    width: auto;
   }
 
   .project-menu-list {
