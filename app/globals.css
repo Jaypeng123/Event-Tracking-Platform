@@ -155,8 +155,13 @@ button {
   min-width: 0;
 }
 
-.topbar-title > div:first-child {
+.project-heading {
   flex: 0 0 auto;
+}
+
+.topbar-back-icon {
+  flex: 0 0 auto;
+  margin-right: 4px;
 }
 
 .project-switcher {
@@ -2271,16 +2276,17 @@ select:disabled {
 }
 
 .model-menu-group-label {
-  align-items: baseline;
+  align-items: center;
   color: var(--green-700);
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   font-size: 11px;
   font-weight: 900;
-  gap: 3px;
+  gap: 4px;
   line-height: 1.35;
   padding: 7px 8px 3px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .model-menu-group-label span {
@@ -2288,6 +2294,7 @@ select:disabled {
   font-size: 11px;
   font-weight: 800;
   text-transform: none;
+  white-space: nowrap;
 }
 
 .model-menu-choice {
@@ -2984,11 +2991,11 @@ code {
   .topbar-title {
     align-items: center;
     flex-wrap: nowrap;
-    justify-content: space-between;
+    justify-content: flex-start;
     width: 100%;
   }
 
-  .topbar-title > div:first-child {
+  .project-heading {
     flex: 0 0 auto;
   }
 

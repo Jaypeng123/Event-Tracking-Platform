@@ -1931,7 +1931,7 @@ export default function Home() {
         {isAnalysisModelMenuOpen ? (
           <div className="model-menu-list" role="menu" aria-label="分析模型清單">
             <div className="model-menu-group-label" aria-hidden="true">
-              Open AI<span>（這模型會燒子傑的錢錢🔥）</span>
+              Open AI<span>（會燒子傑錢呀🔥）</span>
             </div>
             {openAIModels.map((option) => (
               <button
@@ -2512,10 +2512,12 @@ export default function Home() {
 
   return (
     <main className="app-shell planner-shell">
-      {renderPlannerNav()}
       <header className="topbar">
         <div className="topbar-title">
-          <div>
+          <button className="planner-back-icon topbar-back-icon" type="button" onClick={handleReturnHome} aria-label="返回首頁">
+            <span aria-hidden="true">‹</span>
+          </button>
+          <div className="project-heading">
             <p className="eyebrow">Project</p>
             <h1>專案</h1>
           </div>
@@ -2591,7 +2593,7 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  {currentProjectSources.length ? (
+                  {currentProjectSources.length && !isAddingSource ? (
                     <>
                       <label className="field-label" htmlFor="imported-source">
                         Figma 連結
