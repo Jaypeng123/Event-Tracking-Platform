@@ -56,6 +56,12 @@ function extractFigmaError(payload: Record<string, unknown>, fallback: string) {
   return asString(payload.message, asString(payload.err, rawSnippet || fallback));
 }
 
+function isFigmaRequestTooLarge(response: Response, payload: Record<string, unknown>) {
+  const message = extractFigmaError(payload, "");
+
+  return response.status === 413 || /request too large|too large|filter by query params/i.test(message);
+}
+
 function cleanPageName(value: string, fallback = "Untitled page") {
   const cleaned = value
     .replace(/[（(]\s*\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*[）)]/g, "")
@@ -86,6 +92,27 @@ function getFilePages(payload: FigmaApiResponse) {
         childCount: node.children?.length ?? 0,
       })) ?? []
   );
+}
+
+function createNodePageFallback(requestBody: { fileName?: string; nodeId?: string; nodeName?: string }, nodeId: string) {
+  const frameName = cleanPageName(
+    asString(requestBody.nodeName, asString(requestBody.fileName, "指定 Frame")),
+    "指定 Frame",
+  );
+
+  return {
+    fileName: cleanPageName(asString(requestBody.fileName, "Figma design file"), "Figma design file"),
+    mode: "node",
+    nodeId,
+    nodeName: frameName,
+    pages: [
+      {
+        id: nodeId,
+        name: frameName,
+        childCount: 1,
+      },
+    ],
+  };
 }
 
 export async function POST(request: Request) {
@@ -120,7 +147,7 @@ export async function POST(request: Request) {
 
     if (nodeId) {
       const { response, payload } = await fetchFigmaPayload(
-        `/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}`,
+        `/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}&depth=1`,
         figmaToken,
       );
 
@@ -149,6 +176,10 @@ export async function POST(request: Request) {
         }
       } else {
         nodeFallbackMessage = extractFigmaError(payload, `Figma API 回傳 ${response.status}`);
+
+        if (isFigmaRequestTooLarge(response, payload)) {
+          return Response.json(createNodePageFallback(requestBody, nodeId));
+        }
       }
     }
 
@@ -158,6 +189,10 @@ export async function POST(request: Request) {
     );
 
     if (!response.ok) {
+      if (nodeId && isFigmaRequestTooLarge(response, payload)) {
+        return Response.json(createNodePageFallback(requestBody, nodeId));
+      }
+
       return Response.json(
         {
           code: "figma_pages_failed",

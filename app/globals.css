@@ -1375,6 +1375,27 @@ select:disabled {
   z-index: 1;
 }
 
+.library-table th:last-child,
+.library-table td:last-child {
+  position: sticky;
+  right: 0;
+}
+
+.library-table th:last-child {
+  box-shadow: -10px 0 18px rgb(24 32 24 / 18%);
+  z-index: 4;
+}
+
+.library-table td:last-child {
+  background: #ffffff;
+  box-shadow: -10px 0 18px rgb(24 32 24 / 10%);
+  z-index: 2;
+}
+
+.library-table tbody tr:hover td:last-child {
+  background: #f1f8ef;
+}
+
 .resizable-header {
   position: sticky;
 }

@@ -415,7 +415,7 @@ function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
       return { ...EMPTY_FIGMA_SOURCE, mode: "invalid", normalizedUrl };
     }
 
-    if (!["design", "file"].includes(fileType) || !fileKey) {
+    if (!["design", "file", "proto"].includes(fileType) || !fileKey) {
       return { ...EMPTY_FIGMA_SOURCE, mode: "unsupported", normalizedUrl };
     }
 
@@ -1946,14 +1946,16 @@ export default function Home() {
     }
 
     if (nextInfo.mode === "unsupported") {
-      showToast("目前請改貼 Figma design/file 連結");
+      showToast("目前請改貼 Figma design/file/prototype 連結");
       return;
     }
 
     const nextSourceId = getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo);
+    const duplicatedSource = currentProjectSources.find((source) => source.id === nextSourceId);
 
-    if (currentProjectSources.some((source) => source.id === nextSourceId)) {
-      showToast("這個 Figma 連結已經匯入過了");
+    if (duplicatedSource) {
+      applyImportedSourceToState(duplicatedSource);
+      showToast("已切換到這個 Figma 來源");
       return;
     }
 
@@ -2998,7 +3000,7 @@ export default function Home() {
                         id="figma-url"
                         value={draftFigmaUrl}
                         onChange={(event) => setDraftFigmaUrl(event.target.value)}
-                        placeholder="貼上 Figma design/file 連結"
+                        placeholder="貼上 Figma design/file/prototype 連結"
                         rows={3}
                         disabled={isLoadingPages}
                       />
@@ -3023,7 +3025,7 @@ export default function Home() {
                               ? "匯入後會列出 Page，請選定一頁再進行 AI 分析。"
                               : draftInfo.mode === "node"
                                 ? "匯入後 Page 選單只會顯示這個 Frame。"
-                                : "請改貼 Figma design/file 連結。"}
+                                : "請改貼 Figma design/file/prototype 連結。"}
                           </span>
                         </div>
                       )}
