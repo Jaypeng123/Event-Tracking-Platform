@@ -143,6 +143,7 @@ const EVENT_LIBRARY_STORAGE_KEY = "tracking-plan-event-library-v1";
 const PROJECTS_STORAGE_KEY = "tracking-plan-projects-v1";
 const ACTIVE_PROJECT_STORAGE_KEY = "tracking-plan-active-project-v1";
 const FIGMA_SOURCES_STORAGE_KEY = "tracking-plan-figma-sources-v1";
+const ANALYSIS_RESULTS_STORAGE_KEY = "tracking-plan-analysis-results-v1";
 const LEGACY_PROJECT_ID = "legacy-project";
 
 const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
@@ -517,6 +518,91 @@ function normalizeStoredEvent(row: SavedTrackingEvent): SavedTrackingEvent {
   };
 }
 
+function isTrackingEventDraftLike(value: unknown): value is TrackingEvent {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return (
+    typeof record.id === "string" &&
+    typeof record.page === "string" &&
+    typeof record.area === "string" &&
+    typeof record.eventName === "string"
+  );
+}
+
+function normalizeCachedAnalysisEvent(row: TrackingEvent): TrackingEvent {
+  const page = cleanScopeName(row.page, "Figma 分析範圍");
+  const area = cleanScopeName(row.area, row.page || "主要區塊");
+  const eventType = coerceEventType(row.eventType);
+  const priority =
+    row.priority === "P0" || row.priority === "P1" || row.priority === "P2" ? row.priority : "P1";
+
+  return {
+    id: row.id,
+    page,
+    area,
+    metricName:
+      typeof row.metricName === "string" && row.metricName.trim()
+        ? cleanScopeName(row.metricName, deriveMetricName(page, area, eventType), 36)
+        : deriveMetricName(page, area, eventType),
+    eventName: row.eventName,
+    eventType,
+    trigger:
+      typeof row.trigger === "string" && row.trigger.trim()
+        ? normalizeTrackingEventCopy(row.trigger)
+        : "完成指定埋點行為",
+    purpose:
+      typeof row.purpose === "string" && row.purpose.trim()
+        ? row.purpose
+        : "了解此事件是否能回答目前頁面的核心產品問題。",
+    analysisValue:
+      typeof row.analysisValue === "string" && row.analysisValue.trim()
+        ? toNumberedDisplayList(row.analysisValue)
+        : "判斷此事件是否能回答目前頁面的核心產品問題。",
+    metricCalculation:
+      typeof row.metricCalculation === "string" && row.metricCalculation.trim()
+        ? toNumberedDisplayList(row.metricCalculation)
+        : "事件 UV ÷ 平台活躍 UV",
+    properties:
+      typeof row.properties === "string" && row.properties.trim()
+        ? row.properties
+        : "page_name; user_role; entry_source",
+    propertyDefinitions:
+      typeof row.propertyDefinitions === "string" && row.propertyDefinitions.trim()
+        ? row.propertyDefinitions
+        : "頁面名稱; 使用者角色; 進入來源",
+    dataTypes:
+      typeof row.dataTypes === "string" && row.dataTypes.trim() ? row.dataTypes : "string; string; string",
+    sampleValues:
+      typeof row.sampleValues === "string" && row.sampleValues.trim()
+        ? row.sampleValues
+        : "patient_detail; doctor; sidebar",
+    priority,
+    status: typeof row.status === "string" && row.status.trim() ? row.status : "AI 產生",
+  };
+}
+
+function isCachedAnalysisResultLike(value: unknown): value is CachedAnalysisResult {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return Array.isArray(record.rows);
+}
+
+function compactAnalysisResults(results: Record<string, CachedAnalysisResult>) {
+  return Object.fromEntries(
+    Object.entries(results)
+      .sort(([, first], [, second]) => Date.parse(second.analyzedAt) - Date.parse(first.analyzedAt))
+      .slice(0, 120),
+  );
+}
+
 function isTrackingProjectLike(value: unknown): value is TrackingProject {
   if (!value || typeof value !== "object") {
     return false;
@@ -625,6 +711,47 @@ function readStoredFigmaSources() {
       : [];
   } catch {
     return [];
+  }
+}
+
+function readStoredAnalysisResults() {
+  try {
+    const storedResults = window.localStorage.getItem(ANALYSIS_RESULTS_STORAGE_KEY);
+    const parsed = storedResults ? JSON.parse(storedResults) : {};
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    const now = new Date().toISOString();
+    const normalizedEntries = Object.entries(parsed as Record<string, unknown>).flatMap(([cacheKey, result]) => {
+      if (!cacheKey || !isCachedAnalysisResultLike(result)) {
+        return [];
+      }
+
+      const rows = result.rows
+        .filter(isTrackingEventDraftLike)
+        .map(normalizeCachedAnalysisEvent);
+
+      if (!rows.length) {
+        return [];
+      }
+
+      return [
+        [
+          cacheKey,
+          {
+            rows,
+            modelId: typeof result.modelId === "string" ? result.modelId : "",
+            analyzedAt: typeof result.analyzedAt === "string" ? result.analyzedAt : now,
+          },
+        ],
+      ];
+    });
+
+    return compactAnalysisResults(Object.fromEntries(normalizedEntries));
+  } catch {
+    return {};
   }
 }
 
@@ -874,6 +1001,7 @@ export default function Home() {
     const timer = window.setTimeout(() => {
       const storedProjects = readStoredProjects();
       const storedSources = readStoredFigmaSources();
+      const storedAnalysisResults = readStoredAnalysisResults();
       const storedActiveProjectId = readStoredActiveProjectId();
       const nextActiveProjectId =
         storedProjects.find((project) => project.id === storedActiveProjectId)?.id ?? storedProjects[0]?.id ?? "";
@@ -881,11 +1009,13 @@ export default function Home() {
 
       setProjects(storedProjects);
       setImportedSources(storedSources);
+      setCachedAnalysisResults(storedAnalysisResults);
       setActiveProjectId(nextActiveProjectId);
       setIsProjectModalOpen(false);
       setIsAddingSource(!nextSource);
       if (nextSource) {
         const selectedSourcePageId = getDefaultSelectedPageId(nextSource.pages, nextSource.selectedPageId);
+        const cachedResult = storedAnalysisResults[getSourceAnalysisCacheKey(nextSource, selectedSourcePageId)] ?? null;
 
         setActiveSourceId(nextSource.id);
         setDraftFigmaUrl("");
@@ -894,6 +1024,8 @@ export default function Home() {
         setSelectedPageId(selectedSourcePageId);
         setHasImportedPages(true);
         setPageLoadError(nextSource.pages.length ? "" : "這個來源沒有讀到可分析的 Page");
+        setAnalysisRows(cachedResult?.rows ?? []);
+        setHasAnalyzed(Boolean(cachedResult));
         setAnalysisState("");
       } else {
         setActiveSourceId("");
@@ -903,6 +1035,8 @@ export default function Home() {
         setSelectedPageId("");
         setHasImportedPages(false);
         setPageLoadError("");
+        setAnalysisRows([]);
+        setHasAnalyzed(false);
         setAnalysisState("尚未提供 Figma 連結");
       }
       setLibraryRows(readStoredEventLibrary());
@@ -936,6 +1070,21 @@ export default function Home() {
 
     window.localStorage.setItem(FIGMA_SOURCES_STORAGE_KEY, JSON.stringify(importedSources));
   }, [hasLoadedWorkspace, importedSources]);
+
+  useEffect(() => {
+    if (!hasLoadedWorkspace) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        ANALYSIS_RESULTS_STORAGE_KEY,
+        JSON.stringify(compactAnalysisResults(cachedAnalysisResults)),
+      );
+    } catch {
+      // Ignore localStorage quota failures; the current in-memory result still remains usable.
+    }
+  }, [cachedAnalysisResults, hasLoadedWorkspace]);
 
   useEffect(() => {
     if (!hasLoadedLibrary) {
@@ -1935,12 +2084,14 @@ export default function Home() {
       setHasAnalyzed(true);
       setAnalysisState("");
       setCachedAnalysisResults((currentResults) => ({
-        ...currentResults,
-        [cacheKey]: {
-          rows,
-          modelId: selectedAnalysisModel.id,
-          analyzedAt: new Date().toISOString(),
-        },
+        ...compactAnalysisResults({
+          ...currentResults,
+          [cacheKey]: {
+            rows,
+            modelId: selectedAnalysisModel.id,
+            analyzedAt: new Date().toISOString(),
+          },
+        }),
       }));
     } catch (error) {
       if (analysisRunId.current !== runId) {
