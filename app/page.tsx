@@ -943,6 +943,7 @@ export default function Home() {
     useState<Record<LibraryColumnKey, number>>(defaultLibraryColumnWidths);
   const [resizingLibraryColumn, setResizingLibraryColumn] = useState<LibraryColumnKey | null>(null);
   const analysisRunId = useRef(0);
+  const cachedAnalysisResultsRef = useRef<Record<string, CachedAnalysisResult>>({});
   const pageSelectRef = useRef<HTMLDivElement | null>(null);
   const projectMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceMenuRef = useRef<HTMLDivElement | null>(null);
@@ -1009,6 +1010,7 @@ export default function Home() {
 
       setProjects(storedProjects);
       setImportedSources(storedSources);
+      cachedAnalysisResultsRef.current = storedAnalysisResults;
       setCachedAnalysisResults(storedAnalysisResults);
       setActiveProjectId(nextActiveProjectId);
       setIsProjectModalOpen(false);
@@ -1378,10 +1380,19 @@ export default function Home() {
     );
   }
 
+  function updateAnalysisResultCache(updater: (currentResults: Record<string, CachedAnalysisResult>) => Record<string, CachedAnalysisResult>) {
+    setCachedAnalysisResults((currentResults) => {
+      const nextResults = updater(currentResults);
+
+      cachedAnalysisResultsRef.current = nextResults;
+      return nextResults;
+    });
+  }
+
   function restoreCachedAnalysisResult(cacheKey: string, emptyStateMessage = "") {
     analysisRunId.current += 1;
 
-    const cachedResult = cachedAnalysisResults[cacheKey] ?? null;
+    const cachedResult = cachedAnalysisResultsRef.current[cacheKey] ?? cachedAnalysisResults[cacheKey] ?? null;
 
     setIsAnalyzing(false);
     setAnalysisError("");
@@ -1975,6 +1986,8 @@ export default function Home() {
   }
 
   function handleSelectPage(pageId: string) {
+    const isSwitchingPage = pageId !== selectedPageId;
+
     setSelectedPageId(pageId);
     setImportedSources((currentSources) =>
       currentSources.map((source) =>
@@ -1988,6 +2001,11 @@ export default function Home() {
       ),
     );
     setIsPageMenuOpen(false);
+    if (isSwitchingPage) {
+      setFilter("All");
+      setPriorityFilter("All");
+      setQuery("");
+    }
     restoreCachedAnalysisResult(getCurrentAnalysisCacheKey(pageId), pageId ? "" : "請先選擇要分析的 Page");
   }
 
@@ -2029,7 +2047,7 @@ export default function Home() {
     setAnalysisError("");
     setAnalysisState("");
     setIsAnalysisModelMenuOpen(false);
-    setCachedAnalysisResults((currentResults) => {
+    updateAnalysisResultCache((currentResults) => {
       if (!cacheKey || !currentResults[cacheKey]) {
         return currentResults;
       }
@@ -2083,8 +2101,8 @@ export default function Home() {
       setIsDetailOpen(false);
       setHasAnalyzed(true);
       setAnalysisState("");
-      setCachedAnalysisResults((currentResults) => ({
-        ...compactAnalysisResults({
+      updateAnalysisResultCache((currentResults) =>
+        compactAnalysisResults({
           ...currentResults,
           [cacheKey]: {
             rows,
@@ -2092,7 +2110,7 @@ export default function Home() {
             analyzedAt: new Date().toISOString(),
           },
         }),
-      }));
+      );
     } catch (error) {
       if (analysisRunId.current !== runId) {
         return;
