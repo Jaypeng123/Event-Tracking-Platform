@@ -743,6 +743,8 @@ export default function Home() {
   const [isAddingSource, setIsAddingSource] = useState(false);
   const [hasLoadedWorkspace, setHasLoadedWorkspace] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
+  const [projectDeleteTarget, setProjectDeleteTarget] = useState<TrackingProject | null>(null);
   const [projectNameDraft, setProjectNameDraft] = useState("");
   const [loadedPages, setLoadedPages] = useState<FigmaPage[]>([]);
   const [selectedPageId, setSelectedPageId] = useState("");
@@ -776,6 +778,7 @@ export default function Home() {
   const [resizingLibraryColumn, setResizingLibraryColumn] = useState<LibraryColumnKey | null>(null);
   const analysisRunId = useRef(0);
   const pageSelectRef = useRef<HTMLDivElement | null>(null);
+  const projectMenuRef = useRef<HTMLDivElement | null>(null);
   const libraryColumnResizeRef = useRef<{
     key: LibraryColumnKey;
     startX: number;
@@ -915,6 +918,34 @@ export default function Home() {
       document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [isPageMenuOpen]);
+
+  useEffect(() => {
+    if (!isProjectMenuOpen) {
+      return;
+    }
+
+    function handleOutsidePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (target instanceof Node && projectMenuRef.current && !projectMenuRef.current.contains(target)) {
+        setIsProjectMenuOpen(false);
+      }
+    }
+
+    function handleEscapeKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsProjectMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    document.addEventListener("keydown", handleEscapeKey);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+      document.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, [isProjectMenuOpen]);
 
   useEffect(() => {
     if (!resizingLibraryColumn) {
@@ -1148,10 +1179,12 @@ export default function Home() {
     setLibrarySourceFilter("All");
     setIsAddingSource(!nextSource);
     applyImportedSourceToState(nextSource);
+    setIsProjectMenuOpen(false);
   }
 
   function handleOpenProjectModal() {
     setProjectNameDraft("");
+    setIsProjectMenuOpen(false);
     setIsProjectModalOpen(true);
   }
 
@@ -1186,6 +1219,48 @@ export default function Home() {
       );
     }
     applyImportedSourceToState(null);
+  }
+
+  function handleRequestDeleteProject(project: TrackingProject) {
+    setProjectDeleteTarget(project);
+    setIsProjectMenuOpen(false);
+  }
+
+  function handleConfirmDeleteProject() {
+    if (!projectDeleteTarget) {
+      return;
+    }
+
+    const deleteProjectId = projectDeleteTarget.id;
+    const remainingProjects = projects.filter((project) => project.id !== deleteProjectId);
+    const remainingSources = importedSources.filter((source) => source.projectId !== deleteProjectId);
+    const isDeletingActiveProject = activeProjectId === deleteProjectId;
+    const nextProject = isDeletingActiveProject ? (remainingProjects[0] ?? null) : currentProject;
+    const nextSource = nextProject
+      ? remainingSources.find((source) => source.projectId === nextProject.id) ?? null
+      : null;
+
+    setProjects(remainingProjects);
+    setImportedSources(remainingSources);
+    setLibraryRows((currentRows) => currentRows.filter((row) => row.projectId !== deleteProjectId));
+    setProjectDeleteTarget(null);
+    setProjectNameDraft("");
+    setLibraryQuery("");
+    setLibraryTypeFilter("All");
+    setLibraryPriorityFilter("All");
+    setLibrarySourceFilter("All");
+    handleCancelLibraryEdit();
+
+    if (isDeletingActiveProject) {
+      setActiveProjectId(nextProject?.id ?? "");
+      setIsAddingSource(!nextSource);
+      applyImportedSourceToState(nextSource);
+    }
+
+    if (!remainingProjects.length) {
+      setIsLibraryOpen(false);
+      setIsProjectModalOpen(true);
+    }
   }
 
   function handleStartAddSource() {
@@ -1664,6 +1739,128 @@ export default function Home() {
                     : hasAppliedSource
                       ? "按下分析頁面內容後會列出事件。"
                       : "左側套用連結後再開始分析。";
+
+  function renderProjectModal() {
+    const canCloseProjectModal = projects.length > 0;
+
+    return isProjectModalOpen ? (
+      <div className="confirm-layer project-modal-layer" role="dialog" aria-modal="true" aria-label="新增專案">
+        {canCloseProjectModal ? (
+          <button
+            className="drawer-scrim"
+            type="button"
+            onClick={() => setIsProjectModalOpen(false)}
+            aria-label="關閉新增專案"
+          />
+        ) : (
+          <span className="drawer-scrim" aria-hidden="true" />
+        )}
+        <form
+          className="confirm-dialog project-dialog"
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSaveProject();
+          }}
+        >
+          <p className="eyebrow">Project</p>
+          <h2>{projects.length ? "新增專案" : "建立第一個專案"}</h2>
+          <p>每個專案會有自己的 Figma 連結與埋點事件庫，方便不同產品或版本分開管理。</p>
+          <label className="project-name-field">
+            專案名稱
+            <input
+              autoFocus
+              value={projectNameDraft}
+              onChange={(event) => setProjectNameDraft(event.target.value)}
+              placeholder="請輸入專案名稱"
+            />
+          </label>
+          <div className={projects.length ? "confirm-actions" : "confirm-actions single-action"}>
+            {projects.length ? (
+              <button className="secondary-button" type="button" onClick={() => setIsProjectModalOpen(false)}>
+                取消
+              </button>
+            ) : null}
+            <button className="primary-button" type="submit" disabled={!projectNameDraft.trim()}>
+              建立專案
+            </button>
+          </div>
+        </form>
+      </div>
+    ) : null;
+  }
+
+  function renderProjectDeleteConfirm() {
+    return projectDeleteTarget ? (
+      <div className="confirm-layer project-modal-layer" role="dialog" aria-modal="true" aria-label="刪除專案確認">
+        <button
+          className="drawer-scrim"
+          type="button"
+          onClick={() => setProjectDeleteTarget(null)}
+          aria-label="取消刪除專案"
+        />
+        <div className="confirm-dialog">
+          <p className="eyebrow">Confirm</p>
+          <h2>刪除專案？</h2>
+          <p>
+            會刪除「{projectDeleteTarget.name}」的 Figma 來源與埋點事件庫資料。這個動作只影響目前瀏覽器儲存的資料。
+          </p>
+          <div className="confirm-actions">
+            <button className="secondary-button" type="button" onClick={() => setProjectDeleteTarget(null)}>
+              取消
+            </button>
+            <button className="primary-button danger-solid-button" type="button" onClick={handleConfirmDeleteProject}>
+              刪除專案
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null;
+  }
+
+  if (hasLoadedWorkspace && !currentProject) {
+    return (
+      <main className="landing-shell">
+        <section className="landing-hero" aria-label="埋點規劃工具入口">
+          <div className="landing-copy">
+            <p className="eyebrow">Product Analytics</p>
+            <h1>埋點規劃工具</h1>
+            <p>以專案管理 Figma 來源、Page 分析與埋點事件庫，讓團隊先回答真正影響產品決策的追蹤問題。</p>
+            <button className="primary-button landing-cta" type="button" onClick={handleOpenProjectModal}>
+              建立第一個專案
+            </button>
+          </div>
+          <div className="landing-visual" aria-hidden="true">
+            <div className="signal-map">
+              <span className="signal-label label-a">Figma Page</span>
+              <span className="signal-label label-b">AI Analysis</span>
+              <span className="signal-label label-c">Event Library</span>
+              <span className="signal-node node-a" />
+              <span className="signal-node node-b" />
+              <span className="signal-node node-c" />
+              <span className="signal-lane lane-a" />
+              <span className="signal-lane lane-b" />
+              <span className="signal-lane lane-c" />
+              <div className="metric-card metric-card-a">
+                <span>P0</span>
+                <strong>核心入口</strong>
+              </div>
+              <div className="metric-card metric-card-b">
+                <span>P1</span>
+                <strong>功能價值</strong>
+              </div>
+              <div className="metric-card metric-card-c">
+                <span>P2</span>
+                <strong>微互動</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+        {renderProjectModal()}
+        {renderProjectDeleteConfirm()}
+      </main>
+    );
+  }
+
   if (isLibraryOpen) {
     return (
       <main className="app-shell library-shell">
@@ -1941,48 +2138,8 @@ export default function Home() {
           </div>
         ) : null}
 
-        {isProjectModalOpen ? (
-          <div className="confirm-layer" role="dialog" aria-modal="true" aria-label="新增專案">
-            {projects.length ? (
-              <button
-                className="drawer-scrim"
-                type="button"
-                onClick={() => setIsProjectModalOpen(false)}
-                aria-label="關閉新增專案"
-              />
-            ) : null}
-            <form
-              className="confirm-dialog project-dialog"
-              onSubmit={(event) => {
-                event.preventDefault();
-                handleSaveProject();
-              }}
-            >
-              <p className="eyebrow">Project</p>
-              <h2>新增專案</h2>
-              <p>先建立專案名稱，再匯入 Figma 連結與儲存埋點事件。</p>
-              <label className="project-name-field">
-                專案名稱
-                <input
-                  autoFocus
-                  value={projectNameDraft}
-                  onChange={(event) => setProjectNameDraft(event.target.value)}
-                  placeholder="例如：慢病醫療人員平台"
-                />
-              </label>
-              <div className={projects.length ? "confirm-actions" : "confirm-actions single-action"}>
-                {projects.length ? (
-                  <button className="secondary-button" type="button" onClick={() => setIsProjectModalOpen(false)}>
-                    取消
-                  </button>
-                ) : null}
-                <button className="primary-button" type="submit" disabled={!projectNameDraft.trim()}>
-                  建立專案
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : null}
+        {renderProjectModal()}
+        {renderProjectDeleteConfirm()}
       </main>
     );
   }
@@ -1995,29 +2152,44 @@ export default function Home() {
             <p className="eyebrow">Product Analytics</p>
             <h1>埋點規劃工具</h1>
           </div>
-          <div className="project-switcher" aria-label="專案切換">
-            <label>
-              <span>專案</span>
-              <select
-                aria-label="切換專案"
-                value={activeProjectId}
-                onChange={(event) => handleSwitchProject(event.target.value)}
-                disabled={!projects.length}
-              >
-                {projects.length ? (
-                  projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">尚未建立專案</option>
-                )}
-              </select>
-            </label>
-            <button className="secondary-button small-button" type="button" onClick={handleOpenProjectModal}>
-              新增專案
+          <div className={`project-switcher ${isProjectMenuOpen ? "open" : ""}`} ref={projectMenuRef}>
+            <button
+              className="project-menu-trigger"
+              type="button"
+              onClick={() => setIsProjectMenuOpen((current) => !current)}
+              disabled={!projects.length}
+              aria-label="切換專案"
+              aria-expanded={isProjectMenuOpen}
+              aria-haspopup="menu"
+            >
+              <span>{currentProject?.name ?? "尚未建立專案"}</span>
+              <span className="page-select-arrow" aria-hidden="true">
+                ▾
+              </span>
             </button>
+            {isProjectMenuOpen ? (
+              <div className="project-menu-list" role="menu" aria-label="專案清單">
+                {projects.map((project) => (
+                  <div className={`project-menu-item ${project.id === activeProjectId ? "selected" : ""}`} key={project.id}>
+                    <button className="project-menu-choice" type="button" onClick={() => handleSwitchProject(project.id)}>
+                      <strong>{project.name}</strong>
+                      {project.id === activeProjectId ? <span>目前專案</span> : null}
+                    </button>
+                    <button
+                      className="project-delete-button"
+                      type="button"
+                      onClick={() => handleRequestDeleteProject(project)}
+                      aria-label={`刪除專案：${project.name}`}
+                    >
+                      刪除
+                    </button>
+                  </div>
+                ))}
+                <button className="project-menu-add" type="button" onClick={handleOpenProjectModal}>
+                  新增專案
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
         <div className="topbar-actions" aria-label="匯出工具">
@@ -2100,7 +2272,7 @@ export default function Home() {
               ) : (
                 <>
                   <label className="field-label" htmlFor="imported-source">
-                    已匯入來源
+                    Figma 連結
                   </label>
                   <div className="source-switcher">
                     <select
@@ -2125,12 +2297,9 @@ export default function Home() {
                       刪除來源
                     </button>
                   </div>
-                  <div className="source-empty source-locked">
-                    <strong>{selectedImportedSource?.fileName ?? cleanScopeName(figmaInfo.fileName, "Figma 來源")}</strong>
-                    <span>
-                      已載入 {selectedImportedSource?.pages.length ?? pageOptions.length} 個 Page。可切換已匯入來源或新增其他 Figma 連結。
-                    </span>
-                  </div>
+                  <p className="source-hint">
+                    已載入 {selectedImportedSource?.pages.length ?? pageOptions.length} 個 Page。可切換已匯入連結或新增其他 Figma 連結。
+                  </p>
                   <div className="source-actions single-action">
                     <button
                       className="secondary-button"
@@ -2506,48 +2675,8 @@ export default function Home() {
           </aside>
         ) : null}
 
-        {isProjectModalOpen ? (
-          <div className="confirm-layer" role="dialog" aria-modal="true" aria-label="新增專案">
-            {projects.length ? (
-              <button
-                className="drawer-scrim"
-                type="button"
-                onClick={() => setIsProjectModalOpen(false)}
-                aria-label="關閉新增專案"
-              />
-            ) : null}
-            <form
-              className="confirm-dialog project-dialog"
-              onSubmit={(event) => {
-                event.preventDefault();
-                handleSaveProject();
-              }}
-            >
-              <p className="eyebrow">Project</p>
-              <h2>{projects.length ? "新增專案" : "建立第一個專案"}</h2>
-              <p>每個專案會有自己的 Figma 連結與埋點事件庫，方便不同產品或版本分開管理。</p>
-              <label className="project-name-field">
-                專案名稱
-                <input
-                  autoFocus
-                  value={projectNameDraft}
-                  onChange={(event) => setProjectNameDraft(event.target.value)}
-                  placeholder="例如：慢病醫療人員平台"
-                />
-              </label>
-              <div className={projects.length ? "confirm-actions" : "confirm-actions single-action"}>
-                {projects.length ? (
-                  <button className="secondary-button" type="button" onClick={() => setIsProjectModalOpen(false)}>
-                    取消
-                  </button>
-                ) : null}
-                <button className="primary-button" type="submit" disabled={!projectNameDraft.trim()}>
-                  建立專案
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : null}
+        {renderProjectModal()}
+        {renderProjectDeleteConfirm()}
       </section>
     </main>
   );
