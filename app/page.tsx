@@ -2106,22 +2106,49 @@ export default function Home() {
             </button>
             <div className="landing-feature-grid" aria-label="首頁功能亮點">
               <div className="landing-feature">
-                <span className="feature-icon">▧</span>
+                <span className="feature-icon feature-icon-figma" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M5 5.5h14v13H5z" />
+                    <path d="m8 16 3.2-4 2.4 2.8 1.5-1.8L18 16" />
+                    <path d="M8 9h3" />
+                  </svg>
+                </span>
                 <strong>Figma 整合</strong>
                 <small>自動解析 Page 與元件</small>
               </div>
               <div className="landing-feature">
-                <span className="feature-icon">⌁</span>
+                <span className="feature-icon feature-icon-library" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M7 7h4v4H7z" />
+                    <path d="M13 13h4v4h-4z" />
+                    <path d="M11 9h3.5a2.5 2.5 0 0 1 2.5 2.5V13" />
+                    <path d="M13 15H9.5A2.5 2.5 0 0 1 7 12.5V11" />
+                  </svg>
+                </span>
                 <strong>事件庫</strong>
                 <small>管理標準事件與屬性</small>
               </div>
               <div className="landing-feature">
-                <span className="feature-icon">▦</span>
+                <span className="feature-icon feature-icon-data" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M6 6h12v12H6z" />
+                    <path d="M10 6v12" />
+                    <path d="M14 6v12" />
+                    <path d="M6 10h12" />
+                    <path d="M6 14h12" />
+                  </svg>
+                </span>
                 <strong>數據驅動</strong>
                 <small>用數據驗證產品假設</small>
               </div>
               <div className="landing-feature">
-                <span className="feature-icon">↥</span>
+                <span className="feature-icon feature-icon-export" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M12 16V6" />
+                    <path d="m8.5 9.5 3.5-3.5 3.5 3.5" />
+                    <path d="M6 14v4h12v-4" />
+                  </svg>
+                </span>
                 <strong>匯出分享</strong>
                 <small>一鍵匯出 Excel 協作</small>
               </div>
@@ -2229,7 +2256,6 @@ export default function Home() {
   if (isLibraryOpen) {
     return (
       <main className="app-shell planner-shell library-shell">
-        {renderPlannerNav()}
         <header className="topbar library-topbar">
           <div className="library-heading-group">
             <button className="icon-button back-button" type="button" onClick={handleCloseLibrary} aria-label="返回工具">

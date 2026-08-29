@@ -670,10 +670,19 @@ select:focus {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
   color: #7df49e;
   display: inline-flex;
-  font-size: 24px;
   height: 56px;
   justify-content: center;
   width: 56px;
+}
+
+.feature-icon svg {
+  fill: none;
+  height: 26px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  width: 26px;
 }
 
 .landing-feature strong {
@@ -1166,8 +1175,8 @@ select:focus {
 .figma-cube {
   --cube-rotate: -14deg;
   background: rgb(75 222 128 / 12%);
-  left: 0;
-  top: 6px;
+  left: -70px;
+  top: -8px;
   transform: rotate(var(--cube-rotate));
 }
 
@@ -1214,8 +1223,8 @@ select:focus {
   background: linear-gradient(145deg, #d5ad55, #715424);
   color: #ffffff;
   font-size: 42px;
-  right: 2px;
-  top: 70px;
+  right: -28px;
+  top: 68px;
   transform: rotate(var(--cube-rotate));
 }
 
@@ -1223,10 +1232,10 @@ select:focus {
   --cube-rotate: 13deg;
   animation-delay: 1s;
   background: linear-gradient(145deg, #57d58a, #174e31);
-  bottom: 32px;
+  bottom: 36px;
   color: #dfffe8;
   font-size: 40px;
-  right: 8px;
+  right: -32px;
   transform: rotate(var(--cube-rotate));
 }
 
@@ -1234,10 +1243,10 @@ select:focus {
   --cube-rotate: -14deg;
   animation-delay: 1.5s;
   background: linear-gradient(145deg, #7b67b6, #2c214f);
-  bottom: 46px;
+  bottom: 76px;
   color: #f0eaff;
   font-size: 34px;
-  left: 22px;
+  left: -46px;
   transform: rotate(var(--cube-rotate));
 }
 
