@@ -1801,9 +1801,7 @@ export default function Home() {
         <div className="confirm-dialog">
           <p className="eyebrow">Confirm</p>
           <h2>刪除專案？</h2>
-          <p>
-            會刪除「{projectDeleteTarget.name}」的 Figma 來源與埋點事件庫資料。這個動作只影響目前瀏覽器儲存的資料。
-          </p>
+          <p>請確認是否要刪除「{projectDeleteTarget.name}」，刪除後資料不會留存。</p>
           <div className="confirm-actions">
             <button className="secondary-button" type="button" onClick={() => setProjectDeleteTarget(null)}>
               取消
