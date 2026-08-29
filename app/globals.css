@@ -1827,38 +1827,6 @@ select:disabled {
   grid-template-columns: 1fr;
 }
 
-.source-scope-toggle {
-  background: #edf5eb;
-  border: 1px solid #cfdcce;
-  border-radius: 8px;
-  display: grid;
-  gap: 4px;
-  grid-template-columns: 1fr 1fr;
-  padding: 4px;
-}
-
-.source-scope-toggle button {
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  color: var(--muted);
-  font-size: 0.9rem;
-  font-weight: 900;
-  min-height: 36px;
-  padding: 8px 10px;
-}
-
-.source-scope-toggle button.selected {
-  background: #ffffff;
-  box-shadow: 0 8px 18px rgb(26 48 31 / 10%);
-  color: var(--green-800);
-}
-
-.source-scope-toggle button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
 .source-switcher {
   align-items: stretch;
   display: grid;

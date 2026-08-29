@@ -106,7 +106,6 @@ type CachedAnalysisResult = {
 
 type ModelProvider = "openai" | "gemini";
 type AppView = "landing" | "planner";
-type ImportScope = Extract<FigmaSourceMode, "file" | "node">;
 
 type AnalysisModelOption = {
   id: string;
@@ -438,27 +437,6 @@ function parseFigmaUrl(rawUrl: string): FigmaSourceInfo {
   } catch {
     return { ...EMPTY_FIGMA_SOURCE, mode: "invalid", normalizedUrl };
   }
-}
-
-function resolveImportScope(sourceInfo: FigmaSourceInfo, importScope: ImportScope): FigmaSourceInfo {
-  if (sourceInfo.mode === "empty" || sourceInfo.mode === "invalid" || sourceInfo.mode === "unsupported") {
-    return sourceInfo;
-  }
-
-  if (importScope === "node" && sourceInfo.nodeId) {
-    return {
-      ...sourceInfo,
-      mode: "node",
-      nodeName: cleanScopeName(sourceInfo.nodeName || "指定節點", "指定節點"),
-    };
-  }
-
-  return {
-    ...sourceInfo,
-    mode: "file",
-    nodeId: "",
-    nodeName: "",
-  };
 }
 
 function createLocalFigmaPagesFallback(nextInfo: FigmaSourceInfo): FigmaPagesLoadResult | null {
@@ -967,7 +945,6 @@ function toExcelXml(rows: TrackingEvent[]) {
 export default function Home() {
   const [activeView, setActiveView] = useState<AppView>("landing");
   const [draftFigmaUrl, setDraftFigmaUrl] = useState("");
-  const [draftImportScope, setDraftImportScope] = useState<ImportScope>("file");
   const [appliedFigmaUrl, setAppliedFigmaUrl] = useState("");
   const [projects, setProjects] = useState<TrackingProject[]>([]);
   const [activeProjectId, setActiveProjectId] = useState("");
@@ -1026,13 +1003,7 @@ export default function Home() {
     startWidth: number;
   } | null>(null);
 
-  const draftUrlInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
-  const draftInfo = useMemo(
-    () => resolveImportScope(draftUrlInfo, draftImportScope),
-    [draftImportScope, draftUrlInfo],
-  );
-  const canImportSelectedFrame =
-    draftUrlInfo.mode === "file" && Boolean(draftUrlInfo.fileKey) && Boolean(draftUrlInfo.nodeId);
+  const draftInfo = useMemo(() => parseFigmaUrl(draftFigmaUrl), [draftFigmaUrl]);
   const currentProject = projects.find((project) => project.id === activeProjectId) ?? null;
   const currentProjectSources = useMemo(
     () => importedSources.filter((source) => source.projectId === activeProjectId),
@@ -1700,7 +1671,6 @@ export default function Home() {
 
   function handleStartAddSource() {
     setDraftFigmaUrl("");
-    setDraftImportScope("file");
     setIsAddingSource(true);
     setIsSourceMenuOpen(false);
     setAnalysisState("");
@@ -1708,7 +1678,6 @@ export default function Home() {
 
   function handleCancelAddSource() {
     setDraftFigmaUrl("");
-    setDraftImportScope("file");
     setIsSourceMenuOpen(false);
 
     if (!currentProjectSources.length) {
@@ -1957,8 +1926,8 @@ export default function Home() {
         body: JSON.stringify({
           fileKey: nextInfo.fileKey,
           fileName: nextInfo.fileName,
-          nodeId: nextInfo.mode === "node" ? nextInfo.nodeId : "",
-          nodeName: nextInfo.mode === "node" ? nextInfo.nodeName : "",
+          nodeId: nextInfo.nodeId,
+          nodeName: nextInfo.nodeName,
         }),
         cache: "no-store",
         credentials: "include",
@@ -2030,7 +1999,7 @@ export default function Home() {
       return;
     }
 
-    const nextInfo = resolveImportScope(parseFigmaUrl(draftFigmaUrl), draftImportScope);
+    const nextInfo = parseFigmaUrl(draftFigmaUrl);
 
     if (nextInfo.mode === "empty") {
       showToast("請先貼上 Figma design/file 連結");
@@ -2057,6 +2026,7 @@ export default function Home() {
     }
 
     setAppliedFigmaUrl(nextInfo.normalizedUrl);
+    setActiveSourceId("");
     setLoadedPages([]);
     setSelectedPageId("");
     setIsPageMenuOpen(false);
@@ -2081,7 +2051,6 @@ export default function Home() {
       }
 
       saveImportedSource(sourceInfo, pages);
-      setDraftImportScope("file");
     }
   }
 
@@ -3097,34 +3066,11 @@ export default function Home() {
                       <textarea
                         id="figma-url"
                         value={draftFigmaUrl}
-                        onChange={(event) => {
-                          setDraftFigmaUrl(event.target.value);
-                          setDraftImportScope("file");
-                        }}
+                        onChange={(event) => setDraftFigmaUrl(event.target.value)}
                         placeholder="貼上 Figma design/file/prototype 連結"
                         rows={3}
                         disabled={isLoadingPages}
                       />
-                      {canImportSelectedFrame ? (
-                        <div className="source-scope-toggle" role="group" aria-label="Figma 匯入範圍">
-                          <button
-                            className={draftImportScope === "file" ? "selected" : ""}
-                            type="button"
-                            onClick={() => setDraftImportScope("file")}
-                            disabled={isLoadingPages}
-                          >
-                            整份檔案
-                          </button>
-                          <button
-                            className={draftImportScope === "node" ? "selected" : ""}
-                            type="button"
-                            onClick={() => setDraftImportScope("node")}
-                            disabled={isLoadingPages}
-                          >
-                            目前選取 Frame
-                          </button>
-                        </div>
-                      ) : null}
                       {draftInfo.mode === "empty" ? (
                         <div className="source-empty">
                           <strong>{currentProjectSources.length ? "等待新增來源" : "尚未匯入來源"}</strong>
