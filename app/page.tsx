@@ -158,6 +158,8 @@ const FIGMA_SOURCES_STORAGE_KEY = "tracking-plan-figma-sources-v1";
 const PENDING_FIGMA_IMPORT_STORAGE_KEY = "tracking-plan-pending-figma-import-v1";
 const ANALYSIS_RESULTS_STORAGE_KEY = "tracking-plan-analysis-results-v1";
 const LEGACY_PROJECT_ID = "legacy-project";
+const FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE =
+  "此站台尚未完成 Figma OAuth 設定。請平台管理者先設定 FIGMA_OAUTH_CLIENT_ID 與 FIGMA_OAUTH_CLIENT_SECRET，使用者才能在這裡授權。";
 
 const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
   YxOzcNURPPgfDq9qiXj1uk: {
@@ -2054,9 +2056,9 @@ export default function Home() {
     }
   }
 
-  function openFigmaOAuthPrompt(nextInfo: FigmaSourceInfo) {
+  function openFigmaOAuthPrompt(nextInfo: FigmaSourceInfo, initialError = "") {
     setPendingFigmaOAuthSource(nextInfo);
-    setFigmaOAuthError("");
+    setFigmaOAuthError(initialError);
     setIsStartingFigmaOAuth(false);
     setIsSourceMenuOpen(false);
     setIsPageMenuOpen(false);
@@ -2090,6 +2092,12 @@ export default function Home() {
     setFigmaOAuthError("");
 
     try {
+      const currentOAuthStatus = figmaOAuthStatus.isLoaded ? figmaOAuthStatus : await refreshFigmaOAuthStatus();
+
+      if (!currentOAuthStatus.configured) {
+        throw new Error(FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE);
+      }
+
       window.localStorage.setItem(PENDING_FIGMA_IMPORT_STORAGE_KEY, pendingFigmaOAuthSource.normalizedUrl);
       const response = await fetch("/api/figma/oauth/start", {
         method: "POST",
@@ -2281,8 +2289,11 @@ export default function Home() {
 
     const currentOAuthStatus = figmaOAuthStatus.isLoaded ? figmaOAuthStatus : await refreshFigmaOAuthStatus();
 
-    if (currentOAuthStatus.configured && !currentOAuthStatus.connected) {
-      openFigmaOAuthPrompt(nextInfo);
+    if (!currentOAuthStatus.connected) {
+      openFigmaOAuthPrompt(
+        nextInfo,
+        currentOAuthStatus.configured ? "" : FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE,
+      );
       return;
     }
 
@@ -2593,8 +2604,13 @@ export default function Home() {
             >
               取消
             </button>
-            <button className="primary-button" type="button" onClick={handleStartFigmaOAuth} disabled={isStartingFigmaOAuth}>
-              {isStartingFigmaOAuth ? "前往中" : "前往 Figma 授權"}
+            <button
+              className="primary-button"
+              type="button"
+              onClick={handleStartFigmaOAuth}
+              disabled={isStartingFigmaOAuth || !figmaOAuthStatus.configured}
+            >
+              {!figmaOAuthStatus.configured ? "等待站台設定" : isStartingFigmaOAuth ? "前往中" : "前往 Figma 授權"}
             </button>
           </div>
         </div>
