@@ -621,6 +621,10 @@ function buildInstructions() {
     "必須先盤點畫面中的所有主要資訊區塊、頁籤、狀態卡、列表、圖表、表單、彈窗入口、下載/匯出與錯誤流失點，再決定事件清單；大型工作頁不可只輸出 6 到 8 筆。",
     "個案詳情、病患詳情這類頁面通常包含多個任務與資訊模組，請分別覆蓋個案摘要、待辦/追蹤、風險警示、量測趨勢、健康計畫、紀錄、通知、報告、頁籤切換、編輯與匯出等可從畫面推論的重點。",
     "eventType 只能使用 PageView、Click、SearchFilter、FlowComplete、CreateEdit、ErrorDropoff、ExportDownload。",
+    "PageView（頁面曝光）只可代表整個 page 載入、切換後曝光，或彈窗、抽屜、全頁 overlay 開啟後的曝光。",
+    "不要把頁面內的卡片、資訊區、欄位、表格列、圖表、頁籤內容、小元件或靜態資料各自定義為 PageView/頁面曝光；如果它只是被畫面顯示，不需要獨立埋點。",
+    "同一個分析 Page 通常只需要 1 筆頁面曝光；只有看到實際彈窗、抽屜或 overlay，才可額外建立曝光事件。",
+    "區塊或卡片若有明確互動，請依實際行為改用 Click、SearchFilter、CreateEdit、FlowComplete、ExportDownload 或 ErrorDropoff。",
     "第一階段優先大方向事件，不要產出過細的每個 icon、Arrow、Vector、ScrollerBar 事件。",
     "eventName 必須是英文 snake_case 的 verb_object，例如 view_patient_detail、click_pending_task、open_advanced_search、apply_patient_filter、switch_health_metric、download_ecg_report、save_custom_health_plan。",
     "不可直接把 Figma Layer Name 轉成 eventName；遇到個人中心（1.4~1.8）/ Arrow 2 這類圖層，必須做語意轉換，不可輸出 use_1_4_1_8_arrow_2、use_pending_task、track_event_1。",
@@ -674,6 +678,8 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         `只要 figmaInspection.nodeCount 或 textCount 大於 0，就至少產出 ${eventCountTarget.minimum} 筆第一階段追蹤事件，建議接近 ${eventCountTarget.preferred} 筆；只有完全讀不到畫面內容時，events 才可回傳空陣列。`,
         "必須覆蓋 figmaInspection.nodes 中能看出的所有主要內容模組與可操作元素；大型工作頁如果只輸出 6 到 8 筆，視為未完成分析。",
         "請先把畫面分成資訊瀏覽、任務入口、狀態/警示、搜尋/篩選、頁籤/區塊切換、建立/編輯、下載/匯出、錯誤/流失等類別，再為每個有明確產品決策價值的類別建立事件。",
+        "PageView 只可用於整頁曝光或彈窗/抽屜/overlay 曝光；不要為卡片、資訊區、欄位、列表列、圖表、頁籤內容或靜態資料建立 PageView。",
+        "一個 Page 原則上只輸出 1 筆 PageView；其餘內容模組要以可操作行為或分析問題建立事件，沒有行為就不要輸出。",
         "page 與 area 必須自行命名，名稱要來自 Figma 節點、頁面、畫面文字或可合理推論的功能區塊。",
         "metricName 必須是中文指標名稱，像正式儀表板指標，不可直接複製英文 eventName 或 Figma 圖層名稱。",
         "不要使用未命名頁面、未命名區塊、Arrow、ScrollerBar、Action Button、track_event_1、使用者完成主要互動時、衡量此功能是否被實際使用等占位內容。",
@@ -1036,6 +1042,56 @@ function deriveAreaName(figmaContext: FigmaContext, pageName: string, index: num
   return `主要區塊 ${index + 1}`;
 }
 
+function comparableScopeName(value: string) {
+  return cleanDisplayName(value)
+    .toLowerCase()
+    .replace(/[「」『』"'“”‘’]/g, "")
+    .replace(/\s+/g, "");
+}
+
+function isOverlayExposureArea(value: string) {
+  return /彈窗|跳窗|對話框|視窗|抽屜|浮層|覆蓋層|modal|dialog|drawer|overlay|popover|lightbox/i.test(
+    cleanDisplayName(value),
+  );
+}
+
+function isGranularComponentExposureArea(value: string) {
+  return /卡片|資訊區|資料區|內容區|摘要區|狀態區|警示區|任務區|進度區|區塊|區域|欄位|列表列|清單列|列表項|清單項|表格|圖表|趨勢|頁籤內容|小元件|元件|模組|section|card|widget|field|row|table|chart|panel|module/i.test(
+    cleanDisplayName(value),
+  );
+}
+
+function isWholePageExposureArea(page: string, area: string) {
+  const pageKey = comparableScopeName(page);
+  const areaKey = comparableScopeName(area);
+  const areaWithoutPageSuffix = areaKey.replace(/(頁面|頁|畫面)$/, "");
+
+  if (!areaKey) {
+    return false;
+  }
+
+  if (pageKey && areaKey === pageKey) {
+    return true;
+  }
+
+  if (
+    pageKey &&
+    areaWithoutPageSuffix.length >= 4 &&
+    pageKey.includes(areaWithoutPageSuffix) &&
+    !isGranularComponentExposureArea(area)
+  ) {
+    return true;
+  }
+
+  return /頁面(載入|曝光|瀏覽|顯示|開啟)|畫面(載入|曝光|顯示)|整頁|全頁|主畫面|主要頁面|page\s*(view|load)|screen\s*(view|load)/i.test(
+    cleanDisplayName(area),
+  );
+}
+
+function isAllowedPageExposureEvent(page: string, area: string) {
+  return isWholePageExposureArea(page, area) || isOverlayExposureArea(area);
+}
+
 function semanticObjectFromLabel(value: string, index: number) {
   const normalized = cleanDisplayName(value).toLowerCase();
   const keywordMatches: Array<[RegExp, string]> = [
@@ -1121,7 +1177,7 @@ function inferVerbFromEvent(label: string, eventType: EventType) {
 }
 
 function deriveEventName(page: string, area: string, eventType: EventType, index: number) {
-  const label = eventType === "PageView" ? page : `${area} ${page}`;
+  const label = eventType === "PageView" && !isOverlayExposureArea(area) ? page : `${area} ${page}`;
   const verb = inferVerbFromEvent(label, eventType);
   const object = semanticObjectFromLabel(label, index);
 
@@ -1134,7 +1190,7 @@ function deriveMetricName(page: string, area: string, eventType: EventType) {
 
   switch (eventType) {
     case "PageView":
-      return `${pageSubject}瀏覽率`;
+      return isOverlayExposureArea(area) ? `${areaSubject}曝光率` : `${pageSubject}瀏覽率`;
     case "SearchFilter":
       return `${areaSubject}使用率`;
     case "FlowComplete":
@@ -1154,6 +1210,10 @@ function deriveMetricName(page: string, area: string, eventType: EventType) {
 function deriveTrigger(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
+      if (isOverlayExposureArea(area)) {
+        return `開啟「${area}」且內容載入完成`;
+      }
+
       return `進入「${page}」且主要內容載入完成`;
     case "SearchFilter":
       return `於「${page}」套用「${area}」搜尋或篩選條件`;
@@ -1186,6 +1246,10 @@ function normalizeTriggerCopy(value: string, page: string, area: string, eventTy
 function derivePurpose(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
+      if (isOverlayExposureArea(area)) {
+        return `了解醫療人員是否會開啟「${area}」查看關鍵內容。`;
+      }
+
       return `了解醫療人員是否會把「${page}」作為日常查看資料的主要入口。`;
     case "SearchFilter":
       return `了解醫療人員是否仰賴「${area}」縮小個案或任務範圍。`;
@@ -1206,6 +1270,10 @@ function derivePurpose(page: string, area: string, eventType: EventType) {
 function deriveAnalysisValue(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
+      if (isOverlayExposureArea(area)) {
+        return `判斷「${area}」是否值得以彈窗或抽屜承載。`;
+      }
+
       return `判斷「${page}」是否真的是醫療人員主要工作入口。`;
     case "SearchFilter":
       return `判斷「${area}」是否能承擔大量個案分流。`;
@@ -1226,6 +1294,10 @@ function deriveAnalysisValue(page: string, area: string, eventType: EventType) {
 function deriveMetricCalculation(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
+      if (isOverlayExposureArea(area)) {
+        return `開啟「${area}」的不重複使用者數 ÷ 進入「${page}」的不重複使用者數`;
+      }
+
       return `瀏覽「${page}」的不重複使用者數 ÷ 平台活躍不重複使用者數`;
     case "SearchFilter":
       return `使用「${area}」的不重複使用者數 ÷ 進入「${page}」的不重複使用者數`;
@@ -1415,6 +1487,11 @@ function normalizeEvent(value: unknown, index: number, figmaContext: FigmaContex
     ? deriveAreaName(figmaContext, page, index)
     : cleanScopeName(removePagePrefix(asString(record.area), page), deriveAreaName(figmaContext, page, index), 48);
   const normalizedEventType = coerceEventType(record.eventType, `${page} ${area}`, index);
+
+  if (normalizedEventType === "PageView" && !isAllowedPageExposureEvent(page, area)) {
+    return null;
+  }
+
   const priority = normalizePriority(record.priority, normalizedEventType, index);
   const eventName = normalizeEventName(asString(record.eventName), page, area, normalizedEventType, index);
   const derivedMetricName = deriveMetricName(page, area, normalizedEventType);
@@ -1481,7 +1558,7 @@ function inferEventType(label: string, index: number): EventType {
     return "FlowComplete";
   }
 
-  if (/列表|詳情|總覽|儀表|dashboard|detail|list|overview/.test(normalized) || index === 0) {
+  if (isWholePageExposureArea("", normalized) || isOverlayExposureArea(normalized) || index === 0) {
     return "PageView";
   }
 
@@ -1671,19 +1748,49 @@ function buildFallbackEvents(figmaContext: FigmaContext): TrackingEvent[] {
   return events.slice(0, desiredFallbackCount);
 }
 
+function limitPageExposureEvents(events: TrackingEvent[]) {
+  let hasWholePageExposure = false;
+  const seenOverlayExposures = new Set<string>();
+
+  return events.filter((event) => {
+    if (event.eventType !== "PageView") {
+      return true;
+    }
+
+    if (isOverlayExposureArea(event.area)) {
+      const key = `${event.page}|${event.area}`;
+
+      if (seenOverlayExposures.has(key)) {
+        return false;
+      }
+
+      seenOverlayExposures.add(key);
+      return true;
+    }
+
+    if (hasWholePageExposure) {
+      return false;
+    }
+
+    hasWholePageExposure = true;
+    return true;
+  });
+}
+
 function ensureUsefulEvents(events: TrackingEvent[], figmaContext: FigmaContext) {
   const eventCountTarget = getEventCountTarget(figmaContext);
   const minimumEventCount = eventCountTarget.minimum;
   const maximumEventCount = Math.min(eventCountTarget.maximum, MAX_TRACKING_EVENTS);
   const preferredEventCount = Math.min(eventCountTarget.preferred, maximumEventCount);
+  const scopedEvents = limitPageExposureEvents(events);
 
-  if (events.length >= preferredEventCount) {
-    return renumberEvents(rebalancePriorities(events.slice(0, maximumEventCount)));
+  if (scopedEvents.length >= preferredEventCount) {
+    return renumberEvents(rebalancePriorities(scopedEvents.slice(0, maximumEventCount)));
   }
 
   const fallbackEvents = buildFallbackEvents(figmaContext);
-  const seen = new Set(events.map((event) => `${event.page}|${event.area}|${event.eventName}`));
-  const combined = [...events];
+  const seen = new Set(scopedEvents.map((event) => `${event.page}|${event.area}|${event.eventName}`));
+  const combined = [...scopedEvents];
 
   fallbackEvents.forEach((event) => {
     const key = `${event.page}|${event.area}|${event.eventName}`;
@@ -1694,8 +1801,10 @@ function ensureUsefulEvents(events: TrackingEvent[], figmaContext: FigmaContext)
     }
   });
 
+  const limitedCombined = limitPageExposureEvents(combined);
+
   return renumberEvents(
-    rebalancePriorities(combined.slice(0, Math.max(minimumEventCount, Math.min(combined.length, maximumEventCount)))),
+    rebalancePriorities(limitedCombined.slice(0, Math.max(minimumEventCount, Math.min(limitedCombined.length, maximumEventCount)))),
   );
 }
 
