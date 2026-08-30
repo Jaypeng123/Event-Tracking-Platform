@@ -643,12 +643,13 @@ function buildInstructions() {
     "analysisValue 優先使用「判斷、確認、比較、辨識、評估是否、判斷是否值得、確認是否存在重複入口、找出流程流失發生在哪一步」開頭。",
     "analysisValue 只寫這個數據能幫團隊判斷什麼產品決策；不要輸出「應檢查、需確認、不能只以低使用率、不可直接判定」這類判讀提醒或設計師操作指南。",
     "避免輸出以下空泛語句：可進一步優化使用體驗、可檢查文案位置與視覺權重、可持續觀察、有助於提升使用效率、可作為後續優化依據，除非你具體說明要判斷什麼產品決策。",
-    "metricCalculation 必須是可落地公式，使用 UV、Session、點擊次數、曝光次數、完成次數等分母分子，例如 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%。",
+    "metricCalculation 必須是可落地公式，使用不重複使用者數、使用階段數、點擊次數、曝光次數、完成次數等中文分母分子，例如 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%。",
+    "metricCalculation 不可輸出 UV、Session、PV、CTR 等英文或縮寫術語；請改寫為中文：不重複使用者數、使用階段數、頁面瀏覽次數、點擊率。",
     "analysisValue 或 metricCalculation 若包含多個假設、公式、事件或觀察點，請用換行編號格式，每一項以「1.」「2.」「3.」開頭；不要用一長串逗號或分號塞在同一行。",
     "每個欄位請盡量控制在 1 到 2 句內；若超過 2 個重點，改用列點。",
     "properties、propertyDefinitions、dataTypes、sampleValues 都必須是以分號分隔的字串，不要輸出物件或陣列。",
     "追蹤目的要回答為什麼要追這個事件；analysisValue 要回答追到資料後能幫產品做什麼決策，例如：判斷待辦卡片是否值得佔據工作台主要版位。",
-    "metricCalculation 欄位必須寫出指標計算方式，例如 使用個人中心的 UV ÷ 平台活躍 UV、點擊待處理的 UV ÷ 進入個人中心的 UV。",
+    "metricCalculation 欄位必須寫出指標計算方式，例如 使用個人中心的不重複使用者數 ÷ 平台活躍不重複使用者數、點擊待處理的不重複使用者數 ÷ 進入個人中心的不重複使用者數。",
     "請避免病患姓名、身分證、病歷號、電話、地址、完整生日等 PHI/PII；屬性只能使用去識別化或分類欄位。",
     "所有輸出請使用繁體中文，且必須符合指定 JSON schema。",
   ].join("\n");
@@ -686,7 +687,7 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         "analysisValue 優先用判斷、確認、比較、辨識、評估是否、判斷是否值得、確認是否存在重複入口、找出流程流失發生在哪一步。",
         "analysisValue 不可輸出：可進一步優化使用體驗、可檢查文案位置與視覺權重、可持續觀察、有助於提升使用效率、可作為後續優化依據。",
         "低使用率的解讀必須分情境，但不要把「應檢查、需確認、不能只以低使用率判定」這類判讀提醒寫進輸出。",
-        "metricCalculation 要寫可直接放進 Excel 的計算描述，若有多個公式請用換行編號，每行以 1.、2.、3. 開頭。",
+        "metricCalculation 要寫可直接放進 Excel 的計算描述，且公式術語必須使用中文；若有多個公式請用換行編號，每行以 1.、2.、3. 開頭。",
         "analysisValue 若有多個分析原因，也用換行編號，每行以 1.、2.、3. 開頭。",
         "屬性欄位只輸出分號分隔字串，例如 page_name; user_role; entry_source。",
       ],
@@ -697,7 +698,7 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         "分析原因範例：判斷待辦卡片是否值得佔據工作台主要版位。",
         "分析原因範例：確認異常警報是否能有效引導醫療人員進入後續處理。",
         "分析原因範例：比較不同頁籤的實際使用率，判斷多種視覺呈現是否有保留必要。",
-        "指標計算範例：1. 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%\n2. 各頁籤瀏覽 UV ÷ 進入個案詳情頁總 UV × 100%",
+        "指標計算範例：1. 特定頁籤點擊次數 ÷ 頂部頁籤總點擊次數 × 100%\n2. 各頁籤瀏覽不重複使用者數 ÷ 進入個案詳情頁總不重複使用者數 × 100%",
       ],
       spreadsheetColumnReference: [
         "編號",
@@ -1225,20 +1226,20 @@ function deriveAnalysisValue(page: string, area: string, eventType: EventType) {
 function deriveMetricCalculation(page: string, area: string, eventType: EventType) {
   switch (eventType) {
     case "PageView":
-      return `瀏覽「${page}」的 UV ÷ 平台活躍 UV`;
+      return `瀏覽「${page}」的不重複使用者數 ÷ 平台活躍不重複使用者數`;
     case "SearchFilter":
-      return `使用「${area}」的 UV ÷ 進入「${page}」的 UV`;
+      return `使用「${area}」的不重複使用者數 ÷ 進入「${page}」的不重複使用者數`;
     case "FlowComplete":
-      return `完成「${area}」的 UV ÷ 開始「${area}」流程的 UV`;
+      return `完成「${area}」的不重複使用者數 ÷ 開始「${area}」流程的不重複使用者數`;
     case "CreateEdit":
-      return `成功建立或編輯「${area}」的 UV ÷ 進入「${page}」的 UV`;
+      return `成功建立或編輯「${area}」的不重複使用者數 ÷ 進入「${page}」的不重複使用者數`;
     case "ErrorDropoff":
       return `發生「${area}」錯誤或流失的次數 ÷ 觸發「${area}」操作的次數`;
     case "ExportDownload":
-      return `成功匯出或下載「${area}」的 UV ÷ 進入「${page}」的 UV`;
+      return `成功匯出或下載「${area}」的不重複使用者數 ÷ 進入「${page}」的不重複使用者數`;
     case "Click":
     default:
-      return `點擊「${area}」的 UV ÷ 進入「${page}」的 UV`;
+      return `點擊「${area}」的不重複使用者數 ÷ 進入「${page}」的不重複使用者數`;
   }
 }
 
@@ -1322,6 +1323,27 @@ function toReadableNumberedList(value: string) {
   }
 
   return normalized;
+}
+
+function normalizeMetricCalculationCopy(value: string) {
+  return value
+    .replace(/\bpage\s*views?\b/gi, "頁面瀏覽次數")
+    .replace(/\bunique\s+visitors?\b/gi, "不重複使用者數")
+    .replace(/\bactive\s+users?\b/gi, "活躍使用者數")
+    .replace(/\busers?\b/gi, "使用者數")
+    .replace(/\bvisitors?\b/gi, "訪客數")
+    .replace(/\bsessions?\b/gi, "使用階段數")
+    .replace(/\bimpressions?\b/gi, "曝光次數")
+    .replace(/\bclicks?\b/gi, "點擊次數")
+    .replace(/\bconversions?\b/gi, "轉換次數")
+    .replace(/\bDAU\b/gi, "日活躍使用者數")
+    .replace(/\bWAU\b/gi, "週活躍使用者數")
+    .replace(/\bMAU\b/gi, "月活躍使用者數")
+    .replace(/\bCTR\b/gi, "點擊率")
+    .replace(/\bCVR\b/gi, "轉換率")
+    .replace(/\bPV\b/gi, "頁面瀏覽次數")
+    .replace(/\bUV\b/gi, "不重複使用者數")
+    .replace(/的\s+(不重複使用者數|使用階段數|頁面瀏覽次數|點擊次數|曝光次數|轉換次數)/g, "的$1");
 }
 
 function isGenericSentence(value: string) {
@@ -1418,7 +1440,7 @@ function normalizeEvent(value: unknown, index: number, figmaContext: FigmaContex
     trigger: normalizeTriggerCopy(trigger, page, area, normalizedEventType),
     purpose: isGenericSentence(purpose) ? derivePurpose(page, area, normalizedEventType) : purpose,
     analysisValue: isWeakAnalysisReason(analysisValue) ? derivedAnalysisValue : analysisValue,
-    metricCalculation,
+    metricCalculation: normalizeMetricCalculationCopy(metricCalculation),
     properties: toSemicolonString(record.properties, "page_name; user_role; entry_source"),
     propertyDefinitions: toSemicolonString(record.propertyDefinitions, "頁面名稱; 使用者角色; 進入來源"),
     dataTypes: toSemicolonString(record.dataTypes, "string; string; string"),

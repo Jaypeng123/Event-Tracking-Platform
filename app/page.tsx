@@ -404,6 +404,27 @@ function toNumberedDisplayList(value: string) {
   return parts.length > 1 ? parts.map((part, index) => `${index + 1}. ${part}`).join("\n") : normalized;
 }
 
+function normalizeMetricCalculationCopy(value: string) {
+  return value
+    .replace(/\bpage\s*views?\b/gi, "頁面瀏覽次數")
+    .replace(/\bunique\s+visitors?\b/gi, "不重複使用者數")
+    .replace(/\bactive\s+users?\b/gi, "活躍使用者數")
+    .replace(/\busers?\b/gi, "使用者數")
+    .replace(/\bvisitors?\b/gi, "訪客數")
+    .replace(/\bsessions?\b/gi, "使用階段數")
+    .replace(/\bimpressions?\b/gi, "曝光次數")
+    .replace(/\bclicks?\b/gi, "點擊次數")
+    .replace(/\bconversions?\b/gi, "轉換次數")
+    .replace(/\bDAU\b/gi, "日活躍使用者數")
+    .replace(/\bWAU\b/gi, "週活躍使用者數")
+    .replace(/\bMAU\b/gi, "月活躍使用者數")
+    .replace(/\bCTR\b/gi, "點擊率")
+    .replace(/\bCVR\b/gi, "轉換率")
+    .replace(/\bPV\b/gi, "頁面瀏覽次數")
+    .replace(/\bUV\b/gi, "不重複使用者數")
+    .replace(/的\s+(不重複使用者數|使用階段數|頁面瀏覽次數|點擊次數|曝光次數|轉換次數)/g, "的$1");
+}
+
 function normalizeTrackingEventCopy(value: string) {
   return value
     .replace(/^使用者\s*/, "")
@@ -575,8 +596,8 @@ function normalizeStoredEvent(row: SavedTrackingEvent): SavedTrackingEvent {
         : "判斷此事件是否能回答目前頁面的核心產品問題。",
     metricCalculation:
       typeof row.metricCalculation === "string" && row.metricCalculation.trim()
-        ? toNumberedDisplayList(row.metricCalculation)
-        : "事件 UV ÷ 平台活躍 UV",
+        ? normalizeMetricCalculationCopy(toNumberedDisplayList(row.metricCalculation))
+        : "事件不重複使用者數 ÷ 平台活躍不重複使用者數",
     sourceName: cleanScopeName(row.sourceName, row.sourceName || "Figma 來源"),
   };
 }
@@ -627,8 +648,8 @@ function normalizeCachedAnalysisEvent(row: TrackingEvent): TrackingEvent {
         : "判斷此事件是否能回答目前頁面的核心產品問題。",
     metricCalculation:
       typeof row.metricCalculation === "string" && row.metricCalculation.trim()
-        ? toNumberedDisplayList(row.metricCalculation)
-        : "事件 UV ÷ 平台活躍 UV",
+        ? normalizeMetricCalculationCopy(toNumberedDisplayList(row.metricCalculation))
+        : "事件不重複使用者數 ÷ 平台活躍不重複使用者數",
     properties:
       typeof row.properties === "string" && row.properties.trim()
         ? row.properties
