@@ -1340,8 +1340,9 @@ select:disabled {
 
 .library-table-wrap {
   border-top: 1px solid var(--line);
+  max-height: calc(100vh - 320px);
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: auto;
 }
 
 .library-table {
@@ -1372,7 +1373,7 @@ select:disabled {
   font-weight: 800;
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 3;
 }
 
 .library-table th:last-child,
@@ -2686,6 +2687,7 @@ select:disabled {
 .event-table-wrap {
   border-top: 1px solid var(--line);
   flex: 1;
+  height: clamp(440px, calc(100vh - 360px), 760px);
   min-height: 560px;
   overflow: auto;
 }
@@ -2693,7 +2695,7 @@ select:disabled {
 .event-table {
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 2020px;
+  min-width: 2140px;
   table-layout: fixed;
   width: 100%;
 }
@@ -2715,20 +2717,19 @@ select:disabled {
   font-weight: 800;
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 3;
 }
 
 .event-table tbody tr {
   background: #ffffff;
-  cursor: pointer;
+  cursor: default;
 }
 
 .event-table tbody tr.empty-row {
   cursor: default;
 }
 
-.event-table tbody tr:hover,
-.event-table tbody tr.selected {
+.event-table tbody tr:hover {
   background: #f1f8ef;
 }
 
@@ -2748,7 +2749,11 @@ select:disabled {
 }
 
 .event-col-id {
-  width: 92px;
+  width: 80px;
+}
+
+.event-col-priority {
+  width: 110px;
 }
 
 .event-col-page {
@@ -2777,10 +2782,6 @@ select:disabled {
 
 .event-col-properties {
   width: 230px;
-}
-
-.event-col-priority {
-  width: 150px;
 }
 
 .event-table td span {
@@ -2835,6 +2836,7 @@ select:disabled {
   background: transparent;
   border: 0;
   color: var(--green-700);
+  display: inline-block;
   font-weight: 900;
   padding: 0;
 }
@@ -3183,6 +3185,7 @@ code {
   }
 
   .event-table-wrap {
+    height: clamp(360px, calc(100vh - 300px), 600px);
     min-height: 440px;
   }
 

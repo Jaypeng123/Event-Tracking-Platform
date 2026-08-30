@@ -35,11 +35,12 @@ type PriorityFilter = "All" | TrackingEvent["priority"];
 type FigmaSourceMode = "empty" | "file" | "node" | "unsupported" | "invalid";
 type LibraryColumnKey =
   | "index"
+  | "priority"
   | "page"
   | "metricName"
-  | "trigger"
   | "purpose"
   | "analysisValue"
+  | "trigger"
   | "metricCalculation"
   | "source"
   | "actions";
@@ -255,13 +256,14 @@ const analysisModelOptions: AnalysisModelOption[] = [
 
 const libraryColumnConfig: Array<{ key: LibraryColumnKey; label: string; width: number; minWidth: number }> = [
   { key: "index", label: "編號", width: 72, minWidth: 56 },
+  { key: "priority", label: "優先級", width: 112, minWidth: 92 },
   { key: "page", label: "頁面/區塊", width: 220, minWidth: 150 },
   { key: "metricName", label: "指標名稱", width: 230, minWidth: 160 },
-  { key: "trigger", label: "埋點事件", width: 300, minWidth: 210 },
   { key: "purpose", label: "追蹤目的", width: 270, minWidth: 190 },
-  { key: "analysisValue", label: "分析的原因", width: 320, minWidth: 220 },
+  { key: "analysisValue", label: "分析原因", width: 320, minWidth: 220 },
+  { key: "trigger", label: "埋點事件", width: 300, minWidth: 210 },
   { key: "metricCalculation", label: "指標計算", width: 300, minWidth: 210 },
-  { key: "source", label: "來源/優先級", width: 220, minWidth: 160 },
+  { key: "source", label: "來源", width: 220, minWidth: 160 },
   { key: "actions", label: "操作", width: 132, minWidth: 108 },
 ];
 
@@ -275,17 +277,17 @@ const defaultLibraryColumnWidths = Object.fromEntries(
 
 const exportColumns: Array<{ key: keyof TrackingEvent; label: string }> = [
   { key: "id", label: "編號" },
+  { key: "priority", label: "優先級" },
   { key: "page", label: "頁面/區塊" },
   { key: "metricName", label: "指標名稱" },
-  { key: "trigger", label: "埋點事件" },
   { key: "purpose", label: "追蹤目的" },
-  { key: "analysisValue", label: "分析的原因" },
+  { key: "analysisValue", label: "分析原因" },
+  { key: "trigger", label: "埋點事件" },
   { key: "metricCalculation", label: "指標計算" },
   { key: "properties", label: "屬性參數 (Property)" },
   { key: "propertyDefinitions", label: "屬性定義 (Property Definition)" },
   { key: "dataTypes", label: "Data Type" },
   { key: "sampleValues", label: "Sample Values" },
-  { key: "priority", label: "優先級" },
   { key: "status", label: "狀態" },
 ];
 
@@ -1046,8 +1048,6 @@ export default function Home() {
   const [filter, setFilter] = useState<EventFilter>("All");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("All");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState("");
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedAnalysisModelId, setSelectedAnalysisModelId] = useState(analysisModelOptions[0].id);
@@ -1591,8 +1591,6 @@ export default function Home() {
 
     setIsAnalyzing(false);
     setAnalysisError("");
-    setSelectedId("");
-    setIsDetailOpen(false);
     setIsAnalysisModelMenuOpen(false);
 
     if (cachedResult) {
@@ -1907,17 +1905,6 @@ export default function Home() {
     });
   }
 
-  function handleRowActivate(rowId: string) {
-    if (selectedId === rowId && isDetailOpen) {
-      setSelectedId("");
-      setIsDetailOpen(false);
-      return;
-    }
-
-    setSelectedId(rowId);
-    setIsDetailOpen(true);
-  }
-
   function handleExportRowsExcel(rows: TrackingEvent[], filename: string) {
     if (!rows.length) {
       return;
@@ -2024,8 +2011,6 @@ export default function Home() {
     setIsAnalyzing(false);
     setAnalysisRows([]);
     setAnalysisError("");
-    setSelectedId("");
-    setIsDetailOpen(false);
     setHasAnalyzed(false);
     setIsAnalysisModelMenuOpen(false);
   }
@@ -2377,8 +2362,6 @@ export default function Home() {
     analysisRunId.current = runId;
     setIsAnalyzing(true);
     setAnalysisRows([]);
-    setSelectedId("");
-    setIsDetailOpen(false);
     setHasAnalyzed(false);
     setAnalysisError("");
     setAnalysisState("");
@@ -2433,8 +2416,6 @@ export default function Home() {
       const rows = Array.isArray(result.events) ? result.events : [];
 
       setAnalysisRows(rows);
-      setSelectedId("");
-      setIsDetailOpen(false);
       setHasAnalyzed(true);
       setAnalysisState("");
       updateAnalysisResultCache((currentResults) =>
@@ -2470,8 +2451,6 @@ export default function Home() {
   const isWaitingForPageImport = needsPageSelection && !hasImportedPages && !isLoadingPages && !pageLoadError;
   const isWaitingForPageSelection = needsPageSelection && hasImportedPages && Boolean(pageOptions.length) && !selectedPage;
   const hasNoImportedPages = needsPageSelection && hasImportedPages && !pageOptions.length;
-  const selectedRow = isDetailOpen ? visibleRows.find((row) => row.id === selectedId) ?? null : null;
-  const workspaceDetailClass = selectedRow ? "detail-open" : "detail-hidden";
   const hasNoAnalysisRows =
     hasAppliedSource &&
     hasAnalyzed &&
@@ -3054,22 +3033,24 @@ export default function Home() {
                     <tr key={row.libraryId}>
                       <td>{index + 1}</td>
                       <td>
+                        <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>{row.priority}</span>
+                      </td>
+                      <td>
                         <strong>{row.area}</strong>
                         <span>{row.page}</span>
                       </td>
                       <td>
                         <strong>{row.metricName}</strong>
                       </td>
+                      <td>{row.purpose}</td>
+                      <td>{row.analysisValue}</td>
                       <td>
                         {row.trigger}
                         <span>{typeLabels[row.eventType]}</span>
                       </td>
-                      <td>{row.purpose}</td>
-                      <td>{row.analysisValue}</td>
                       <td>{row.metricCalculation}</td>
                       <td>
                         <span>{row.sourceName}</span>
-                        <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>{row.priority}</span>
                       </td>
                       <td>
                         <div className="row-actions">
@@ -3162,7 +3143,7 @@ export default function Home() {
                   />
                 </label>
                 <label className="wide-field">
-                  分析的原因
+                  分析原因
                   <textarea
                     value={libraryDraft.analysisValue}
                     onChange={(event) => handleUpdateLibraryDraft("analysisValue", event.target.value)}
@@ -3288,7 +3269,7 @@ export default function Home() {
         </div>
       </header>
 
-      <section className={`workspace ${workspaceDetailClass}`}>
+      <section className="workspace">
         <aside className="control-panel" aria-label="Figma 分析控制台">
           <div className="panel-section">
             <div className="section-heading">
@@ -3638,14 +3619,14 @@ export default function Home() {
               <colgroup>
                 <col className="event-col-select" />
                 <col className="event-col-id" />
+                <col className="event-col-priority" />
                 <col className="event-col-page" />
                 <col className="event-col-metric-name" />
-                <col className="event-col-trigger" />
                 <col className="event-col-purpose" />
                 <col className="event-col-analysis" />
+                <col className="event-col-trigger" />
                 <col className="event-col-metric" />
                 <col className="event-col-properties" />
-                <col className="event-col-priority" />
               </colgroup>
               <thead>
                 <tr>
@@ -3653,14 +3634,14 @@ export default function Home() {
                     <span className="sr-only">選取</span>
                   </th>
                   <th>編號</th>
+                  <th>優先級</th>
                   <th>頁面/區塊</th>
                   <th>指標名稱</th>
-                  <th>埋點事件</th>
                   <th>追蹤目的</th>
-                  <th>分析的原因</th>
+                  <th>分析原因</th>
+                  <th>埋點事件</th>
                   <th>指標計算</th>
                   <th>屬性參數</th>
-                  <th>優先級</th>
                 </tr>
               </thead>
               <tbody>
@@ -3679,52 +3660,38 @@ export default function Home() {
                   const rowInLibrary = isRowInLibrary(row);
 
                   return (
-                    <tr
-                      key={row.id}
-                      className={selectedRow?.id === row.id ? "selected" : ""}
-                      onClick={() => handleRowActivate(row.id)}
-                    >
+                    <tr key={row.id}>
                       <td className="select-column">
                         <input
                           aria-label={`加入埋點事件庫：${row.metricName}`}
                           checked={rowInLibrary}
                           type="checkbox"
                           onChange={(event) => handleToggleLibraryRow(row, event.target.checked)}
-                          onClick={(event) => event.stopPropagation()}
                         />
                       </td>
                       <td>
-                        <button
-                          className="row-id"
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleRowActivate(row.id);
-                          }}
-                        >
-                          {row.id}
-                        </button>
+                        <span className="row-id">{row.id}</span>
+                      </td>
+                      <td>
+                        <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>
+                          {row.priority}
+                        </span>
                       </td>
                       <td>
                         <strong>{row.page}</strong>
                         <span>{row.area}</span>
                       </td>
                       <td>{row.metricName}</td>
+                      <td>{row.purpose}</td>
+                      <td>{row.analysisValue}</td>
                       <td>
                         {row.trigger}
                         <span className={`type-pill type-${row.eventType.toLowerCase()}`}>
                           {typeLabels[row.eventType]}
                         </span>
                       </td>
-                      <td>{row.purpose}</td>
-                      <td>{row.analysisValue}</td>
                       <td>{row.metricCalculation}</td>
                       <td>{row.properties}</td>
-                      <td>
-                        <span className={`priority-pill priority-${row.priority.toLowerCase()}`}>
-                          {row.priority}
-                        </span>
-                      </td>
                     </tr>
                   );
                 })}
@@ -3732,65 +3699,6 @@ export default function Home() {
             </table>
           </div>
         </section>
-
-        {selectedRow ? (
-          <aside className="detail-panel expanded" aria-label="事件詳情">
-              <>
-                <div className="detail-header">
-                  <span className={`priority-pill priority-${selectedRow.priority.toLowerCase()}`}>
-                    {selectedRow.priority}
-                  </span>
-                  <button
-                    className="icon-button detail-toggle"
-                    type="button"
-                    onClick={() => setIsDetailOpen(false)}
-                    aria-label="收合事件詳情"
-                  >
-                    ›
-                  </button>
-                </div>
-                <h2>{selectedRow.area}</h2>
-                <dl className="detail-list">
-                  <div>
-                    <dt>指標名稱</dt>
-                    <dd>{selectedRow.metricName}</dd>
-                  </div>
-                  <div>
-                    <dt>追蹤目的</dt>
-                    <dd>{selectedRow.purpose}</dd>
-                  </div>
-                  <div>
-                    <dt>埋點事件</dt>
-                    <dd>{selectedRow.trigger}</dd>
-                  </div>
-                  <div>
-                    <dt>分析的原因</dt>
-                    <dd>{selectedRow.analysisValue}</dd>
-                  </div>
-                  <div>
-                    <dt>指標計算</dt>
-                    <dd>{selectedRow.metricCalculation}</dd>
-                  </div>
-                  <div>
-                    <dt>屬性參數</dt>
-                    <dd>{selectedRow.properties}</dd>
-                  </div>
-                  <div>
-                    <dt>屬性定義</dt>
-                    <dd>{selectedRow.propertyDefinitions}</dd>
-                  </div>
-                  <div>
-                    <dt>Sample Values</dt>
-                    <dd>{selectedRow.sampleValues}</dd>
-                  </div>
-                </dl>
-                <div className="privacy-note">
-                  <strong>資料邊界</strong>
-                  <p>第一階段建議使用去識別化事件屬性，不把病患姓名、身分證、病歷號或完整聯絡資訊放入事件 payload。</p>
-                </div>
-              </>
-          </aside>
-        ) : null}
 
         {renderProjectModal()}
         {renderProjectDeleteConfirm()}
