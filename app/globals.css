@@ -2043,119 +2043,42 @@ select:disabled {
   width: 100%;
 }
 
-.project-token-field {
-  background: #f7faf6;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  padding: 10px;
-}
-
-.project-token-label-row {
-  align-items: center;
-  color: var(--muted);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 12px;
-  font-weight: 800;
-  gap: 8px;
-  min-width: 0;
-}
-
-.project-token-label-row label {
-  color: var(--muted);
-}
-
-.project-token-label-row span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  margin-left: auto;
-  white-space: nowrap;
-}
-
-.project-token-field input {
-  width: 100%;
-}
-
-.token-clear-button {
-  justify-self: start;
-}
-
-.faq-icon-button {
-  align-items: center;
-  background: #ffffff;
-  border: 1px solid #bfd2bd;
-  border-radius: 999px;
-  color: var(--green-900);
-  display: inline-flex;
-  flex: 0 0 auto;
-  font-size: 12px;
-  font-weight: 900;
-  height: 22px;
-  justify-content: center;
-  line-height: 1;
-  padding: 0;
-  width: 22px;
-}
-
-.faq-icon-button:hover,
-.faq-icon-button:focus {
-  background: var(--green-100);
-  border-color: var(--green-700);
-}
-
-.faq-icon-button.close-button {
-  font-size: 15px;
-  height: 28px;
-  width: 28px;
-}
-
-.figma-token-help-dialog {
+.figma-oauth-dialog {
   display: grid;
   gap: 12px;
   max-width: 520px;
   width: min(520px, 100%);
 }
 
-.help-dialog-title-row {
-  align-items: flex-start;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.help-dialog-title-row h2 {
-  margin-bottom: 0;
-}
-
-.token-step-list {
-  color: var(--foreground);
+.oauth-permission-list {
+  background: #f7faf6;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
   display: grid;
   font-size: 13px;
   gap: 8px;
-  list-style: decimal;
+  list-style: disc;
   list-style-position: outside;
   line-height: 1.55;
   margin: 0;
-  padding-left: 24px;
+  padding: 12px 12px 12px 30px;
 }
 
-.token-step-list li {
+.oauth-permission-list li {
   display: list-item;
-  padding-left: 2px;
 }
 
-.token-step-list li::marker {
+.oauth-permission-list li::marker {
   color: var(--green-700);
-  font-weight: 900;
 }
 
-.token-step-list strong,
-.token-step-list span {
-  display: inline;
+.oauth-error {
+  background: var(--red-100);
+  border: 1px solid #efb8a5;
+  border-radius: 6px;
+  color: var(--red-700) !important;
+  padding: 10px;
 }
 
 .confirm-actions.single-action {

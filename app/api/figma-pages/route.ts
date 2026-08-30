@@ -1,3 +1,5 @@
+import { getFigmaOAuthConfig, readFigmaOAuthSession } from "../figma/oauth/shared";
+
 export const dynamic = "force-dynamic";
 
 type FigmaNode = {
@@ -15,7 +17,7 @@ type FigmaApiResponse = {
   err?: string;
 };
 
-type FigmaTokenSource = "user" | "site";
+type FigmaTokenSource = "user" | "oauth" | "site";
 
 type FigmaPagesRequest = {
   fileKey?: string;
@@ -96,18 +98,46 @@ function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
     return "你的本機 Figma token 無法讀取這份檔案。請確認 token 沒有過期或被撤銷、具備 file_content:read scope，且產生 token 的 Figma 帳號能開啟這份檔案。Personal Access Token 請只貼 token 本身，不要包含 Bearer 或 X-Figma-Token。";
   }
 
-  return "站台預設 Figma token 無法讀取這份檔案。請改用你自己的本機 Figma token，或請管理者設定具 file_content:read 且能開啟此檔案的 FIGMA_ACCESS_TOKEN。";
+  if (tokenSource === "oauth") {
+    return "你的 Figma 授權無法讀取這份檔案。請確認授權的 Figma 帳號能開啟此檔案，或重新授權後再試一次。";
+  }
+
+  return "站台預設 Figma 權限無法讀取這份檔案。請確認檔案已分享給平台帳號，或改用 Figma OAuth 讓使用者授權自己的檔案。";
 }
 
-function resolveFigmaToken(requestToken: unknown) {
+async function resolveFigmaToken(request: Request, requestToken: unknown) {
   const userToken = asString(requestToken);
-  const siteToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
-  const rawToken = userToken || siteToken;
+
+  if (userToken) {
+    return {
+      rawToken: userToken,
+      tokenValue: normalizeFigmaToken(userToken).tokenValue,
+      tokenSource: "user" as const,
+      oauthConfigured: getFigmaOAuthConfig(request).configured,
+    };
+  }
+
+  const oauthSession = await readFigmaOAuthSession(request);
+
+  if (oauthSession?.accessToken) {
+    const rawToken = `Bearer ${oauthSession.accessToken}`;
+
+    return {
+      rawToken,
+      tokenValue: normalizeFigmaToken(rawToken).tokenValue,
+      tokenSource: "oauth" as const,
+      oauthConfigured: true,
+    };
+  }
+
+  const oauthConfigured = getFigmaOAuthConfig(request).configured;
+  const rawToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
 
   return {
     rawToken,
     tokenValue: normalizeFigmaToken(rawToken).tokenValue,
-    tokenSource: userToken ? ("user" as const) : ("site" as const),
+    tokenSource: "site" as const,
+    oauthConfigured,
   };
 }
 
@@ -154,7 +184,8 @@ export async function POST(request: Request) {
 
   const fileKey = asString(requestBody.fileKey);
   const nodeId = asString(requestBody.nodeId).replace(/-/g, ":");
-  const { rawToken: rawFigmaToken, tokenValue: figmaToken, tokenSource } = resolveFigmaToken(
+  const { rawToken: rawFigmaToken, tokenValue: figmaToken, tokenSource, oauthConfigured } = await resolveFigmaToken(
+    request,
     requestBody.figmaAccessToken,
   );
 
@@ -166,7 +197,9 @@ export async function POST(request: Request) {
     return Response.json(
       {
         code: "missing_figma_token",
-        message: "尚未設定 Figma 存取權限。請先貼上你的本機 Figma token，或由站台管理者設定 FIGMA_ACCESS_TOKEN。",
+        message: oauthConfigured
+          ? "尚未完成 Figma 授權，請先允許平台讀取 Figma 檔案。"
+          : "尚未設定 Figma OAuth 或站台預設 Figma 權限，因此無法讀取 Figma Page 清單。",
       },
       { status: 503 },
     );
