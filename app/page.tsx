@@ -3041,13 +3041,13 @@ export default function Home() {
                       </td>
                       <td>
                         <strong>{row.metricName}</strong>
+                        <span className={`type-pill type-${row.eventType.toLowerCase()}`}>
+                          {typeLabels[row.eventType]}
+                        </span>
                       </td>
                       <td>{row.purpose}</td>
                       <td>{row.analysisValue}</td>
-                      <td>
-                        {row.trigger}
-                        <span>{typeLabels[row.eventType]}</span>
-                      </td>
+                      <td>{row.trigger}</td>
                       <td>{row.metricCalculation}</td>
                       <td>
                         <span>{row.sourceName}</span>
@@ -3681,15 +3681,15 @@ export default function Home() {
                         <strong>{row.page}</strong>
                         <span>{row.area}</span>
                       </td>
-                      <td>{row.metricName}</td>
-                      <td>{row.purpose}</td>
-                      <td>{row.analysisValue}</td>
                       <td>
-                        {row.trigger}
+                        {row.metricName}
                         <span className={`type-pill type-${row.eventType.toLowerCase()}`}>
                           {typeLabels[row.eventType]}
                         </span>
                       </td>
+                      <td>{row.purpose}</td>
+                      <td>{row.analysisValue}</td>
+                      <td>{row.trigger}</td>
                       <td>{row.metricCalculation}</td>
                       <td>{row.properties}</td>
                     </tr>
