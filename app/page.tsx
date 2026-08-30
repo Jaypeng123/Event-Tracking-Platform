@@ -2406,7 +2406,7 @@ export default function Home() {
           <div className="help-dialog-title-row">
             <div>
               <p className="eyebrow">FAQ</p>
-              <h2 id="figma-token-help-title">如何取得 Figma token？</h2>
+              <h2 id="figma-token-help-title">Figma token 可以略過嗎？</h2>
             </div>
             <button
               className="faq-icon-button close-button"
@@ -2418,13 +2418,28 @@ export default function Home() {
             </button>
           </div>
           <ol className="token-step-list">
-            <li>登入 Figma，回到檔案列表。</li>
-            <li>點左上角帳號選單，進入 Settings。</li>
-            <li>切到 Security 分頁，在 Personal access tokens 點 Generate new token。</li>
-            <li>Expiration 可依需求選擇，Scope 請勾選 file_content:read。</li>
-            <li>按 Generate token 後複製 token，回到這裡貼上即可。</li>
+            <li>
+              <strong>可以略過：</strong>
+              <span>如果站台預設權限能讀取你貼的 Figma 檔案，就不需要填自己的 token。</span>
+            </li>
+            <li>
+              <strong>需要填寫：</strong>
+              <span>如果檔案在你的個人空間、不同 team/workspace，或匯入時顯示權限錯誤，就要貼自己的 token。</span>
+            </li>
+            <li>
+              <strong>取得方式：</strong>
+              <span>登入 Figma，點左上角帳號選單進入 Settings，再切到 Security。</span>
+            </li>
+            <li>
+              <strong>建立 token：</strong>
+              <span>在 Personal access tokens 點 Generate new token，Expiration 可依需求選擇。</span>
+            </li>
+            <li>
+              <strong>設定 scope：</strong>
+              <span>Scope 請勾選 file_content:read，按 Generate token 後複製 token 貼回這裡。</span>
+            </li>
           </ol>
-          <p>token 只存在這台瀏覽器；如果站台預設權限可讀取你的 Figma 檔案，可以直接略過。</p>
+          <p>token 只存在這台瀏覽器；未來若改成 Figma OAuth，就可以拿掉手動貼 token 這一步。</p>
         </div>
       </div>
     ) : null;
@@ -2481,7 +2496,7 @@ export default function Home() {
               >
                 ?
               </button>
-              <span>{hasPersonalFigmaToken ? "已儲存本機權限" : "可先略過"}</span>
+              <span>{hasPersonalFigmaToken ? "已儲存本機權限" : "站台權限可讀可略過"}</span>
             </div>
             <input
               id="project-figma-token"

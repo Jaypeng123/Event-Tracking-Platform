@@ -2136,9 +2136,26 @@ select:disabled {
   display: grid;
   font-size: 13px;
   gap: 8px;
+  list-style: decimal;
+  list-style-position: outside;
   line-height: 1.55;
   margin: 0;
-  padding-left: 20px;
+  padding-left: 24px;
+}
+
+.token-step-list li {
+  display: list-item;
+  padding-left: 2px;
+}
+
+.token-step-list li::marker {
+  color: var(--green-700);
+  font-weight: 900;
+}
+
+.token-step-list strong,
+.token-step-list span {
+  display: inline;
 }
 
 .confirm-actions.single-action {
