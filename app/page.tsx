@@ -982,6 +982,7 @@ export default function Home() {
   const [hasLoadedWorkspace, setHasLoadedWorkspace] = useState(false);
   const [figmaAccessToken, setFigmaAccessToken] = useState("");
   const [figmaTokenDraft, setFigmaTokenDraft] = useState("");
+  const [isFigmaTokenHelpOpen, setIsFigmaTokenHelpOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [projectDeleteTarget, setProjectDeleteTarget] = useState<TrackingProject | null>(null);
@@ -1634,6 +1635,8 @@ export default function Home() {
     }
 
     setProjectNameDraft("");
+    setFigmaTokenDraft("");
+    setIsFigmaTokenHelpOpen(false);
     setIsProjectMenuOpen(false);
     setIsSourceMenuOpen(false);
     setIsProjectModalOpen(true);
@@ -1641,6 +1644,7 @@ export default function Home() {
 
   function handleSaveProject() {
     const projectName = projectNameDraft.trim();
+    const nextFigmaToken = figmaTokenDraft.trim();
 
     if (!projectName) {
       return;
@@ -1656,8 +1660,13 @@ export default function Home() {
     };
 
     setProjects((currentProjects) => [project, ...currentProjects]);
+    if (nextFigmaToken) {
+      setFigmaAccessToken(nextFigmaToken);
+    }
     setActiveProjectId(project.id);
     setProjectNameDraft("");
+    setFigmaTokenDraft("");
+    setIsFigmaTokenHelpOpen(false);
     setIsProjectModalOpen(false);
     setIsAddingSource(true);
     setLibraryQuery("");
@@ -1943,18 +1952,6 @@ export default function Home() {
       setToastMessage("");
       toastTimerRef.current = null;
     }, 2000);
-  }
-
-  function handleSaveFigmaAccessToken() {
-    const nextToken = figmaTokenDraft.trim();
-
-    if (!nextToken) {
-      return;
-    }
-
-    setFigmaAccessToken(nextToken);
-    setFigmaTokenDraft("");
-    showToast("已更新本機 Figma 存取權限");
   }
 
   function handleClearFigmaAccessToken() {
@@ -2396,6 +2393,51 @@ export default function Home() {
     );
   }
 
+  function renderFigmaTokenHelpDialog() {
+    return isFigmaTokenHelpOpen ? (
+      <div className="confirm-layer project-modal-layer" role="dialog" aria-modal="true" aria-labelledby="figma-token-help-title">
+        <button
+          className="drawer-scrim"
+          type="button"
+          onClick={() => setIsFigmaTokenHelpOpen(false)}
+          aria-label="關閉 Figma token 說明"
+        />
+        <div className="confirm-dialog figma-token-help-dialog">
+          <div className="help-dialog-title-row">
+            <div>
+              <p className="eyebrow">FAQ</p>
+              <h2 id="figma-token-help-title">如何取得 Figma token？</h2>
+            </div>
+            <button
+              className="faq-icon-button close-button"
+              type="button"
+              onClick={() => setIsFigmaTokenHelpOpen(false)}
+              aria-label="關閉 Figma token 說明"
+            >
+              ×
+            </button>
+          </div>
+          <ol className="token-step-list">
+            <li>登入 Figma，回到檔案列表。</li>
+            <li>點左上角帳號選單，進入 Settings。</li>
+            <li>切到 Security 分頁，在 Personal access tokens 點 Generate new token。</li>
+            <li>Expiration 可依需求選擇，Scope 請勾選 file_content:read。</li>
+            <li>按 Generate token 後複製 token，回到這裡貼上即可。</li>
+          </ol>
+          <p>token 只存在這台瀏覽器；如果站台預設權限可讀取你的 Figma 檔案，可以直接略過。</p>
+        </div>
+      </div>
+    ) : null;
+  }
+
+  function renderAppToast() {
+    return toastMessage ? (
+      <div className="app-toast" role="status" aria-live="polite">
+        {toastMessage}
+      </div>
+    ) : null;
+  }
+
   function renderProjectForm({
     autoFocus = false,
     onCancel,
@@ -2405,6 +2447,8 @@ export default function Home() {
     onCancel?: () => void;
     submitLabel?: string;
   } = {}) {
+    const shouldShowFigmaTokenSetup = projects.length === 0 || !hasPersonalFigmaToken;
+
     return (
       <form
         className="project-dialog"
@@ -2425,6 +2469,36 @@ export default function Home() {
             placeholder="請輸入專案名稱"
           />
         </label>
+        {shouldShowFigmaTokenSetup ? (
+          <div className="project-token-field">
+            <div className="project-token-label-row">
+              <label htmlFor="project-figma-token">Figma token（選填）</label>
+              <button
+                className="faq-icon-button"
+                type="button"
+                onClick={() => setIsFigmaTokenHelpOpen(true)}
+                aria-label="查看 Figma token 取得方式"
+              >
+                ?
+              </button>
+              <span>{hasPersonalFigmaToken ? "已儲存本機權限" : "可先略過"}</span>
+            </div>
+            <input
+              id="project-figma-token"
+              type="password"
+              value={figmaTokenDraft}
+              onChange={(event) => setFigmaTokenDraft(event.target.value)}
+              placeholder={hasPersonalFigmaToken ? "貼上新 token 可更新" : "貼上自己的 Figma token"}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            {hasPersonalFigmaToken ? (
+              <button className="secondary-button small-button token-clear-button" type="button" onClick={handleClearFigmaAccessToken}>
+                清除已儲存 token
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <div className={onCancel ? "confirm-actions" : "confirm-actions single-action"}>
           {onCancel ? (
             <button className="secondary-button" type="button" onClick={onCancel}>
@@ -2451,6 +2525,8 @@ export default function Home() {
           </div>
           <div className="project-setup-card">{renderProjectForm({ autoFocus: true })}</div>
         </section>
+        {renderFigmaTokenHelpDialog()}
+        {renderAppToast()}
       </main>
     );
   }
@@ -2490,7 +2566,14 @@ export default function Home() {
           <span className="drawer-scrim" aria-hidden="true" />
         )}
         <div className="confirm-dialog">
-          {renderProjectForm({ autoFocus: true, onCancel: () => setIsProjectModalOpen(false) })}
+          {renderProjectForm({
+            autoFocus: true,
+            onCancel: () => {
+              setFigmaTokenDraft("");
+              setIsFigmaTokenHelpOpen(false);
+              setIsProjectModalOpen(false);
+            },
+          })}
         </div>
       </div>
     ) : null;
@@ -3046,46 +3129,6 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  <div className="figma-token-panel">
-                    <div className="figma-token-heading">
-                      <label className="field-label" htmlFor="figma-access-token">
-                        Figma 存取權限
-                      </label>
-                      <span className="figma-token-state">
-                        {hasPersonalFigmaToken ? "已使用本機權限" : "使用站台預設權限"}
-                      </span>
-                    </div>
-                    <div className="figma-token-row">
-                      <input
-                        id="figma-access-token"
-                        type="password"
-                        value={figmaTokenDraft}
-                        onChange={(event) => setFigmaTokenDraft(event.target.value)}
-                        placeholder={hasPersonalFigmaToken ? "貼上新 token 可更新" : "貼上自己的 Figma token"}
-                        autoComplete="off"
-                        spellCheck={false}
-                        disabled={isLoadingPages || isAnalyzing}
-                      />
-                      <button
-                        className="secondary-button small-button"
-                        type="button"
-                        onClick={handleSaveFigmaAccessToken}
-                        disabled={!figmaTokenDraft.trim() || isLoadingPages || isAnalyzing}
-                      >
-                        儲存
-                      </button>
-                      {hasPersonalFigmaToken ? (
-                        <button
-                          className="secondary-button small-button"
-                          type="button"
-                          onClick={handleClearFigmaAccessToken}
-                          disabled={isLoadingPages || isAnalyzing}
-                        >
-                          清除
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
                   {currentProjectSources.length && !isAddingSource ? (
                     <>
                       <label className="field-label" htmlFor="imported-source">
@@ -3576,12 +3619,9 @@ export default function Home() {
 
         {renderProjectModal()}
         {renderProjectDeleteConfirm()}
+        {renderFigmaTokenHelpDialog()}
       </section>
-      {toastMessage ? (
-        <div className="app-toast" role="status" aria-live="polite">
-          {toastMessage}
-        </div>
-      ) : null}
+      {renderAppToast()}
     </main>
   );
 }
