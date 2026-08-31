@@ -1,4 +1,4 @@
-import { getFigmaOAuthConfig, readFigmaOAuthSession } from "../shared";
+import { getFigmaOAuthConfig, hasSiteFigmaToken, readFigmaOAuthSession } from "../shared";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +8,9 @@ export async function GET(request: Request) {
 
   return Response.json({
     configured: config.configured,
+    available: config.available,
     connected: Boolean(session),
+    siteTokenConfigured: hasSiteFigmaToken(),
+    unavailableReason: config.unavailableReason,
   });
 }

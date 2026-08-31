@@ -612,6 +612,7 @@ function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
 }
 
 async function resolveFigmaToken(request: Request, requestToken: unknown) {
+  const oauthConfig = getFigmaOAuthConfig(request);
   const userToken = asString(requestToken);
 
   if (userToken) {
@@ -619,11 +620,12 @@ async function resolveFigmaToken(request: Request, requestToken: unknown) {
       rawToken: userToken,
       tokenValue: normalizeFigmaToken(userToken).tokenValue,
       tokenSource: "user" as const,
-      oauthConfigured: getFigmaOAuthConfig(request).configured,
+      oauthConfigured: oauthConfig.available,
+      oauthUnavailableReason: oauthConfig.unavailableReason,
     };
   }
 
-  const oauthSession = await readFigmaOAuthSession(request);
+  const oauthSession = oauthConfig.available ? await readFigmaOAuthSession(request) : null;
 
   if (oauthSession?.accessToken) {
     const rawToken = `Bearer ${oauthSession.accessToken}`;
@@ -633,17 +635,18 @@ async function resolveFigmaToken(request: Request, requestToken: unknown) {
       tokenValue: normalizeFigmaToken(rawToken).tokenValue,
       tokenSource: "oauth" as const,
       oauthConfigured: true,
+      oauthUnavailableReason: "",
     };
   }
 
-  const oauthConfigured = getFigmaOAuthConfig(request).configured;
   const rawToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
 
   return {
     rawToken,
     tokenValue: normalizeFigmaToken(rawToken).tokenValue,
     tokenSource: "site" as const,
-    oauthConfigured,
+    oauthConfigured: oauthConfig.available,
+    oauthUnavailableReason: oauthConfig.unavailableReason,
   };
 }
 
@@ -2900,6 +2903,7 @@ export async function POST(request: Request) {
     tokenValue: figmaToken,
     tokenSource: figmaTokenSource,
     oauthConfigured,
+    oauthUnavailableReason,
   } = await resolveFigmaToken(
     request,
     requestBody.figmaAccessToken,
@@ -2940,9 +2944,11 @@ export async function POST(request: Request) {
     return Response.json(
       {
         code: "missing_figma_token",
-        message: oauthConfigured
-          ? "尚未完成 Figma 授權，請先允許平台讀取 Figma 檔案。"
-          : "尚未設定 Figma OAuth 或站台預設 Figma 權限，因此 AI 無法讀取 Figma 檔案內容。",
+        message: oauthUnavailableReason
+          ? `${oauthUnavailableReason} 目前也尚未設定站台預設 Figma 權限，因此 AI 無法讀取 Figma 檔案內容。`
+          : oauthConfigured
+            ? "尚未完成 Figma 授權，請先允許平台讀取 Figma 檔案。"
+            : "尚未設定 Figma OAuth 或站台預設 Figma 權限，因此 AI 無法讀取 Figma 檔案內容。",
       },
       { status: 503 },
     );

@@ -1,4 +1,5 @@
 import {
+  FIGMA_OAUTH_NOT_CONFIGURED_MESSAGE,
   createFigmaOAuthAuthorizationUrl,
   createOAuthState,
   createStateCookie,
@@ -14,7 +15,17 @@ export async function POST(request: Request) {
     return Response.json(
       {
         code: "figma_oauth_not_configured",
-        message: "尚未設定 Figma OAuth，請先由管理者設定 FIGMA_OAUTH_CLIENT_ID 與 FIGMA_OAUTH_CLIENT_SECRET。",
+        message: FIGMA_OAUTH_NOT_CONFIGURED_MESSAGE,
+      },
+      { status: 503 },
+    );
+  }
+
+  if (!config.available) {
+    return Response.json(
+      {
+        code: "figma_oauth_unavailable",
+        message: config.unavailableReason,
       },
       { status: 503 },
     );

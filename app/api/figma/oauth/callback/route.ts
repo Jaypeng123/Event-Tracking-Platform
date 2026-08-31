@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const expectedState = readCookie(request, FIGMA_OAUTH_STATE_COOKIE);
   const config = getFigmaOAuthConfig(request);
 
-  if (error || !code || !state || !expectedState || state !== expectedState || !config.configured) {
+  if (error || !code || !state || !expectedState || state !== expectedState || !config.available) {
     return redirectWithResult(request, "failed");
   }
 

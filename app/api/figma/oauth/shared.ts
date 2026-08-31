@@ -5,6 +5,8 @@ export type FigmaOAuthConfig = {
   redirectUri: string;
   scopes: string;
   configured: boolean;
+  available: boolean;
+  unavailableReason: string;
 };
 
 export type FigmaOAuthSession = {
@@ -18,6 +20,10 @@ const FIGMA_OAUTH_AUTHORIZE_URL = "https://www.figma.com/oauth";
 const FIGMA_OAUTH_TOKEN_URL = "https://api.figma.com/v1/oauth/token";
 const FIGMA_OAUTH_SESSION_COOKIE = "tracking_plan_figma_oauth";
 export const FIGMA_OAUTH_STATE_COOKIE = "tracking_plan_figma_oauth_state";
+export const FIGMA_OAUTH_NOT_CONFIGURED_MESSAGE =
+  "尚未設定 Figma OAuth，請先由管理者設定 FIGMA_OAUTH_CLIENT_ID 與 FIGMA_OAUTH_CLIENT_SECRET。";
+export const FIGMA_OAUTH_UNAVAILABLE_MESSAGE =
+  "Figma OAuth app 尚未通過公開審核，外部 Figma 帳號暫時無法授權。請改由平台管理者設定站台預設 Figma 權限，或等 Figma 審核通過後再重新開放個人授權。";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -130,6 +136,24 @@ async function decryptSession(value: string, secret: string): Promise<FigmaOAuth
   }
 }
 
+function readEnabledFlag(value: string | undefined, fallback = true) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  return !["0", "false", "no", "off", "disabled"].includes(normalized);
+}
+
+export function hasSiteFigmaToken() {
+  return Boolean((process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "").trim());
+}
+
 export function getFigmaOAuthConfig(request: Request): FigmaOAuthConfig {
   const clientId = process.env.FIGMA_OAUTH_CLIENT_ID?.trim() ?? "";
   const clientSecret = process.env.FIGMA_OAUTH_CLIENT_SECRET?.trim() ?? "";
@@ -138,6 +162,11 @@ export function getFigmaOAuthConfig(request: Request): FigmaOAuthConfig {
     process.env.FIGMA_OAUTH_REDIRECT_URI?.trim() ||
     new URL("/api/figma/oauth/callback", request.url).toString();
   const scopes = process.env.FIGMA_OAUTH_SCOPES?.trim() || "file_content:read";
+  const configured = Boolean(clientId && clientSecret && cookieSecret && redirectUri);
+  const enabled =
+    readEnabledFlag(process.env.FIGMA_OAUTH_ENABLED) &&
+    readEnabledFlag(process.env.FIGMA_OAUTH_PUBLIC_READY);
+  const available = configured && enabled;
 
   return {
     clientId,
@@ -145,7 +174,9 @@ export function getFigmaOAuthConfig(request: Request): FigmaOAuthConfig {
     cookieSecret,
     redirectUri,
     scopes,
-    configured: Boolean(clientId && clientSecret && cookieSecret && redirectUri),
+    configured,
+    available,
+    unavailableReason: configured && !enabled ? FIGMA_OAUTH_UNAVAILABLE_MESSAGE : "",
   };
 }
 
@@ -192,7 +223,7 @@ export async function readFigmaOAuthSession(request: Request) {
   const config = getFigmaOAuthConfig(request);
   const sessionCookie = readCookie(request, FIGMA_OAUTH_SESSION_COOKIE);
 
-  if (!config.configured || !sessionCookie) {
+  if (!config.available || !sessionCookie) {
     return null;
   }
 

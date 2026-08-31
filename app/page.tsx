@@ -139,11 +139,15 @@ type FigmaPagesResponse = {
 
 type FigmaOAuthStatus = {
   configured: boolean;
+  available: boolean;
   connected: boolean;
+  siteTokenConfigured: boolean;
+  unavailableReason: string;
   isLoaded: boolean;
 };
 
 type FigmaOAuthStartResponse = {
+  code?: string;
   authorizationUrl?: string;
   message?: string;
 };
@@ -174,6 +178,8 @@ const ANALYSIS_RESULTS_STORAGE_KEY = "tracking-plan-analysis-results-v1";
 const LEGACY_PROJECT_ID = "legacy-project";
 const FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE =
   "此站台尚未完成 Figma OAuth 設定。請平台管理者先設定 FIGMA_OAUTH_CLIENT_ID 與 FIGMA_OAUTH_CLIENT_SECRET，使用者才能在這裡授權。";
+const FIGMA_OAUTH_UNAVAILABLE_MESSAGE =
+  "Figma OAuth app 尚未通過公開審核，外部 Figma 帳號暫時無法授權。請改由平台管理者設定站台預設 Figma 權限，或等 Figma 審核通過後再重新開放個人授權。";
 
 const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
   YxOzcNURPPgfDq9qiXj1uk: {
@@ -1040,7 +1046,10 @@ export default function Home() {
   const [hasLoadedWorkspace, setHasLoadedWorkspace] = useState(false);
   const [figmaOAuthStatus, setFigmaOAuthStatus] = useState<FigmaOAuthStatus>({
     configured: false,
+    available: false,
     connected: false,
+    siteTokenConfigured: false,
+    unavailableReason: "",
     isLoaded: false,
   });
   const [pendingFigmaOAuthSource, setPendingFigmaOAuthSource] = useState<FigmaSourceInfo | null>(null);
@@ -2270,7 +2279,10 @@ export default function Home() {
       const result = (await response.json()) as Partial<FigmaOAuthStatus>;
       const nextStatus = {
         configured: Boolean(result.configured),
+        available: Boolean(result.available),
         connected: Boolean(result.connected),
+        siteTokenConfigured: Boolean(result.siteTokenConfigured),
+        unavailableReason: typeof result.unavailableReason === "string" ? result.unavailableReason : "",
         isLoaded: true,
       };
 
@@ -2279,7 +2291,10 @@ export default function Home() {
     } catch {
       const nextStatus = {
         configured: false,
+        available: false,
         connected: false,
+        siteTokenConfigured: false,
+        unavailableReason: "",
         isLoaded: true,
       };
 
@@ -2328,6 +2343,10 @@ export default function Home() {
 
       if (!currentOAuthStatus.configured) {
         throw new Error(FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE);
+      }
+
+      if (!currentOAuthStatus.available) {
+        throw new Error(currentOAuthStatus.unavailableReason || FIGMA_OAUTH_UNAVAILABLE_MESSAGE);
       }
 
       window.localStorage.setItem(PENDING_FIGMA_IMPORT_STORAGE_KEY, pendingFigmaOAuthSource.normalizedUrl);
@@ -2431,7 +2450,7 @@ export default function Home() {
       };
       const shouldOfferOAuth = Boolean(
         !figmaOAuthStatus.connected &&
-          (figmaError.oauthConfigured ?? figmaOAuthStatus.configured) &&
+          (figmaError.oauthConfigured ?? figmaOAuthStatus.available) &&
           (figmaError.code === "missing_figma_token" ||
             (figmaError.code === "invalid_figma_token" && figmaError.tokenSource === "site")),
       );
@@ -2447,8 +2466,10 @@ export default function Home() {
         setPageLoadError("");
         setAnalysisState("");
         showToast(
-          /token/i.test(message)
-            ? "已先匯入連結；完成 Figma 授權後可讀取完整內容"
+          /token|授權|權限/i.test(message)
+            ? shouldOfferOAuth
+              ? "已先匯入連結；完成 Figma 授權後可讀取完整內容"
+              : "已先匯入連結；目前尚未取得完整 Figma 讀取權限"
             : "已先使用連結資訊匯入",
         );
         return { ...fallbackResult, authErrorMessage: message, requiresOAuth: shouldOfferOAuth };
@@ -2821,7 +2842,20 @@ export default function Home() {
   }
 
   function renderFigmaOAuthPrompt() {
-    return pendingFigmaOAuthSource ? (
+    if (!pendingFigmaOAuthSource) {
+      return null;
+    }
+
+    const oauthUnavailableMessage = !figmaOAuthStatus.configured
+      ? FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE
+      : !figmaOAuthStatus.available
+        ? figmaOAuthStatus.unavailableReason || FIGMA_OAUTH_UNAVAILABLE_MESSAGE
+        : "";
+    const oauthIntro = figmaOAuthStatus.available
+      ? "為了讀取你剛貼上的 Figma 檔案，平台會前往 Figma 官方授權頁。你確認允許讀取檔案內容後，會回到這裡繼續匯入。"
+      : "目前此站台的 Figma OAuth 還不能讓外部 Figma 帳號授權。要讓所有人不用個別授權即可使用，請先由平台管理者設定站台預設 Figma 權限。";
+
+    return (
       <div className="confirm-layer project-modal-layer" role="dialog" aria-modal="true" aria-labelledby="figma-oauth-title">
         <button
           className="drawer-scrim"
@@ -2832,13 +2866,23 @@ export default function Home() {
         <div className="confirm-dialog figma-oauth-dialog">
           <p className="eyebrow">Figma OAuth</p>
           <h2 id="figma-oauth-title">授權讀取 Figma 檔案</h2>
-          <p>為了讀取你剛貼上的 Figma 檔案，平台會前往 Figma 官方授權頁。你確認允許讀取檔案內容後，會回到這裡繼續匯入。</p>
-          <ul className="oauth-permission-list">
-            <li>只要求讀取檔案內容的權限。</li>
-            <li>授權範圍仍受你的 Figma 帳號可存取檔案限制。</li>
-            <li>平台不會要求你手動複製或貼上 Figma token。</li>
-          </ul>
-          {figmaOAuthError ? <p className="oauth-error">{figmaOAuthError}</p> : null}
+          <p>{oauthIntro}</p>
+          {figmaOAuthStatus.available ? (
+            <ul className="oauth-permission-list">
+              <li>只要求讀取檔案內容的權限。</li>
+              <li>授權範圍仍受你的 Figma 帳號可存取檔案限制。</li>
+              <li>平台不會要求你手動複製或貼上 Figma token。</li>
+            </ul>
+          ) : (
+            <ul className="oauth-permission-list">
+              <li>Figma OAuth app 通過公開審核後，外部帳號才能自行授權。</li>
+              <li>若要立即讓所有人使用，站台需設定一組可讀取稿件的預設 Figma token。</li>
+              <li>該 token 所屬的 Figma 帳號仍必須能開啟使用者貼上的檔案。</li>
+            </ul>
+          )}
+          {figmaOAuthError || oauthUnavailableMessage ? (
+            <p className="oauth-error">{figmaOAuthError || oauthUnavailableMessage}</p>
+          ) : null}
           <div className="confirm-actions">
             <button
               className="secondary-button"
@@ -2852,14 +2896,20 @@ export default function Home() {
               className="primary-button"
               type="button"
               onClick={handleStartFigmaOAuth}
-              disabled={isStartingFigmaOAuth || !figmaOAuthStatus.configured}
+              disabled={isStartingFigmaOAuth || !figmaOAuthStatus.available}
             >
-              {!figmaOAuthStatus.configured ? "等待站台設定" : isStartingFigmaOAuth ? "前往中" : "前往 Figma 授權"}
+              {!figmaOAuthStatus.configured
+                ? "等待站台設定"
+                : !figmaOAuthStatus.available
+                  ? "等待 Figma 審核"
+                  : isStartingFigmaOAuth
+                    ? "前往中"
+                    : "前往 Figma 授權"}
             </button>
           </div>
         </div>
       </div>
-    ) : null;
+    );
   }
 
   function renderAppToast() {
