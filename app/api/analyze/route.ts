@@ -41,6 +41,11 @@ type AnalyzeRequest = {
     nodeName?: string;
     mode?: string;
     normalizedUrl?: string;
+    pages?: Array<{
+      id?: string;
+      name?: string;
+      childCount?: number;
+    }>;
   };
 };
 
@@ -599,6 +604,22 @@ function isFigmaAuthError(response: Response, payload: Record<string, unknown>) 
   );
 }
 
+function isDefinitiveFigmaAuthError(response: Response, payload: Record<string, unknown>) {
+  const message = extractFigmaError(payload, "");
+
+  return (
+    response.status === 401 ||
+    response.status === 403 ||
+    /invalid token|invalid access token|unauthorized|forbidden/i.test(message)
+  );
+}
+
+function isInvalidFigmaTokenError(response: Response, payload: Record<string, unknown>) {
+  const message = extractFigmaError(payload, "");
+
+  return response.status === 401 || /invalid token|invalid access token|unauthorized/i.test(message);
+}
+
 function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
   if (tokenSource === "user") {
     return "你的私人 Figma 存取權杖無法讀取這份檔案。請確認權杖沒有過期或被撤銷、具備 file_content:read 權限，且產生權杖的 Figma 帳號能開啟這份檔案。請只貼權杖本身，不要包含 Bearer 或 X-Figma-Token。";
@@ -826,8 +847,35 @@ function findNodeById(node: FigmaNode | undefined, targetId: string): FigmaNode 
   return undefined;
 }
 
-function collectFigmaContext(payload: FigmaApiResponse, targetId: string, isPartial = false) {
-  const root = targetId ? payload.nodes?.[targetId]?.document ?? findNodeById(payload.document, targetId) : payload.document;
+function findNodeByName(node: FigmaNode | undefined, targetName: string): FigmaNode | undefined {
+  if (!node || !targetName) {
+    return undefined;
+  }
+
+  const currentName = cleanScopeName(asString(node.name, ""), "", 80).toLowerCase();
+  const lookupName = cleanScopeName(targetName, "", 80).toLowerCase();
+
+  if (currentName && currentName === lookupName) {
+    return node;
+  }
+
+  for (const child of node.children ?? []) {
+    const result = findNodeByName(child, targetName);
+
+    if (result) {
+      return result;
+    }
+  }
+
+  return undefined;
+}
+
+function collectFigmaContext(payload: FigmaApiResponse, targetId: string, isPartial = false, targetNameHint = "") {
+  const root = targetId
+    ? payload.nodes?.[targetId]?.document ??
+      findNodeById(payload.document, targetId) ??
+      findNodeByName(payload.document, targetNameHint)
+    : payload.document;
   const fileRoot = payload.document;
   const pages =
     fileRoot?.children
@@ -995,20 +1043,42 @@ function buildDomainFallbackNodes(targetName: string) {
   ];
 }
 
+function getRequestSourcePages(requestBody: AnalyzeRequest) {
+  return Array.isArray(requestBody.source?.pages)
+    ? requestBody.source.pages
+        .map((page) => ({
+          id: asString(page.id),
+          name: cleanScopeName(asString(page.name, ""), "", 80),
+          childCount: typeof page.childCount === "number" ? page.childCount : 0,
+        }))
+        .filter((page) => page.id || page.name)
+    : [];
+}
+
 function buildPartialFigmaContext(requestBody: AnalyzeRequest, reason: string): FigmaContext {
   const source = requestBody.source ?? {};
   const fileName = cleanScopeName(asString(source.fileName, "Figma design file"), "Figma design file", 80);
-  const targetName = cleanScopeName(asString(source.nodeName, fileName), "Figma 分析範圍", 80);
-  const fallbackNodes = buildDomainFallbackNodes(targetName);
+  const sourcePages = getRequestSourcePages(requestBody);
+  const targetPage = sourcePages.find((page) => page.id && page.id === asString(source.nodeId));
+  const targetName = cleanScopeName(asString(source.nodeName, targetPage?.name || fileName), "Figma 分析範圍", 80);
+  const pageInventoryNodes = sourcePages.map((page) => {
+    const childSummary = page.childCount ? `，含 ${page.childCount} 個第一層節點` : "";
+
+    return `[PAGE] ${page.name || page.id}${childSummary}`;
+  });
+  const fallbackNodes = [...pageInventoryNodes, ...buildDomainFallbackNodes(targetName)];
 
   return {
     fileName,
     targetName,
     targetType: "PARTIAL_FIGMA_CONTEXT",
-    pages: targetName ? [targetName] : [],
+    pages: sourcePages.length ? sourcePages.map((page) => page.name || page.id) : targetName ? [targetName] : [],
     nodeCount: fallbackNodes.length,
     textCount: fallbackNodes.length,
-    nodes: [`[PARTIAL] Figma 頁面內容過大，已改用頁面名稱與可推論結構分析。${reason ? ` Figma 訊息：${reason}` : ""}`, ...fallbackNodes],
+    nodes: [
+      `[PARTIAL] Figma 深層節點暫時無法完整讀取，已改用已取得的 Page 清單與可推論結構分析。${reason ? ` Figma 訊息：${reason}` : ""}`,
+      ...fallbackNodes,
+    ],
     contentCoverage: buildContentCoverage(fallbackNodes, targetName),
     isPartial: true,
   };
@@ -1134,22 +1204,36 @@ async function fetchFigmaContext(
   const fileKey = asString(requestBody.source?.fileKey);
   const nodeId = asString(requestBody.source?.nodeId);
   const targetId = nodeId;
+  const targetNameHint = asString(requestBody.source?.nodeName);
   const encodedFileKey = encodeURIComponent(fileKey);
   const encodedTargetId = encodeURIComponent(targetId);
   const candidatePaths = targetId
     ? [
         ...[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((depth) => `/files/${encodedFileKey}/nodes?ids=${encodedTargetId}&depth=${depth}`),
         ...[5, 4, 3, 2, 1].map((depth) => `/files/${encodedFileKey}?ids=${encodedTargetId}&depth=${depth}`),
+        ...[4, 3, 2, 1].map((depth) => `/files/${encodedFileKey}?depth=${depth}`),
       ]
     : [7, 6, 5, 4, 3, 2, 1].map((depth) => `/files/${encodedFileKey}?depth=${depth}`);
   let lastTooLargeMessage = "";
+  let lastRecoverableMessage = "";
 
   for (const [index, path] of candidatePaths.entries()) {
     const { response, payload } = await fetchFigmaPayload(path, figmaToken);
 
     if (!response.ok) {
-      if (isFigmaAuthError(response, payload)) {
+      const isNodeScopedRequest = path.includes("/nodes?") || path.includes("?ids=");
+
+      if (isInvalidFigmaTokenError(response, payload)) {
         throw new Error(getFigmaAuthErrorMessage(figmaTokenSource));
+      }
+
+      if (isDefinitiveFigmaAuthError(response, payload) && (!targetId || !isNodeScopedRequest)) {
+        throw new Error(getFigmaAuthErrorMessage(figmaTokenSource));
+      }
+
+      if (targetId && isFigmaAuthError(response, payload)) {
+        lastRecoverableMessage = extractFigmaError(payload, `Figma API 回傳 ${response.status}`);
+        continue;
       }
 
       if (isFigmaRequestTooLarge(response, payload)) {
@@ -1160,14 +1244,18 @@ async function fetchFigmaContext(
       throw new Error(extractFigmaError(payload, `Figma API 回傳 ${response.status}`));
     }
 
-    const context = collectFigmaContext(payload, targetId, index > 0);
+    const context = collectFigmaContext(payload, targetId, index > 0, targetNameHint);
 
     if (context.nodeCount > 0 || context.nodes.length > 0) {
       return context;
     }
+
+    if (targetId) {
+      lastRecoverableMessage = "指定的 Page 或 Frame id 沒有出現在 Figma 回傳內容中";
+    }
   }
 
-  return buildPartialFigmaContext(requestBody, lastTooLargeMessage);
+  return buildPartialFigmaContext(requestBody, lastTooLargeMessage || lastRecoverableMessage);
 }
 
 function buildInstructions() {

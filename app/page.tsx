@@ -2648,8 +2648,12 @@ export default function Home() {
             mode: "node",
             nodeId: selectedPage.id,
             nodeName: selectedPage.name,
+            pages: pageOptions.length ? pageOptions : figmaInfo.pages,
           }
-        : figmaInfo;
+        : {
+            ...figmaInfo,
+            pages: pageOptions.length ? pageOptions : figmaInfo.pages,
+          };
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
