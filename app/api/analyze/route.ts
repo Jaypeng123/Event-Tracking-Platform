@@ -608,7 +608,7 @@ function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
     return "你的 Figma 授權無法讀取這份檔案。請確認授權的 Figma 帳號能開啟此檔案，或重新授權後再試一次。";
   }
 
-  return "站台預設 Figma 權限無法讀取這份檔案。請確認檔案已分享給產生站台權限的 Figma 帳號；或由檔案擁有者貼上本次使用的私人 Figma 存取權杖後重新讀取。";
+  return "站台預設 Figma 權限無法讀取這份檔案。請確認 Figma 分享設定已開放「知道連結的人可以檢視」，或檔案已分享給產生站台權限的 Figma 帳號，調整後重新匯入。";
 }
 
 async function resolveFigmaToken(request: Request, requestToken: unknown) {

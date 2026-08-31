@@ -179,9 +179,7 @@ const LEGACY_PROJECT_ID = "legacy-project";
 const FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE =
   "此站台尚未完成 Figma OAuth 設定。請平台管理者先設定 FIGMA_OAUTH_CLIENT_ID 與 FIGMA_OAUTH_CLIENT_SECRET，使用者才能在這裡授權。";
 const FIGMA_OAUTH_UNAVAILABLE_MESSAGE =
-  "Figma OAuth app 尚未通過公開審核，外部 Figma 帳號暫時無法授權。若站台預設權限讀不到私人檔案，請由檔案擁有者貼上本次使用的私人 Figma 存取權杖。";
-const FIGMA_PERSONAL_TOKEN_HELP =
-  "站台預設權限讀不到私人檔案時，請由檔案擁有者貼上自己的 Figma 私人存取權杖。平台只會用於本次讀取，不會存進專案或站台後台。";
+  "Figma OAuth app 尚未通過公開審核，外部 Figma 帳號暫時無法授權。平台會先使用站台預設 Figma 權限讀取稿件。";
 
 const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
   YxOzcNURPPgfDq9qiXj1uk: {
@@ -1058,7 +1056,6 @@ export default function Home() {
   const [isStartingFigmaOAuth, setIsStartingFigmaOAuth] = useState(false);
   const [figmaOAuthError, setFigmaOAuthError] = useState("");
   const [shouldResumeFigmaImport, setShouldResumeFigmaImport] = useState(false);
-  const [figmaAccessToken, setFigmaAccessToken] = useState("");
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [projectDeleteTarget, setProjectDeleteTarget] = useState<TrackingProject | null>(null);
@@ -1069,7 +1066,6 @@ export default function Home() {
   const [hasImportedPages, setHasImportedPages] = useState(false);
   const [isLoadingPages, setIsLoadingPages] = useState(false);
   const [pageLoadError, setPageLoadError] = useState("");
-  const [figmaPermissionMessage, setFigmaPermissionMessage] = useState("");
   const [isAnalysisModelMenuOpen, setIsAnalysisModelMenuOpen] = useState(false);
   const [filter, setFilter] = useState<EventFilter>("All");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("All");
@@ -1144,7 +1140,6 @@ export default function Home() {
     [activeProjectId, libraryRows],
   );
   const hasDraftSource = Boolean(draftFigmaUrl.trim());
-  const hasPersonalFigmaToken = Boolean(figmaAccessToken.trim());
   const hasAppliedSource = Boolean(appliedFigmaUrl && figmaInfo.mode !== "invalid" && figmaInfo.mode !== "unsupported");
   const showImportForm = !currentProjectSources.length || isAddingSource;
   const pageOptions = hasImportedPages ? loadedPages : [];
@@ -1154,10 +1149,6 @@ export default function Home() {
     hasAppliedSource && (needsPageSelection || isLoadingPages || Boolean(pageOptions.length) || Boolean(pageLoadError));
   const canAnalyzeCurrentSource =
     hasAppliedSource && !isLoadingPages && hasImportedPages && Boolean(selectedPage);
-  const hasFigmaPermissionIssue = /Figma|token|權杖|授權|權限/.test(
-    `${figmaPermissionMessage} ${pageLoadError} ${analysisError}`,
-  );
-  const shouldShowFigmaTokenPanel = Boolean(currentProject && (hasPersonalFigmaToken || hasFigmaPermissionIssue));
   const selectedAnalysisModel =
     analysisModelOptions.find((option) => option.id === selectedAnalysisModelId) ?? analysisModelOptions[0];
   useEffect(() => {
@@ -2276,45 +2267,6 @@ export default function Home() {
     }, 2000);
   }
 
-  function getFigmaRequestToken() {
-    return figmaAccessToken.trim();
-  }
-
-  function handleUpdateFigmaAccessToken(value: string) {
-    setFigmaAccessToken(value);
-
-    if (value.trim()) {
-      setFigmaOAuthError("");
-    }
-  }
-
-  function handleClearFigmaAccessToken() {
-    setFigmaAccessToken("");
-    showToast("已清除本次使用的 Figma 存取權杖");
-  }
-
-  async function handleRetryFigmaWithPersonalToken() {
-    if (!getFigmaRequestToken()) {
-      setPageLoadError("請先貼上檔案擁有者自己的 Figma 存取權杖，再重新讀取。");
-      return;
-    }
-
-    const sourceToRetry = figmaInfo.fileKey ? figmaInfo : draftInfo;
-
-    if (!sourceToRetry.fileKey || sourceToRetry.mode === "invalid" || sourceToRetry.mode === "unsupported") {
-      showToast("請先貼上有效的 Figma 連結");
-      return;
-    }
-
-    resetAnalysisResult();
-    const { pages, sourceInfo } = await loadFigmaPages(sourceToRetry);
-
-    if (pages.length) {
-      saveImportedSource(sourceInfo, pages);
-      showToast("已使用你的 Figma 存取權杖讀取稿件");
-    }
-  }
-
   async function refreshFigmaOAuthStatus(): Promise<FigmaOAuthStatus> {
     try {
       const response = await fetch("/api/figma/oauth/status", {
@@ -2435,7 +2387,6 @@ export default function Home() {
     setSelectedPageId("");
     setHasImportedPages(false);
     setPageLoadError("");
-    setFigmaPermissionMessage("");
 
     try {
       const response = await fetch("/api/figma-pages", {
@@ -2449,7 +2400,6 @@ export default function Home() {
           fileName: nextInfo.fileName,
           nodeId: nextInfo.nodeId,
           nodeName: nextInfo.nodeName,
-          figmaAccessToken: getFigmaRequestToken() || undefined,
         }),
         cache: "no-store",
         credentials: "include",
@@ -2489,7 +2439,6 @@ export default function Home() {
       setIsPageMenuOpen(false);
       setHasImportedPages(true);
       setPageLoadError(pages.length ? "" : "這份 Figma 檔案沒有讀到可分析的 Page");
-      setFigmaPermissionMessage("");
       setAnalysisState("");
       return { pages, sourceInfo };
     } catch (error) {
@@ -2515,7 +2464,6 @@ export default function Home() {
         setIsPageMenuOpen(false);
         setHasImportedPages(true);
         setPageLoadError("");
-        setFigmaPermissionMessage(/Figma|token|權杖|授權|權限/i.test(message) ? message : "");
         setAnalysisState("");
         showToast(
           /token|權杖|授權|權限/i.test(message)
@@ -2532,7 +2480,6 @@ export default function Home() {
       setIsPageMenuOpen(false);
       setHasImportedPages(false);
       setPageLoadError(message);
-      setFigmaPermissionMessage(/Figma|token|權杖|授權|權限/i.test(message) ? message : "");
       setAnalysisState("");
       return { ...emptyResult, authErrorMessage: message, requiresOAuth: shouldOfferOAuth };
     } finally {
@@ -2557,7 +2504,6 @@ export default function Home() {
     setIsPageMenuOpen(false);
     setHasImportedPages(false);
     setPageLoadError("");
-    setFigmaPermissionMessage("");
     resetAnalysisResult();
     setFilter("All");
     setPriorityFilter("All");
@@ -2713,7 +2659,6 @@ export default function Home() {
         body: JSON.stringify({
           source: sourceForAnalysis,
           scope: sourceForAnalysis.nodeId ? "node" : "file",
-          figmaAccessToken: getFigmaRequestToken() || undefined,
           ai: {
             provider: selectedAnalysisModel.provider,
             openAIModel: selectedAnalysisModel.provider === "openai" ? selectedAnalysisModel.model : undefined,
@@ -2908,7 +2853,7 @@ export default function Home() {
         : "";
     const oauthIntro = figmaOAuthStatus.available
       ? "為了讀取你剛貼上的 Figma 檔案，平台會前往 Figma 官方授權頁。你確認允許讀取檔案內容後，會回到這裡繼續匯入。"
-      : "目前此站台的 Figma OAuth 還不能讓外部 Figma 帳號授權。若站台預設權限讀不到私人檔案，可由檔案擁有者貼上本次使用的私人 Figma 存取權杖。";
+      : "目前此站台的 Figma OAuth 還不能讓外部 Figma 帳號授權。平台會先使用站台預設 Figma 權限讀取稿件。";
 
     return (
       <div className="confirm-layer project-modal-layer" role="dialog" aria-modal="true" aria-labelledby="figma-oauth-title">
@@ -2926,13 +2871,13 @@ export default function Home() {
             <ul className="oauth-permission-list">
               <li>只要求讀取檔案內容的權限。</li>
               <li>授權範圍仍受你的 Figma 帳號可存取檔案限制。</li>
-              <li>平台不會要求你手動複製或貼上 Figma token。</li>
+              <li>平台會透過 Figma 官方授權讀取檔案。</li>
             </ul>
           ) : (
             <ul className="oauth-permission-list">
               <li>Figma OAuth app 通過公開審核後，外部帳號才能自行授權。</li>
-              <li>站台預設權限只能讀取該 Figma 帳號可開啟的檔案。</li>
-              <li>若檔案沒有分享給站台預設帳號，請改用檔案擁有者的私人 Figma 存取權杖重新讀取。</li>
+              <li>審核通過前，平台會使用站台預設 Figma 權限讀取檔案。</li>
+              <li>若讀取失敗，請確認 Figma 分享設定已開放「知道連結的人可以檢視」。</li>
             </ul>
           )}
           {figmaOAuthError || oauthUnavailableMessage ? (
@@ -3771,39 +3716,6 @@ export default function Home() {
                           </button>
                         ) : null}
                       </div>
-                    </div>
-                  ) : null}
-                  {shouldShowFigmaTokenPanel ? (
-                    <div className={`figma-token-panel ${hasFigmaPermissionIssue ? "attention" : ""}`}>
-                      <label className="field-label" htmlFor="figma-personal-token">
-                        私人 Figma 存取權杖（選填）
-                      </label>
-                      <div className="figma-token-input-row">
-                        <input
-                          id="figma-personal-token"
-                          type="password"
-                          value={figmaAccessToken}
-                          onChange={(event) => handleUpdateFigmaAccessToken(event.target.value)}
-                          placeholder="貼上檔案擁有者的 Figma 存取權杖"
-                          autoComplete="off"
-                          spellCheck={false}
-                        />
-                        <button
-                          className="secondary-button small-button"
-                          type="button"
-                          onClick={handleRetryFigmaWithPersonalToken}
-                          disabled={!hasPersonalFigmaToken || isLoadingPages || isAnalyzing || (!hasAppliedSource && !draftInfo.fileKey)}
-                        >
-                          重新讀取
-                        </button>
-                      </div>
-                      {figmaPermissionMessage ? <p className="figma-token-message">{figmaPermissionMessage}</p> : null}
-                      <p>{FIGMA_PERSONAL_TOKEN_HELP}</p>
-                      {hasPersonalFigmaToken ? (
-                        <button className="text-button" type="button" onClick={handleClearFigmaAccessToken}>
-                          清除本次存取權杖
-                        </button>
-                      ) : null}
                     </div>
                   ) : null}
                 </>
