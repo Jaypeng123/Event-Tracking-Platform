@@ -601,14 +601,14 @@ function isFigmaAuthError(response: Response, payload: Record<string, unknown>) 
 
 function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
   if (tokenSource === "user") {
-    return "你的本機 Figma token 無法讀取這份檔案。請確認 token 沒有過期或被撤銷、具備 file_content:read scope，且產生 token 的 Figma 帳號能開啟這份檔案。Personal Access Token 請只貼 token 本身，不要包含 Bearer 或 X-Figma-Token。";
+    return "你的私人 Figma 存取權杖無法讀取這份檔案。請確認權杖沒有過期或被撤銷、具備 file_content:read 權限，且產生權杖的 Figma 帳號能開啟這份檔案。請只貼權杖本身，不要包含 Bearer 或 X-Figma-Token。";
   }
 
   if (tokenSource === "oauth") {
     return "你的 Figma 授權無法讀取這份檔案。請確認授權的 Figma 帳號能開啟此檔案，或重新授權後再試一次。";
   }
 
-  return "站台預設 Figma 權限無法讀取這份檔案。請確認檔案已分享給產生站台權限的 Figma 帳號；若要讓使用者授權自己的檔案，需等 Figma OAuth app 通過公開審核後才能使用。";
+  return "站台預設 Figma 權限無法讀取這份檔案。請確認檔案已分享給產生站台權限的 Figma 帳號；或由檔案擁有者貼上本次使用的私人 Figma 存取權杖後重新讀取。";
 }
 
 async function resolveFigmaToken(request: Request, requestToken: unknown) {

@@ -1304,6 +1304,23 @@ select:focus {
   color: var(--green-900);
 }
 
+.text-button {
+  align-self: start;
+  background: transparent;
+  border: 0;
+  color: var(--green-700);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0;
+  text-align: left;
+}
+
+.text-button:hover,
+.text-button:focus {
+  color: var(--green-900);
+  text-decoration: underline;
+}
+
 .danger-button {
   border-color: #e0b4a7;
   color: var(--red-700);
@@ -2039,6 +2056,43 @@ select:disabled {
   gap: 10px;
   margin-top: 4px;
   padding-top: 12px;
+}
+
+.figma-token-panel {
+  background: #fbfcfa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.figma-token-panel.attention {
+  background: #fff8f5;
+  border-color: #efb8a5;
+}
+
+.figma-token-input-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.figma-token-input-row input {
+  min-width: 0;
+  width: 100%;
+}
+
+.figma-token-panel p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.figma-token-panel .figma-token-message {
+  color: var(--red-700);
+  font-weight: 800;
 }
 
 .source-hint {
@@ -3239,6 +3293,10 @@ code {
   }
 
   .source-switcher {
+    grid-template-columns: 1fr;
+  }
+
+  .figma-token-input-row {
     grid-template-columns: 1fr;
   }
 
