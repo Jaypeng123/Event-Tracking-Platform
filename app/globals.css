@@ -2121,6 +2121,26 @@ select:disabled {
   padding: 10px;
 }
 
+.figma-token-field {
+  color: var(--muted);
+  display: grid;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.figma-token-field input {
+  background: #fbfcfa;
+  border-color: #bfcbbd;
+  color: var(--foreground);
+  font-size: 13px;
+  width: 100%;
+}
+
+.confirm-actions.with-oauth {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .confirm-actions.single-action {
   grid-template-columns: 1fr;
 }

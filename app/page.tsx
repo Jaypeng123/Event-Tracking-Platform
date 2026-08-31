@@ -94,6 +94,7 @@ type ImportedFigmaSource = {
 };
 
 type AnalyzeResponse = {
+  code?: string;
   events?: TrackingEvent[];
   analysisProcess?: string[];
   model?: string;
@@ -105,6 +106,8 @@ type AnalyzeResponse = {
     nodeCount?: number;
     textCount?: number;
   };
+  oauthConfigured?: boolean;
+  tokenSource?: "user" | "oauth" | "site";
   message?: string;
 };
 
@@ -156,7 +159,7 @@ type FigmaPagesLoadResult = {
   pages: FigmaPage[];
   sourceInfo: FigmaSourceInfo;
   authErrorMessage?: string;
-  requiresOAuth?: boolean;
+  requiresFigmaAuth?: boolean;
 };
 
 const EMPTY_FIGMA_SOURCE: FigmaSourceInfo = {
@@ -174,6 +177,7 @@ const PROJECTS_STORAGE_KEY = "tracking-plan-projects-v1";
 const ACTIVE_PROJECT_STORAGE_KEY = "tracking-plan-active-project-v1";
 const FIGMA_SOURCES_STORAGE_KEY = "tracking-plan-figma-sources-v1";
 const PENDING_FIGMA_IMPORT_STORAGE_KEY = "tracking-plan-pending-figma-import-v1";
+const FIGMA_ACCESS_TOKEN_STORAGE_KEY = "tracking-plan-figma-access-token-v1";
 const ANALYSIS_RESULTS_STORAGE_KEY = "tracking-plan-analysis-results-v1";
 const LEGACY_PROJECT_ID = "legacy-project";
 const FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE =
@@ -749,6 +753,34 @@ function readStoredActiveProjectId() {
   }
 }
 
+function sanitizeFigmaAccessToken(value: string) {
+  const withoutHeaderName = value
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/^authorization\s*:\s*/i, "")
+    .replace(/^x-figma-token\s*:\s*/i, "")
+    .trim();
+  const bearerMatch = withoutHeaderName.match(/^bearer\s+(.+)$/i);
+
+  return (bearerMatch?.[1] ?? withoutHeaderName).trim().replace(/^["']|["']$/g, "");
+}
+
+function readStoredFigmaAccessToken() {
+  try {
+    return sanitizeFigmaAccessToken(window.localStorage.getItem(FIGMA_ACCESS_TOKEN_STORAGE_KEY) ?? "");
+  } catch {
+    return "";
+  }
+}
+
+function isFigmaAuthFailure(message: string, code?: string) {
+  return (
+    code === "missing_figma_token" ||
+    code === "invalid_figma_token" ||
+    (/figma/i.test(message) && /權限|權杖|授權|token|unauthorized|forbidden|invalid/i.test(message))
+  );
+}
+
 function isImportedFigmaSourceLike(value: unknown): value is ImportedFigmaSource {
   if (!value || typeof value !== "object") {
     return false;
@@ -1055,6 +1087,9 @@ export default function Home() {
   const [pendingFigmaOAuthSource, setPendingFigmaOAuthSource] = useState<FigmaSourceInfo | null>(null);
   const [isStartingFigmaOAuth, setIsStartingFigmaOAuth] = useState(false);
   const [figmaOAuthError, setFigmaOAuthError] = useState("");
+  const [figmaAccessToken, setFigmaAccessToken] = useState("");
+  const [figmaAccessTokenDraft, setFigmaAccessTokenDraft] = useState("");
+  const [pendingFigmaAuthAction, setPendingFigmaAuthAction] = useState<"import" | "analyze">("import");
   const [shouldResumeFigmaImport, setShouldResumeFigmaImport] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
@@ -1157,12 +1192,15 @@ export default function Home() {
       const storedSources = readStoredFigmaSources();
       const storedAnalysisResults = readStoredAnalysisResults();
       const storedActiveProjectId = readStoredActiveProjectId();
+      const storedFigmaAccessToken = readStoredFigmaAccessToken();
       const nextActiveProjectId =
         storedProjects.find((project) => project.id === storedActiveProjectId)?.id ?? storedProjects[0]?.id ?? "";
       const nextSource = storedSources.find((source) => source.projectId === nextActiveProjectId) ?? null;
 
       setProjects(storedProjects);
       setImportedSources(storedSources);
+      setFigmaAccessToken(storedFigmaAccessToken);
+      setFigmaAccessTokenDraft(storedFigmaAccessToken);
       cachedAnalysisResultsRef.current = storedAnalysisResults;
       setCachedAnalysisResults(storedAnalysisResults);
       setActiveProjectId(nextActiveProjectId);
@@ -2303,9 +2341,15 @@ export default function Home() {
     }
   }
 
-  function openFigmaOAuthPrompt(nextInfo: FigmaSourceInfo, initialError = "") {
+  function getFigmaAccessTokenForRequest(tokenOverride = "") {
+    return sanitizeFigmaAccessToken(tokenOverride || figmaAccessToken);
+  }
+
+  function openFigmaOAuthPrompt(nextInfo: FigmaSourceInfo, initialError = "", action: "import" | "analyze" = "import") {
     setPendingFigmaOAuthSource(nextInfo);
     setFigmaOAuthError(initialError);
+    setFigmaAccessTokenDraft(figmaAccessToken);
+    setPendingFigmaAuthAction(action);
     setIsStartingFigmaOAuth(false);
     setIsSourceMenuOpen(false);
     setIsPageMenuOpen(false);
@@ -2321,6 +2365,8 @@ export default function Home() {
   function handleCancelFigmaOAuth() {
     setPendingFigmaOAuthSource(null);
     setFigmaOAuthError("");
+    setFigmaAccessTokenDraft(figmaAccessToken);
+    setPendingFigmaAuthAction("import");
     setIsStartingFigmaOAuth(false);
 
     try {
@@ -2371,7 +2417,45 @@ export default function Home() {
     }
   }
 
-  async function loadFigmaPages(nextInfo: FigmaSourceInfo): Promise<FigmaPagesLoadResult> {
+  async function handleSaveFigmaAccessToken() {
+    const nextToken = sanitizeFigmaAccessToken(figmaAccessTokenDraft);
+
+    if (!nextToken) {
+      setFigmaOAuthError("請先貼上可讀取這份檔案的 Figma access token。");
+      return;
+    }
+
+    const sourceToRetry = pendingFigmaOAuthSource;
+    const actionToRetry = pendingFigmaAuthAction;
+
+    setFigmaAccessToken(nextToken);
+    setFigmaAccessTokenDraft(nextToken);
+    setPendingFigmaOAuthSource(null);
+    setFigmaOAuthError("");
+    setPendingFigmaAuthAction("import");
+
+    try {
+      window.localStorage.setItem(FIGMA_ACCESS_TOKEN_STORAGE_KEY, nextToken);
+    } catch {
+      // The token still works for the current session even if localStorage is unavailable.
+    }
+
+    if (!sourceToRetry) {
+      showToast("已儲存 Figma 讀取權限");
+      return;
+    }
+
+    if (actionToRetry === "analyze") {
+      showToast("已儲存 Figma 讀取權限，正在重新分析");
+      await runAnalysis(nextToken);
+      return;
+    }
+
+    showToast("已儲存 Figma 讀取權限，正在重新匯入");
+    await applyFigmaSource(sourceToRetry, nextToken, { forceReload: true });
+  }
+
+  async function loadFigmaPages(nextInfo: FigmaSourceInfo, figmaAccessTokenOverride = ""): Promise<FigmaPagesLoadResult> {
     const emptyResult = { pages: [], sourceInfo: nextInfo };
 
     if (!nextInfo.fileKey || nextInfo.mode === "empty" || nextInfo.mode === "invalid" || nextInfo.mode === "unsupported") {
@@ -2400,6 +2484,7 @@ export default function Home() {
           fileName: nextInfo.fileName,
           nodeId: nextInfo.nodeId,
           nodeName: nextInfo.nodeName,
+          figmaAccessToken: getFigmaAccessTokenForRequest(figmaAccessTokenOverride) || undefined,
         }),
         cache: "no-store",
         credentials: "include",
@@ -2448,11 +2533,9 @@ export default function Home() {
         oauthConfigured?: boolean;
         tokenSource?: FigmaPagesResponse["tokenSource"];
       };
-      const shouldOfferOAuth = Boolean(
-        !figmaOAuthStatus.connected &&
-          (figmaError.oauthConfigured ?? figmaOAuthStatus.available) &&
-          (figmaError.code === "missing_figma_token" ||
-            (figmaError.code === "invalid_figma_token" && figmaError.tokenSource === "site")),
+      const shouldOfferFigmaAuth = Boolean(
+        isFigmaAuthFailure(message, figmaError.code) &&
+          (!getFigmaAccessTokenForRequest(figmaAccessTokenOverride) || figmaError.tokenSource === "user"),
       );
       const fallbackResult = createLocalFigmaPagesFallback(nextInfo);
 
@@ -2467,12 +2550,12 @@ export default function Home() {
         setAnalysisState("");
         showToast(
           /token|權杖|授權|權限/i.test(message)
-            ? shouldOfferOAuth
-              ? "已先匯入連結；完成 Figma 授權後可讀取完整內容"
+            ? shouldOfferFigmaAuth
+              ? "已先匯入連結；補上 Figma 讀取權限後可讀取完整內容"
               : "已先匯入連結；目前尚未取得完整 Figma 讀取權限"
             : "已先使用連結資訊匯入",
         );
-        return { ...fallbackResult, authErrorMessage: message, requiresOAuth: shouldOfferOAuth };
+        return { ...fallbackResult, authErrorMessage: message, requiresFigmaAuth: shouldOfferFigmaAuth };
       }
 
       setLoadedPages([]);
@@ -2481,17 +2564,21 @@ export default function Home() {
       setHasImportedPages(false);
       setPageLoadError(message);
       setAnalysisState("");
-      return { ...emptyResult, authErrorMessage: message, requiresOAuth: shouldOfferOAuth };
+      return { ...emptyResult, authErrorMessage: message, requiresFigmaAuth: shouldOfferFigmaAuth };
     } finally {
       setIsLoadingPages(false);
     }
   }
 
-  async function applyFigmaSource(nextInfo: FigmaSourceInfo) {
+  async function applyFigmaSource(
+    nextInfo: FigmaSourceInfo,
+    figmaAccessTokenOverride = "",
+    options: { forceReload?: boolean } = {},
+  ) {
     const nextSourceId = getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo);
     const duplicatedSource = currentProjectSources.find((source) => source.id === nextSourceId);
 
-    if (duplicatedSource) {
+    if (duplicatedSource && !options.forceReload) {
       applyImportedSourceToState(duplicatedSource);
       showToast("已切換到這個 Figma 來源");
       return;
@@ -2510,7 +2597,10 @@ export default function Home() {
     setQuery("");
     setAnalysisState("");
 
-    const { pages, sourceInfo, authErrorMessage, requiresOAuth } = await loadFigmaPages(nextInfo);
+    const { pages, sourceInfo, authErrorMessage, requiresFigmaAuth } = await loadFigmaPages(
+      nextInfo,
+      figmaAccessTokenOverride,
+    );
 
     if (pages.length) {
       const resolvedSourceId = getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, sourceInfo);
@@ -2523,14 +2613,14 @@ export default function Home() {
       }
 
       saveImportedSource(sourceInfo, pages);
-      if (requiresOAuth) {
-        openFigmaOAuthPrompt(sourceInfo, authErrorMessage || "");
+      if (requiresFigmaAuth) {
+        openFigmaOAuthPrompt(sourceInfo, authErrorMessage || "", "import");
       }
       return;
     }
 
-    if (requiresOAuth) {
-      openFigmaOAuthPrompt(nextInfo, authErrorMessage || "");
+    if (requiresFigmaAuth) {
+      openFigmaOAuthPrompt(nextInfo, authErrorMessage || "", "import");
     }
   }
 
@@ -2595,7 +2685,7 @@ export default function Home() {
     restoreCachedAnalysisResult(getCurrentAnalysisCacheKey(pageId), pageId ? "" : "請先選擇要分析的 Page");
   }
 
-  async function handleAnalyze() {
+  async function runAnalysis(figmaAccessTokenOverride = "") {
     if (!canAnalyzeCurrentSource) {
       if (!hasAppliedSource) {
         setAnalysisState("請先匯入 Figma 連結");
@@ -2663,6 +2753,7 @@ export default function Home() {
         body: JSON.stringify({
           source: sourceForAnalysis,
           scope: sourceForAnalysis.nodeId ? "node" : "file",
+          figmaAccessToken: getFigmaAccessTokenForRequest(figmaAccessTokenOverride) || undefined,
           ai: {
             provider: selectedAnalysisModel.provider,
             openAIModel: selectedAnalysisModel.provider === "openai" ? selectedAnalysisModel.model : undefined,
@@ -2679,7 +2770,14 @@ export default function Home() {
       }
 
       if (!response.ok) {
-        throw new Error(result.message || "AI 分析失敗，請確認環境變數與 Figma 權限");
+        const error = new Error(result.message || "AI 分析失敗，請確認環境變數與 Figma 權限") as Error & {
+          code?: string;
+          tokenSource?: AnalyzeResponse["tokenSource"];
+        };
+
+        error.code = result.code;
+        error.tokenSource = result.tokenSource;
+        throw error;
       }
 
       const rows = Array.isArray(result.events) ? result.events : [];
@@ -2703,14 +2801,25 @@ export default function Home() {
       }
 
       const message = error instanceof Error ? error.message : "AI 分析失敗，請稍後再試";
+      const analysisFailure = error as Error & {
+        code?: string;
+      };
 
       setAnalysisError(message);
       setAnalysisState(message);
+
+      if (isFigmaAuthFailure(message, analysisFailure.code)) {
+        openFigmaOAuthPrompt(figmaInfo, message, "analyze");
+      }
     } finally {
       if (analysisRunId.current === runId) {
         setIsAnalyzing(false);
       }
     }
+  }
+
+  function handleAnalyze() {
+    void runAnalysis();
   }
 
   function handleExportExcel() {
@@ -2850,14 +2959,9 @@ export default function Home() {
       return null;
     }
 
-    const oauthUnavailableMessage = !figmaOAuthStatus.configured
-      ? FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE
-      : !figmaOAuthStatus.available
-        ? figmaOAuthStatus.unavailableReason || FIGMA_OAUTH_UNAVAILABLE_MESSAGE
-        : "";
     const oauthIntro = figmaOAuthStatus.available
-      ? "為了讀取你剛貼上的 Figma 檔案，平台會前往 Figma 官方授權頁。你確認允許讀取檔案內容後，會回到這裡繼續匯入。"
-      : "目前此站台的 Figma OAuth 還不能讓外部 Figma 帳號授權。平台會先使用站台預設 Figma 權限讀取稿件。";
+      ? "這份檔案需要使用你的 Figma 權限讀取。你可以貼上私人 access token 後重試，也可以改走 Figma 官方 OAuth 授權。"
+      : "這份檔案不是站台預設 Figma 權限可讀取的範圍。請貼上可開啟此檔案的 Figma access token，平台會用你的權限重新讀取。";
 
     return (
       <div className="confirm-layer project-modal-layer" role="dialog" aria-modal="true" aria-labelledby="figma-oauth-title">
@@ -2868,26 +2972,30 @@ export default function Home() {
           aria-label="取消 Figma 授權"
         />
         <div className="confirm-dialog figma-oauth-dialog">
-          <p className="eyebrow">Figma OAuth</p>
-          <h2 id="figma-oauth-title">授權讀取 Figma 檔案</h2>
+          <p className="eyebrow">Figma Access</p>
+          <h2 id="figma-oauth-title">補上 Figma 讀取權限</h2>
           <p>{oauthIntro}</p>
-          {figmaOAuthStatus.available ? (
-            <ul className="oauth-permission-list">
-              <li>只要求讀取檔案內容的權限。</li>
-              <li>授權範圍仍受你的 Figma 帳號可存取檔案限制。</li>
-              <li>平台會透過 Figma 官方授權讀取檔案。</li>
-            </ul>
-          ) : (
-            <ul className="oauth-permission-list">
-              <li>Figma OAuth app 通過公開審核後，外部帳號才能自行授權。</li>
-              <li>審核通過前，平台會使用站台預設 Figma 權限讀取檔案。</li>
-              <li>若讀取失敗，請確認 Figma 分享設定已開放「知道連結的人可以檢視」。</li>
-            </ul>
-          )}
-          {figmaOAuthError || oauthUnavailableMessage ? (
-            <p className="oauth-error">{figmaOAuthError || oauthUnavailableMessage}</p>
+          <ul className="oauth-permission-list">
+            <li>請使用能開啟這份檔案的 Figma 帳號產生 access token。</li>
+            <li>token 只會存在這台瀏覽器本機，之後匯入與分析會自動使用。</li>
+            <li>請只貼 token 本身，不要包含 Authorization 或 X-Figma-Token。</li>
+          </ul>
+          {figmaOAuthError ? (
+            <p className="oauth-error">{figmaOAuthError}</p>
           ) : null}
-          <div className="confirm-actions">
+          <label className="figma-token-field" htmlFor="figma-access-token">
+            <span>Figma access token</span>
+            <input
+              id="figma-access-token"
+              type="password"
+              value={figmaAccessTokenDraft}
+              onChange={(event) => setFigmaAccessTokenDraft(event.target.value)}
+              placeholder="貼上 Figma access token"
+              autoComplete="off"
+              disabled={isStartingFigmaOAuth}
+            />
+          </label>
+          <div className={`confirm-actions ${figmaOAuthStatus.available ? "with-oauth" : ""}`}>
             <button
               className="secondary-button"
               type="button"
@@ -2896,19 +3004,23 @@ export default function Home() {
             >
               取消
             </button>
+            {figmaOAuthStatus.available ? (
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={handleStartFigmaOAuth}
+                disabled={isStartingFigmaOAuth}
+              >
+                官方授權
+              </button>
+            ) : null}
             <button
               className="primary-button"
               type="button"
-              onClick={handleStartFigmaOAuth}
-              disabled={isStartingFigmaOAuth || !figmaOAuthStatus.available}
+              onClick={handleSaveFigmaAccessToken}
+              disabled={isStartingFigmaOAuth || !figmaAccessTokenDraft.trim()}
             >
-              {!figmaOAuthStatus.configured
-                ? "等待站台設定"
-                : !figmaOAuthStatus.available
-                  ? "等待 Figma 審核"
-                  : isStartingFigmaOAuth
-                    ? "前往中"
-                    : "前往 Figma 授權"}
+              儲存並重試
             </button>
           </div>
         </div>

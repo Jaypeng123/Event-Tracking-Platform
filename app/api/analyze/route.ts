@@ -153,6 +153,15 @@ const contentModuleDefinitions: FigmaModuleDefinition[] = [
   { key: "exception", label: "異常處理", pattern: /異常|錯誤|失敗|逾時|未交付|error|fail|timeout|exception/i },
   { key: "completion", label: "交付完成", pattern: /交付|送達|完成|送出|提交|complete|submit|finish/i },
   { key: "search_filter", label: "搜尋與篩選", pattern: /搜尋|篩選|排序|查詢|search|filter|sort/i },
+  { key: "care_plan", label: "健康計畫", pattern: /健康計畫|照護計畫|自訂計畫|care\s*plan|health\s*plan/i },
+  { key: "vital_sign", label: "生理體徵", pattern: /生理體徵|生命徵象|量測|測量|vital|measurement/i },
+  { key: "blood_pressure", label: "血壓", pattern: /血壓|收縮壓|舒張壓|blood\s*pressure|\bbp\b/i },
+  { key: "blood_glucose", label: "血糖", pattern: /血糖|飯前|飯後|glucose|blood\s*sugar/i },
+  { key: "temperature", label: "體溫", pattern: /體溫|temperature|fever/i },
+  { key: "heart_rate", label: "心率與脈搏", pattern: /心率|脈搏|心跳|heart\s*rate|pulse/i },
+  { key: "blood_oxygen", label: "血氧", pattern: /血氧|spo2|oxygen/i },
+  { key: "weight", label: "體重與 BMI", pattern: /體重|bmi|body\s*weight|weight/i },
+  { key: "care_record", label: "照護紀錄", pattern: /照護紀錄|護理紀錄|個案紀錄|追蹤紀錄|record|note/i },
 ];
 
 const dispatchWorkflowCoverageTemplates: TrackingEventTemplate[] = [
@@ -386,6 +395,237 @@ const dispatchDetailCoverageTemplates: TrackingEventTemplate[] = [
     analysisValue: "辨識異常主要集中在哪些任務狀態、區域或任務類型，判斷是否需要優先修正流程或提醒機制。",
     metricCalculation: "派工異常或流失次數 ÷ 派工詳情頁瀏覽次數 × 100%",
     pattern: /異常|錯誤|失敗|超時|逾時|無法|中止|exception|error|fail|timeout/i,
+  },
+];
+
+const caseDetailCoverageTemplates: TrackingEventTemplate[] = [
+  {
+    label: "個案基本資料",
+    area: "個案基本資料",
+    eventType: "Click",
+    metricName: "個案基本資料查看率",
+    eventName: "view_patient_profile",
+    trigger: "進入個案詳情後查看個案基本資料或主要摘要",
+    purpose: "了解使用者進入個案詳情後是否需要先核對個案身分、狀態與摘要資訊。",
+    analysisValue: "判斷個案基本資料是否需要維持在頁面主要層級，並比較它與其他功能模組的查閱需求。",
+    metricCalculation: "個案基本資料查看次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /個案基本|基本資料|個案資料|病患資料|患者資料|個案摘要|patient\s*profile|patient\s*summary/i,
+  },
+  {
+    label: "待處理任務",
+    area: "待處理任務",
+    eventType: "Click",
+    metricName: "待處理任務點擊率",
+    eventName: "click_patient_pending_task",
+    trigger: "點擊個案詳情中的待處理、待辦或待追蹤任務入口",
+    purpose: "了解個案詳情是否能有效引導使用者處理尚未完成的照護任務。",
+    analysisValue: "判斷待處理任務是否值得保留為個案詳情的高層級入口，並確認是否能帶動後續處理。",
+    metricCalculation: "待處理任務點擊次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /待處理|待辦|待追蹤|追蹤任務|pending|todo|follow/i,
+  },
+  {
+    label: "異常警報",
+    area: "異常警報",
+    eventType: "Click",
+    metricName: "異常警報處理率",
+    eventName: "click_patient_alert",
+    trigger: "點擊個案詳情中的異常、警示、風險或提醒入口",
+    purpose: "衡量異常訊息是否能引導使用者進入後續判斷或處理。",
+    analysisValue: "確認異常警報是否能有效支援照護決策，並辨識哪些警示類型最需要優先處理。",
+    metricCalculation: "異常警報點擊次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /異常|警示|警報|風險|提醒|alert|risk|warning/i,
+  },
+  {
+    label: "健康計畫",
+    area: "健康計畫",
+    eventType: "Click",
+    metricName: "健康計畫查看率",
+    eventName: "view_health_plan",
+    trigger: "切換或點擊個案詳情中的健康計畫、照護計畫或自訂計畫內容",
+    purpose: "了解使用者是否會在個案詳情中查閱或維護健康計畫。",
+    analysisValue: "判斷健康計畫是否是個案詳情的核心任務，並比較查看與維護需求是否集中在特定角色。",
+    metricCalculation: "健康計畫查看次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /健康計畫|照護計畫|自訂計畫|計畫清單|health\s*plan|care\s*plan/i,
+  },
+  {
+    label: "健康計畫維護",
+    area: "健康計畫維護",
+    eventType: "CreateEdit",
+    metricName: "健康計畫維護完成率",
+    eventName: "save_health_plan",
+    trigger: "完成新增、編輯、儲存或啟用健康計畫",
+    purpose: "衡量使用者是否需要在個案詳情中建立或更新健康計畫。",
+    analysisValue: "評估健康計畫維護流程是否承接實際照護需求，並找出是否需要簡化欄位或調整入口層級。",
+    metricCalculation: "健康計畫成功儲存次數 ÷ 開始健康計畫新增或編輯次數 × 100%",
+    pattern: /新增.*健康計畫|建立.*健康計畫|編輯.*健康計畫|儲存.*健康計畫|啟用.*健康計畫|save.*health\s*plan|edit.*care\s*plan/i,
+  },
+  {
+    label: "生理體徵",
+    area: "生理體徵總覽",
+    eventType: "Click",
+    metricName: "生理體徵總覽查看率",
+    eventName: "view_vital_sign_overview",
+    trigger: "切換或點擊個案詳情中的生理體徵、量測數據或趨勢總覽",
+    purpose: "了解使用者是否依賴量測資料掌握個案近期狀態。",
+    analysisValue: "判斷生理體徵總覽是否需要維持在主要資訊層級，並比較各量測項目的查閱比重。",
+    metricCalculation: "生理體徵總覽查看次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /生理體徵|生命徵象|量測數據|測量數據|趨勢總覽|vital|measurement/i,
+  },
+  {
+    label: "血壓",
+    area: "血壓趨勢",
+    eventType: "Click",
+    metricName: "血壓趨勢查看率",
+    eventName: "view_blood_pressure_trend",
+    trigger: "切換或點擊血壓頁籤、血壓卡片或血壓趨勢圖",
+    purpose: "了解使用者是否會針對血壓資料判斷個案控制狀態。",
+    analysisValue: "比較血壓趨勢與其他生理體徵的使用率，判斷血壓是否需要更高層級呈現或獨立提醒。",
+    metricCalculation: "血壓趨勢查看次數 ÷ 生理體徵模組查看次數 × 100%",
+    pattern: /血壓|收縮壓|舒張壓|blood\s*pressure|\bbp\b/i,
+  },
+  {
+    label: "血糖",
+    area: "血糖趨勢",
+    eventType: "Click",
+    metricName: "血糖趨勢查看率",
+    eventName: "view_blood_glucose_trend",
+    trigger: "切換或點擊血糖頁籤、血糖卡片或血糖趨勢圖",
+    purpose: "了解使用者是否會針對血糖資料判斷個案控制狀態。",
+    analysisValue: "比較血糖趨勢與其他生理體徵的使用率，判斷糖尿病照護資訊是否需要獨立入口或更清楚的異常提示。",
+    metricCalculation: "血糖趨勢查看次數 ÷ 生理體徵模組查看次數 × 100%",
+    pattern: /血糖|飯前|飯後|glucose|blood\s*sugar/i,
+  },
+  {
+    label: "體溫",
+    area: "體溫趨勢",
+    eventType: "Click",
+    metricName: "體溫趨勢查看率",
+    eventName: "view_body_temperature_trend",
+    trigger: "切換或點擊體溫頁籤、體溫卡片或體溫趨勢圖",
+    purpose: "了解使用者是否會用體溫變化判斷個案異常或感染風險。",
+    analysisValue: "辨識體溫資訊是否只在特定情境被使用，並判斷它應維持主要模組或降為輔助資訊。",
+    metricCalculation: "體溫趨勢查看次數 ÷ 生理體徵模組查看次數 × 100%",
+    pattern: /體溫|發燒|temperature|fever/i,
+  },
+  {
+    label: "心率與脈搏",
+    area: "心率與脈搏趨勢",
+    eventType: "Click",
+    metricName: "心率與脈搏趨勢查看率",
+    eventName: "view_heart_rate_trend",
+    trigger: "切換或點擊心率、脈搏或心跳趨勢內容",
+    purpose: "了解使用者是否會以心率或脈搏資料輔助判斷個案狀態。",
+    analysisValue: "比較心率與脈搏資訊的查閱需求，判斷是否需要獨立呈現或與其他體徵整併。",
+    metricCalculation: "心率與脈搏趨勢查看次數 ÷ 生理體徵模組查看次數 × 100%",
+    pattern: /心率|脈搏|心跳|heart\s*rate|pulse/i,
+  },
+  {
+    label: "血氧",
+    area: "血氧趨勢",
+    eventType: "Click",
+    metricName: "血氧趨勢查看率",
+    eventName: "view_blood_oxygen_trend",
+    trigger: "切換或點擊血氧、SpO2 或氧氣飽和度趨勢內容",
+    purpose: "了解使用者是否會以血氧資料判斷個案呼吸或低氧風險。",
+    analysisValue: "確認血氧趨勢是否屬於高重要但低頻的照護資訊，避免只用整體點擊率誤判它的價值。",
+    metricCalculation: "血氧趨勢查看次數 ÷ 生理體徵模組查看次數 × 100%",
+    pattern: /血氧|氧氣飽和|spo2|oxygen/i,
+  },
+  {
+    label: "體重與 BMI",
+    area: "體重與 BMI 趨勢",
+    eventType: "Click",
+    metricName: "體重與 BMI 趨勢查看率",
+    eventName: "view_body_weight_trend",
+    trigger: "切換或點擊體重、BMI 或體位變化趨勢內容",
+    purpose: "了解使用者是否會追蹤體重變化作為慢病照護判斷依據。",
+    analysisValue: "判斷體重與 BMI 是否需要獨立呈現，或可與其他長期追蹤指標整併。",
+    metricCalculation: "體重與 BMI 趨勢查看次數 ÷ 生理體徵模組查看次數 × 100%",
+    pattern: /體重|bmi|body\s*weight|weight/i,
+  },
+  {
+    label: "心電報告",
+    area: "心電報告",
+    eventType: "ExportDownload",
+    metricName: "心電報告匯出下載率",
+    eventName: "download_ecg_report",
+    trigger: "點擊心電、ECG 或相關報告的下載或匯出入口",
+    purpose: "評估使用者是否需要將心電或檢測報告帶出平台使用。",
+    analysisValue: "確認心電報告是否具有跨系統分享或離線使用需求，並判斷匯出功能是否需要優先維護。",
+    metricCalculation: "心電報告成功匯出或下載次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /心電|ecg|ekg|心電圖|報告下載|下載報告/i,
+  },
+  {
+    label: "照護紀錄",
+    area: "照護紀錄",
+    eventType: "Click",
+    metricName: "照護紀錄查看率",
+    eventName: "view_care_record",
+    trigger: "切換或點擊個案詳情中的照護紀錄、追蹤紀錄或備註內容",
+    purpose: "了解使用者是否需要透過歷史紀錄掌握個案照護脈絡。",
+    analysisValue: "判斷照護紀錄是否是決策前的必要資訊，並比較它與量測數據、健康計畫的使用關係。",
+    metricCalculation: "照護紀錄查看次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /照護紀錄|護理紀錄|個案紀錄|追蹤紀錄|備註|note|record/i,
+  },
+  {
+    label: "用藥資訊",
+    area: "用藥資訊",
+    eventType: "Click",
+    metricName: "用藥資訊查看率",
+    eventName: "view_patient_medication",
+    trigger: "切換或點擊個案詳情中的用藥、藥品或服藥資訊",
+    purpose: "了解使用者是否會在個案詳情中核對用藥資訊。",
+    analysisValue: "判斷用藥資訊是否會影響照護判斷，並確認是否需要與健康計畫或異常警示建立更清楚關聯。",
+    metricCalculation: "用藥資訊查看次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /用藥|藥品|藥物|服藥|medication|medicine|drug/i,
+  },
+  {
+    label: "檢驗報告",
+    area: "檢驗報告",
+    eventType: "Click",
+    metricName: "檢驗報告查看率",
+    eventName: "view_lab_report",
+    trigger: "切換或點擊個案詳情中的檢驗、檢體或報告內容",
+    purpose: "了解使用者是否會透過檢驗資訊補充個案狀態判斷。",
+    analysisValue: "判斷檢驗報告是否需要維持獨立模組，或可整併到量測數據與病程紀錄。",
+    metricCalculation: "檢驗報告查看次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /檢驗|檢體|報告|lab|specimen|report/i,
+  },
+  {
+    label: "推播通知",
+    area: "推播通知",
+    eventType: "CreateEdit",
+    metricName: "推播通知設定完成率",
+    eventName: "save_patient_notification",
+    trigger: "完成個案推播、提醒或通知設定",
+    purpose: "評估使用者是否需要針對個案建立後續追蹤提醒。",
+    analysisValue: "判斷推播通知是否能承接個案追蹤需求，並比較它與待辦任務的重複或互補關係。",
+    metricCalculation: "推播通知成功設定次數 ÷ 開始推播通知設定次數 × 100%",
+    pattern: /推播|通知|提醒|notification|reminder/i,
+  },
+  {
+    label: "個案資料編輯",
+    area: "個案資料編輯",
+    eventType: "CreateEdit",
+    metricName: "個案資料編輯完成率",
+    eventName: "save_patient_profile",
+    trigger: "完成個案資料新增、編輯或儲存",
+    purpose: "衡量使用者是否需要在個案詳情中維護個案資料。",
+    analysisValue: "評估個案資料編輯是否為詳情頁核心流程，並找出資料維護是否集中在特定欄位或角色。",
+    metricCalculation: "個案資料成功儲存次數 ÷ 開始個案資料編輯次數 × 100%",
+    pattern: /編輯.*個案|個案.*編輯|儲存.*個案|新增.*個案|edit.*patient|save.*patient/i,
+  },
+  {
+    label: "個案報告匯出",
+    area: "個案報告匯出",
+    eventType: "ExportDownload",
+    metricName: "個案報告匯出下載率",
+    eventName: "export_patient_report",
+    trigger: "點擊個案報告、量測紀錄或照護資料的匯出或下載入口",
+    purpose: "評估使用者是否需要將個案資料帶出平台進行交接、報告或外部留存。",
+    analysisValue: "確認匯出功能是否支援實際工作流程，並判斷哪些資料類型最需要被帶出平台。",
+    metricCalculation: "個案報告成功匯出或下載次數 ÷ 個案詳情頁瀏覽次數 × 100%",
+    pattern: /匯出|下載|export|download|報告|report/i,
   },
 ];
 
@@ -1022,12 +1262,22 @@ function buildDomainFallbackNodes(targetName: string) {
       "[SECTION] 個案基本資料",
       "[SECTION] 待處理任務",
       "[SECTION] 健康計畫",
+      "[SECTION] 生理體徵總覽",
       "[SECTION] 量測數據",
+      "[SECTION] 血壓趨勢",
+      "[SECTION] 血糖趨勢",
+      "[SECTION] 體溫趨勢",
+      "[SECTION] 心率與脈搏趨勢",
+      "[SECTION] 血氧趨勢",
+      "[SECTION] 體重與 BMI 趨勢",
       "[SECTION] 異常警報",
       "[SECTION] 照護紀錄",
+      "[SECTION] 用藥資訊",
+      "[SECTION] 檢驗報告",
       "[ACTION] 切換資料頁籤",
       "[ACTION] 查看量測趨勢",
       "[ACTION] 建立或編輯健康計畫",
+      "[ACTION] 設定推播通知",
       "[ACTION] 下載報告",
     ];
   }
@@ -1159,14 +1409,14 @@ function getEventCountTarget(figmaContext: FigmaContext) {
 
   if (isCaseDetail) {
     if (figmaContext.isPartial) {
-      return { minimum: 6, preferred: 12, maximum: 20 };
+      return { minimum: 12, preferred: 18, maximum: 28 };
     }
 
     if (contentScore >= 320 || figmaContext.nodeCount >= 240 || figmaContext.textCount >= 70) {
-      return { minimum: 8, preferred: 14, maximum: 24 };
+      return { minimum: 16, preferred: 24, maximum: 36 };
     }
 
-    return { minimum: 6, preferred: 12, maximum: 20 };
+    return { minimum: 12, preferred: 18, maximum: 30 };
   }
 
   if (figmaContext.isPartial) {
@@ -1271,6 +1521,8 @@ function buildInstructions() {
     "請完整閱讀 figmaInspection.nodes 的所有摘要，不可只看前幾筆、上半部畫面、第一個可見頁籤或文字最多的單一模組；如果摘要中出現頁籤、卡片、下方區塊、流程步驟或不同任務模組，都要先納入內部盤點。",
     "不論是目前產品或其他 Figma 專案，都要依實際稿件內容建立事件；不可套用固定模板、不可只挑熟悉的領域詞，也不可忽略 majorAreas 中後段出現的主要區塊。",
     "個案詳情、病患詳情這類頁面通常包含多個任務與資訊模組，請以較高層級覆蓋個案摘要、待辦/追蹤、風險警示、量測趨勢、健康計畫、紀錄、通知、報告、頁籤切換、編輯與匯出等可從畫面推論的重點，不要逐欄位拆埋點。",
+    "若個案詳情中出現生理體徵或量測資料，必須逐一檢查血壓、血糖、體溫、心率/脈搏、血氧、體重/BMI、心電/ECG、健康計畫與照護紀錄等頁籤或卡片；只要能形成產品決策問題，就要納入事件候選，不可只輸出總覽或前幾個區塊。",
+    "大型個案詳情頁若包含多個頁籤、長列表或多組體徵資料，合理事件數通常會高於一般頁面；不要因為第一階段就任意壓到 10 筆以內，應以核心模組完整覆蓋為優先。",
     "派工詳情、任務詳情這類頁面必須特別檢查是否有病患資訊、藥品、檢體、衛教、環境介紹、執行進度、任務狀態、區域檢體清單、取送與交付流程、異常處理、再次預約與交付完成等模組；若稿件中存在，請用高層級事件覆蓋，不可只分析藥品、逾時或任何單一頁籤。",
     "建立派工、新增派工、建立任務這類流程頁必須檢查基本資料、派工對象、預約時間、藥品、檢體、衛教、環境介紹、驗證錯誤與送出完成；若稿件中存在多個模組，事件應分散覆蓋主要模組，不可只集中在藥品或任一單一區塊。",
     "每一筆事件都必須通過決策價值檢查：若數據變高或變低，都能幫團隊決定保留、降低層級、整併、調整入口、修正流程或補強功能，才值得列入。",
@@ -1339,6 +1591,8 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         "正式輸出前，請先在內部建立 content inventory：盤點選定 Page 的頁面標題、頁籤、主要卡片、資訊區、彈窗、狀態、錯誤、列表、表單與主要 CTA；這份盤點不用輸出，但事件清單必須反映其中有產品決策價值的主區塊。",
         "輸出前必須完整掃描 figmaInspection.nodes 與 figmaInspection.contentCoverage.majorAreas，不可只根據前段節點或第一個畫面區塊產出；若後段節點出現重要模組，也要納入分析。",
         "如果同一 Page 有多個頁籤、分段、卡片群或流程步驟，請把每個主區塊先視為獨立候選，再合併成高層級且有決策價值的事件；不要讓結果集中在某一個頁籤或某一類資料。",
+        "若分析範圍是個案詳情或病患詳情，請逐一確認個案基本資料、待處理任務、異常警報、健康計畫、生理體徵總覽、血壓、血糖、體溫、心率/脈搏、血氧、體重/BMI、心電報告、照護紀錄、用藥資訊、檢驗報告、推播通知、資料編輯與匯出是否出現在稿件中；出現就應以高層級埋點覆蓋其中有產品決策價值的項目。",
+        "個案詳情不能只輸出頁面曝光、健康計畫與少數任務；如果稿件中有不同生理體徵頁籤或量測趨勢，事件必須分散覆蓋這些體徵資料的查看、切換、異常處理或報告下載需求。",
         "若分析範圍是派工詳情或任務詳情，請逐一確認病患資訊、藥品、檢體、衛教、環境介紹、執行進度、任務狀態、區域檢體清單、取送與交付流程、異常處理、再次預約與交付完成是否出現在稿件中；出現就應以高層級埋點覆蓋其中有產品決策價值的項目。",
         "派工詳情不能只針對藥品、逾時或任何單一頁籤輸出；如果稿件同時出現多個資訊模組，請讓事件分散覆蓋主要模組，並合併過細的欄位與靜態資訊。",
         "若分析範圍是建立派工或新增派工，請逐一確認藥品、檢體、衛教、環境介紹、預約時間、派工對象、必填驗證與送出完成是否出現在稿件中；不能只因藥品模組最先出現或文字最多，就忽略其他模組。",
@@ -1786,7 +2040,7 @@ function isPromotableCoverageArea(value: string) {
     return false;
   }
 
-  return /搜尋|篩選|排序|查詢|列表|清單|詳情|明細|頁籤|分頁|tab|建立|新增|編輯|儲存|保存|送出|提交|完成|下載|匯出|登入|註冊|付款|結帳|購物車|訂單|商品|課程|預約|排程|申請|審核|核准|收藏|追蹤|通知|提醒|設定|權限|報告|儀表板|圖表|趨勢|狀態|進度|流程|錯誤|異常|任務|表單|上傳|分享|留言|評論|管理|病患|患者|個案|藥品|檢體|衛教|環境|patient|task|list|detail|tab|form|search|filter|create|edit|submit|complete|checkout|payment|order|cart|product|report|dashboard|status|progress|flow|error|upload|share/i.test(
+  return /搜尋|篩選|排序|查詢|列表|清單|詳情|明細|頁籤|分頁|tab|建立|新增|編輯|儲存|保存|送出|提交|完成|下載|匯出|登入|註冊|付款|結帳|購物車|訂單|商品|課程|預約|排程|申請|審核|核准|收藏|追蹤|通知|提醒|設定|權限|報告|儀表板|圖表|趨勢|狀態|進度|流程|錯誤|異常|任務|表單|上傳|分享|留言|評論|管理|病患|患者|個案|藥品|檢體|衛教|環境|健康計畫|照護計畫|生理體徵|生命徵象|量測|血壓|血糖|體溫|心率|脈搏|血氧|體重|心電|patient|task|list|detail|tab|form|search|filter|create|edit|submit|complete|checkout|payment|order|cart|product|report|dashboard|status|progress|flow|error|upload|share/i.test(
     normalized,
   );
 }
@@ -1848,6 +2102,13 @@ function semanticObjectFromLabel(value: string, index: number) {
     [/匯出|下載|export|download/, "report"],
     [/新增.*健康計畫|建立.*健康計畫|健康計畫|照護計畫|health\s*plan|care\s*plan/, "health_plan"],
     [/血壓|blood\s*pressure|bp/, "blood_pressure"],
+    [/血糖|glucose|blood\s*sugar/, "blood_glucose"],
+    [/體溫|temperature|fever/, "body_temperature"],
+    [/心率|脈搏|心跳|heart\s*rate|pulse/, "heart_rate"],
+    [/血氧|spo2|oxygen/, "blood_oxygen"],
+    [/體重|bmi|body\s*weight|weight/, "body_weight"],
+    [/生理體徵|生命徵象|vital/, "vital_sign"],
+    [/照護紀錄|護理紀錄|個案紀錄|record|note/, "care_record"],
     [/量測|測量|數據|measurement|metric|data/, "health_metric"],
     [/個案詳情|病患詳情|patient\s*detail|case\s*detail/, "patient_detail"],
     [/個案列表|病患列表|patient\s*list|case\s*list/, "patient_list"],
@@ -2571,11 +2832,13 @@ function enforceGeneralMajorAreaCoverage(events: TrackingEvent[], figmaContext: 
 }
 
 function getDetectedDispatchWorkflowTemplates(figmaContext: FigmaContext) {
-  const templateSet = isDispatchDetailContext(figmaContext)
-    ? dispatchDetailCoverageTemplates
-    : isDispatchCreationContext(figmaContext)
-      ? dispatchWorkflowCoverageTemplates
-      : [];
+  const templateSet = isCaseDetailContext(figmaContext)
+    ? caseDetailCoverageTemplates
+    : isDispatchDetailContext(figmaContext)
+      ? dispatchDetailCoverageTemplates
+      : isDispatchCreationContext(figmaContext)
+        ? dispatchWorkflowCoverageTemplates
+        : [];
 
   if (!templateSet.length) {
     return [];
@@ -2651,12 +2914,17 @@ function getDomainFallbackAreas(figmaContext: FigmaContext) {
     "待追蹤任務",
     "異常警報",
     "風險評估",
+    "生理體徵總覽",
     "量測數據總覽",
     "血壓趨勢",
     "血糖趨勢",
+    "體溫趨勢",
+    "心率與脈搏趨勢",
+    "血氧趨勢",
     "體重與 BMI 趨勢",
     "心電報告",
     "健康計畫",
+    "健康計畫維護",
     "用藥資訊",
     "飲食與運動建議",
     "照護紀錄",
@@ -2690,7 +2958,7 @@ function getGeneralFallbackAreas() {
 function buildFallbackEvents(figmaContext: FigmaContext): TrackingEvent[] {
   const page = derivePageName(figmaContext);
   const target = getEventCountTarget(figmaContext);
-  const desiredFallbackCount = Math.min(target.minimum, target.maximum, MAX_TRACKING_EVENTS);
+  const desiredFallbackCount = Math.min(Math.max(target.minimum, target.preferred), target.maximum, MAX_TRACKING_EVENTS);
   const readableNames = extractReadableNodeNames(figmaContext)
     .map((name) => removePagePrefix(name, page))
     .filter((name) => name && name !== page)
@@ -2770,12 +3038,38 @@ function limitPageExposureEvents(events: TrackingEvent[]) {
 function ensureUsefulEvents(events: TrackingEvent[], figmaContext: FigmaContext) {
   const eventCountTarget = getEventCountTarget(figmaContext);
   const maximumEventCount = Math.min(eventCountTarget.maximum, MAX_TRACKING_EVENTS);
+  const minimumEventCount = Math.min(eventCountTarget.minimum, maximumEventCount);
   const scopedEvents = limitPageExposureEvents(
     enforceGeneralMajorAreaCoverage(enforceDetectedModuleCoverage(limitPageExposureEvents(events), figmaContext), figmaContext),
   );
 
   if (scopedEvents.length > 0) {
-    return renumberEvents(rebalancePriorities(scopedEvents.slice(0, maximumEventCount)));
+    const fallbackEvents = limitPageExposureEvents(
+      enforceGeneralMajorAreaCoverage(
+        enforceDetectedModuleCoverage(limitPageExposureEvents(buildFallbackEvents(figmaContext)), figmaContext),
+        figmaContext,
+      ),
+    );
+    const combined = [...scopedEvents];
+    const seen = new Set(combined.map((event) => `${event.page}|${event.area}|${event.eventName}`));
+    const desiredCount = Math.min(maximumEventCount, Math.max(minimumEventCount, Math.min(eventCountTarget.preferred, fallbackEvents.length)));
+
+    for (const fallbackEvent of fallbackEvents) {
+      if (combined.length >= desiredCount) {
+        break;
+      }
+
+      const key = `${fallbackEvent.page}|${fallbackEvent.area}|${fallbackEvent.eventName}`;
+
+      if (seen.has(key)) {
+        continue;
+      }
+
+      combined.push(fallbackEvent);
+      seen.add(key);
+    }
+
+    return renumberEvents(rebalancePriorities(combined.slice(0, maximumEventCount)));
   }
 
   const fallbackEvents = limitPageExposureEvents(
@@ -3104,12 +3398,17 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "AI 分析失敗，請稍後再試";
+    const isFigmaAccessError = /figma/i.test(message) && /權限|權杖|授權|token|unauthorized|forbidden|invalid/i.test(message);
+
     return Response.json(
       {
-        code: "analysis_failed",
-        message: error instanceof Error ? error.message : "AI 分析失敗，請稍後再試",
+        code: isFigmaAccessError ? "invalid_figma_token" : "analysis_failed",
+        message,
+        oauthConfigured,
+        tokenSource: figmaTokenSource,
       },
-      { status: 502 },
+      { status: isFigmaAccessError ? 401 : 502 },
     );
   }
 }
