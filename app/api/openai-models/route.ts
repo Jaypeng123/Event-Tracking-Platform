@@ -47,7 +47,7 @@ export async function GET() {
         models: openAIModelOptions,
         availableModelIds: [],
         defaultModel: openAIModelOptions[0].id,
-        message: "尚未設定 OPENAI_API_KEY，因此無法確認 OpenAI 可用模型。",
+        message: "平台尚未啟用 OpenAI 模型清單，暫時無法使用 OpenAI 分析。",
       },
       { status: 503 },
     );

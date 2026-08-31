@@ -125,6 +125,7 @@ const supportedOpenAIModelIds = new Set<string>(openAIModelOptions.map((option) 
 const supportedGeminiModelIds = new Set<string>(geminiModelOptions.map((option) => option.id));
 const DEFAULT_OPENAI_MODEL = openAIModelOptions[0].id;
 const DEFAULT_GEMINI_MODEL = geminiModelOptions[0].id;
+const MISSING_AI_SERVICE_MESSAGE = "平台 AI 分析服務尚未啟用，請聯繫平台管理員完成設定後再試。";
 
 const contentModuleDefinitions: FigmaModuleDefinition[] = [
   { key: "medicine", label: "藥品", pattern: /藥品|藥物|用藥|服藥|配藥|medicine|medication|drug/i },
@@ -2484,35 +2485,22 @@ export async function POST(request: Request) {
     );
   }
 
-  if (requestedProvider === "openai" && !openAIKey) {
-    return Response.json(
-      {
-        code: "missing_openai_key",
-        message: "已選擇 OpenAI 模型，但尚未設定 OPENAI_API_KEY。請在部署環境變數加入 OpenAI API key 後再分析。",
-      },
-      { status: 503 },
-    );
-  }
-
-  if (requestedProvider === "gemini" && !geminiKey) {
-    return Response.json(
-      {
-        code: "missing_gemini_key",
-        message: "已選擇 Gemini 模型，但尚未設定 GEMINI_API_KEY 或 GOOGLE_AI_API_KEY。請在部署環境變數加入 Google AI key 後再分析。",
-      },
-      { status: 503 },
-    );
-  }
-
   if (!geminiKey && !openAIKey) {
     return Response.json(
       {
         code: "missing_ai_key",
-        message: "尚未設定 GEMINI_API_KEY 或 OPENAI_API_KEY，因此不會產生假資料。請在部署環境變數加入 AI API key 後再分析。",
+        message: MISSING_AI_SERVICE_MESSAGE,
       },
       { status: 503 },
     );
   }
+
+  const effectiveProvider: ModelProvider =
+    requestedProvider === "openai" && !openAIKey && geminiKey
+      ? "gemini"
+      : requestedProvider === "gemini" && !geminiKey && openAIKey
+        ? "openai"
+        : requestedProvider;
 
   if (!figmaToken) {
     return Response.json(
@@ -2537,9 +2525,9 @@ export async function POST(request: Request) {
       | null = null;
     let providerError: unknown = null;
 
-    if (requestedProvider === "openai") {
+    if (effectiveProvider === "openai") {
       analysis = await analyzeWithOpenAI(requestBody, figmaContext, openAIKey as string, selectedOpenAIModel);
-    } else if (requestedProvider === "gemini") {
+    } else if (effectiveProvider === "gemini") {
       analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey as string, selectedGeminiModel);
     } else if (geminiKey) {
       try {
