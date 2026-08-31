@@ -106,8 +106,8 @@ type TrackingEventTemplate = {
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const GEMINI_GENERATE_CONTENT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
-const MAX_FIGMA_NODES = 900;
-const MAX_FIGMA_CONTEXT_CHARS = 64000;
+const MAX_FIGMA_NODES = 1200;
+const MAX_FIGMA_CONTEXT_CHARS = 96000;
 const MAX_TRACKING_EVENTS = 80;
 const allowedPriorities = new Set<Priority>(["P0", "P1", "P2"]);
 const openAIModelOptions = [
@@ -128,13 +128,17 @@ const DEFAULT_GEMINI_MODEL = geminiModelOptions[0].id;
 const MISSING_AI_SERVICE_MESSAGE = "平台 AI 分析服務尚未啟用，請聯繫平台管理員完成設定後再試。";
 
 const contentModuleDefinitions: FigmaModuleDefinition[] = [
+  { key: "patient", label: "病患資訊", pattern: /病患|患者|個案|病房|病床|床號|patient|ward|bed/i },
   { key: "medicine", label: "藥品", pattern: /藥品|藥物|用藥|服藥|配藥|medicine|medication|drug/i },
-  { key: "specimen", label: "檢體", pattern: /檢體|檢驗|採檢|取送|送檢|sample|specimen|lab/i },
+  { key: "specimen", label: "檢體", pattern: /檢體|檢驗|採檢|取送|送檢|檢體清單|區域檢體|sample|specimen|lab/i },
   { key: "education", label: "衛教", pattern: /衛教|健康教育|宣教|health\s*education|education/i },
-  { key: "environment", label: "環境介紹", pattern: /環境介紹|居家環境|環境|environment/i },
-  { key: "progress", label: "執行進度", pattern: /執行進度|任務進度|進度|流程|progress|status/i },
+  { key: "environment", label: "環境介紹", pattern: /環境介紹|居家環境|環境|地點|位置|路線|environment|location|route/i },
+  { key: "progress", label: "執行進度", pattern: /執行進度|任務進度|進度|里程碑|時間軸|流程|progress/i },
+  { key: "task_status", label: "任務狀態", pattern: /任務狀態|狀態|超時|逾時|未交付|已交付|進行中|異常|status|timeout/i },
   { key: "schedule", label: "預約與時間", pattern: /預約|時間|日期|時段|排程|schedule|appointment|time|date/i },
-  { key: "assignee", label: "派工對象與負責範圍", pattern: /派工對象|任務對象|負責範圍|護理|人員|區域|assignee|owner/i },
+  { key: "assignee", label: "派工對象與負責範圍", pattern: /派工對象|任務對象|負責範圍|護理|護理師|醫師|醫療人員|人員|區域|assignee|owner|nurse/i },
+  { key: "handoff", label: "取送與交付", pattern: /取送|送達|交付|送出|送至|機器人|站點|handoff|delivery/i },
+  { key: "notification", label: "通知與提醒", pattern: /通知|提醒|訊息|警示|推播|notification|alert/i },
   { key: "exception", label: "異常處理", pattern: /異常|錯誤|失敗|逾時|未交付|error|fail|timeout|exception/i },
   { key: "completion", label: "交付完成", pattern: /交付|送達|完成|送出|提交|complete|submit|finish/i },
   { key: "search_filter", label: "搜尋與篩選", pattern: /搜尋|篩選|排序|查詢|search|filter|sort/i },
@@ -236,6 +240,141 @@ const dispatchWorkflowCoverageTemplates: TrackingEventTemplate[] = [
     analysisValue: "辨識建立派工失敗主要發生在哪些欄位或任務類型，判斷是否需要修正表單規則或提示方式。",
     metricCalculation: "建立派工錯誤或中途離開次數 ÷ 開始建立派工次數",
     pattern: /異常|錯誤|失敗|必填|驗證|流失|error|fail|required|invalid/i,
+  },
+];
+
+const dispatchDetailCoverageTemplates: TrackingEventTemplate[] = [
+  {
+    label: "病患資訊",
+    area: "病患資訊",
+    eventType: "Click",
+    metricName: "病患資訊查看率",
+    eventName: "view_dispatch_patient_info",
+    trigger: "點擊或切換至派工詳情中的病患資訊、病房或病床資料",
+    purpose: "了解醫護人員執行派工前是否需要核對病患識別與照護背景。",
+    analysisValue: "判斷病患資訊是否需要保留在派工詳情的主要資訊層級，並比較不同任務類型的查閱需求。",
+    metricCalculation: "病患資訊查看次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /病患|患者|個案|病房|病床|床號|patient|ward|bed/i,
+  },
+  {
+    label: "藥品",
+    area: "藥品配送資訊",
+    eventType: "Click",
+    metricName: "藥品資訊查看率",
+    eventName: "view_dispatch_medicine_info",
+    trigger: "點擊或切換至派工詳情中的藥品配送資訊",
+    purpose: "了解醫護人員處理派工時是否需要查看藥品內容、數量或配送細節。",
+    analysisValue: "判斷藥品資訊是否是派工詳情的核心查閱內容，並比較其與檢體、衛教等模組的使用差異。",
+    metricCalculation: "藥品資訊查看次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /藥品|藥物|用藥|服藥|配藥|medicine|medication|drug/i,
+  },
+  {
+    label: "檢體",
+    area: "檢體取送資訊",
+    eventType: "Click",
+    metricName: "檢體資訊查看率",
+    eventName: "view_dispatch_specimen_info",
+    trigger: "點擊或切換至派工詳情中的檢體取送資訊",
+    purpose: "了解醫護人員是否需要在派工執行前核對檢體、採檢或送檢內容。",
+    analysisValue: "判斷檢體資訊是否需要作為派工詳情的主要資訊模組，並辨識與藥品派送任務的使用差異。",
+    metricCalculation: "檢體資訊查看次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /檢體|檢驗|採檢|取送|送檢|sample|specimen|lab/i,
+  },
+  {
+    label: "衛教",
+    area: "衛教內容",
+    eventType: "Click",
+    metricName: "衛教內容查看率",
+    eventName: "view_dispatch_education_content",
+    trigger: "點擊或切換至派工詳情中的衛教內容",
+    purpose: "了解醫護人員處理派工時是否需要查看或交付衛教內容。",
+    analysisValue: "判斷衛教是否需要保留為派工詳情的獨立任務內容，並比較其在不同派工情境的使用比例。",
+    metricCalculation: "衛教內容查看次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /衛教|健康教育|宣教|health\s*education|education/i,
+  },
+  {
+    label: "環境介紹",
+    area: "環境介紹",
+    eventType: "Click",
+    metricName: "環境介紹查看率",
+    eventName: "view_dispatch_environment_info",
+    trigger: "點擊或切換至派工詳情中的環境介紹、地點或路線資訊",
+    purpose: "了解醫護人員是否依賴環境、地點或路線資訊完成派工。",
+    analysisValue: "判斷環境介紹是否需要維持在派工詳情的主要資訊層級，或可整併到地點與備註資訊。",
+    metricCalculation: "環境介紹查看次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /環境介紹|居家環境|環境|地點|位置|路線|environment|location|route/i,
+  },
+  {
+    label: "執行進度",
+    area: "執行進度",
+    eventType: "Click",
+    metricName: "執行進度查看率",
+    eventName: "view_dispatch_progress",
+    trigger: "點擊或切換至派工詳情中的執行進度、流程或時間軸資訊",
+    purpose: "了解醫護人員是否需要追蹤派工目前位置、進度與交付狀態。",
+    analysisValue: "判斷執行進度是否是派工詳情的核心使用情境，並比較其與其他資訊模組的優先順序。",
+    metricCalculation: "執行進度查看次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /執行進度|任務進度|進度|里程碑|時間軸|流程|progress/i,
+  },
+  {
+    label: "區域檢體清單",
+    area: "區域檢體清單",
+    eventType: "Click",
+    metricName: "區域檢體清單查看率",
+    eventName: "view_area_specimen_list",
+    trigger: "點擊或切換至派工詳情中的區域檢體清單",
+    purpose: "了解醫護人員是否需要依區域核對檢體任務與交付狀態。",
+    analysisValue: "判斷區域檢體清單是否支援現場核對與交付決策，並比較區域檢視與單筆派工資訊的使用差異。",
+    metricCalculation: "區域檢體清單查看次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /區域檢體|區域.*檢體|檢體清單|區域清單/i,
+  },
+  {
+    label: "任務狀態",
+    area: "任務狀態",
+    eventType: "Click",
+    metricName: "任務狀態查看率",
+    eventName: "view_dispatch_status",
+    trigger: "點擊或切換至派工詳情中的任務狀態、超時或異常資訊",
+    purpose: "了解醫護人員是否依賴任務狀態判斷下一步處理方式。",
+    analysisValue: "判斷狀態資訊是否足以支援派工處理決策，並比較正常、超時與異常任務的查閱需求。",
+    metricCalculation: "任務狀態查看次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /任務狀態|狀態|超時|逾時|未交付|已交付|進行中|異常|status|timeout/i,
+  },
+  {
+    label: "再次預約",
+    area: "再次預約",
+    eventType: "FlowComplete",
+    metricName: "再次預約完成率",
+    eventName: "complete_dispatch_reschedule",
+    trigger: "完成超時或未完成派工的再次預約流程",
+    purpose: "衡量醫護人員是否能順利補救未完成或超時的派工任務。",
+    analysisValue: "找出再次預約是否能承接異常任務，並判斷補救流程是否存在大量流失或卡點。",
+    metricCalculation: "再次預約成功次數 ÷ 開始再次預約次數 × 100%",
+    pattern: /再次預約|重新預約|改約|reschedule/i,
+  },
+  {
+    label: "交付完成",
+    area: "取送交付流程",
+    eventType: "FlowComplete",
+    metricName: "派工交付完成率",
+    eventName: "complete_dispatch_handoff",
+    trigger: "完成派工取送、送達或交付流程",
+    purpose: "衡量派工從查看詳情到實際完成交付的核心任務結果。",
+    analysisValue: "判斷派工交付流程是否能穩定完成，並找出不同任務類型或狀態下的完成差異。",
+    metricCalculation: "派工交付完成次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /取送|送達|交付|送出|送至|機器人|站點|handoff|delivery/i,
+  },
+  {
+    label: "異常處理",
+    area: "異常處理",
+    eventType: "ErrorDropoff",
+    metricName: "派工異常流失率",
+    eventName: "encounter_dispatch_exception",
+    trigger: "派工詳情中發生超時、異常、無法交付或處理失敗",
+    purpose: "找出派工任務在執行與交付階段最常發生問題的情境。",
+    analysisValue: "辨識異常主要集中在哪些任務狀態、區域或任務類型，判斷是否需要優先修正流程或提醒機制。",
+    metricCalculation: "派工異常或流失次數 ÷ 派工詳情頁瀏覽次數 × 100%",
+    pattern: /異常|錯誤|失敗|超時|逾時|無法|中止|exception|error|fail|timeout/i,
   },
 ];
 
@@ -519,7 +658,7 @@ function describeNode(node: FigmaNode, path: string) {
 }
 
 function isPriorityFigmaNodeDescription(value: string) {
-  return /派工|藥品|藥物|用藥|檢體|檢驗|衛教|健康教育|環境介紹|環境|交付|配送|取送|耗材|器材|執行進度|區域檢體|檢體清單|藥品清單|任務詳情|dispatch|specimen|sample|medicine|medication|education|environment/i.test(
+  return /派工|任務|病患|患者|個案|病房|病床|床號|護理|醫師|藥品|藥物|用藥|檢體|檢驗|衛教|健康教育|環境介紹|環境|地點|位置|路線|交付|配送|取送|送達|耗材|器材|執行進度|任務狀態|超時|逾時|再次預約|通知|提醒|區域檢體|檢體清單|藥品清單|任務詳情|dispatch|patient|specimen|sample|medicine|medication|education|environment|handoff|delivery/i.test(
     value,
   );
 }
@@ -755,37 +894,36 @@ function buildPartialFigmaContext(requestBody: AnalyzeRequest, reason: string): 
   };
 }
 
-function isCaseDetailContext(figmaContext: FigmaContext) {
-  const haystack = [
+function buildFocusedFigmaHaystack(figmaContext: FigmaContext) {
+  const includeAllPages =
+    figmaContext.targetType === "DOCUMENT" ||
+    figmaContext.targetType === "PARTIAL_FIGMA_CONTEXT" ||
+    figmaContext.targetName === figmaContext.fileName;
+
+  return [
     figmaContext.fileName,
     figmaContext.targetName,
-    ...figmaContext.pages,
-    ...figmaContext.nodes.slice(0, 40),
+    ...(includeAllPages ? figmaContext.pages : []),
+    ...figmaContext.contentCoverage.detectedModules,
+    ...figmaContext.contentCoverage.moduleInventory.flatMap((module) => [module.label, ...module.examples]),
+    ...figmaContext.nodes,
   ].join(" ");
+}
+
+function isCaseDetailContext(figmaContext: FigmaContext) {
+  const haystack = buildFocusedFigmaHaystack(figmaContext);
 
   return /個案詳情|病患詳情|病人詳情|病歷詳情|patient\s*detail|case\s*detail/i.test(haystack);
 }
 
 function isDispatchDetailContext(figmaContext: FigmaContext) {
-  const haystack = [
-    figmaContext.fileName,
-    figmaContext.targetName,
-    ...figmaContext.pages,
-    ...figmaContext.contentCoverage.detectedModules,
-    ...figmaContext.nodes,
-  ].join(" ");
+  const haystack = buildFocusedFigmaHaystack(figmaContext);
 
   return /派工詳情|派工任務詳情|任務詳情|dispatch\s*detail|task\s*detail/i.test(haystack);
 }
 
 function isDispatchCreationContext(figmaContext: FigmaContext) {
-  const haystack = [
-    figmaContext.fileName,
-    figmaContext.targetName,
-    ...figmaContext.pages,
-    ...figmaContext.contentCoverage.detectedModules,
-    ...figmaContext.nodes,
-  ].join(" ");
+  const haystack = buildFocusedFigmaHaystack(figmaContext);
 
   return /建立派工|新增派工|建立任務|新增任務|create\s*dispatch|dispatch\s*creation|new\s*dispatch|new\s*task/i.test(
     haystack,
@@ -794,9 +932,26 @@ function isDispatchCreationContext(figmaContext: FigmaContext) {
 
 function getEventCountTarget(figmaContext: FigmaContext) {
   const contentScore = figmaContext.nodeCount + figmaContext.textCount * 2;
+  const detectedModuleCount = figmaContext.contentCoverage.detectedModules.length;
   const isCaseDetail = isCaseDetailContext(figmaContext);
   const isDispatchDetail = isDispatchDetailContext(figmaContext);
   const isDispatchCreation = isDispatchCreationContext(figmaContext);
+
+  if (isDispatchDetail) {
+    if (figmaContext.isPartial) {
+      return { minimum: 7, preferred: 12, maximum: 22 };
+    }
+
+    if (detectedModuleCount >= 8 || contentScore >= 320 || figmaContext.nodeCount >= 240 || figmaContext.textCount >= 70) {
+      return { minimum: 10, preferred: 16, maximum: 28 };
+    }
+
+    if (detectedModuleCount >= 5 || contentScore >= 240 || figmaContext.nodeCount >= 180 || figmaContext.textCount >= 55) {
+      return { minimum: 8, preferred: 14, maximum: 24 };
+    }
+
+    return { minimum: 6, preferred: 10, maximum: 18 };
+  }
 
   if (isDispatchCreation) {
     if (figmaContext.isPartial) {
@@ -808,18 +963,6 @@ function getEventCountTarget(figmaContext: FigmaContext) {
     }
 
     return { minimum: 7, preferred: 12, maximum: 20 };
-  }
-
-  if (isDispatchDetail) {
-    if (figmaContext.isPartial) {
-      return { minimum: 6, preferred: 10, maximum: 18 };
-    }
-
-    if (contentScore >= 240 || figmaContext.nodeCount >= 180 || figmaContext.textCount >= 55) {
-      return { minimum: 8, preferred: 14, maximum: 22 };
-    }
-
-    return { minimum: 6, preferred: 10, maximum: 18 };
   }
 
   if (isCaseDetail) {
@@ -908,7 +1051,7 @@ function buildInstructions() {
     "figmaInspection.contentCoverage 是系統整理出的內容模組盤點；輸出前必須逐項檢查 detectedModules 與 moduleInventory，避免只分析其中一個模組。",
     "請完整閱讀 figmaInspection.nodes 的所有摘要，不可只看前幾筆、上半部畫面或第一個可見頁籤；如果摘要中出現頁籤、卡片、下方區塊或不同任務模組，都要先納入內部盤點。",
     "個案詳情、病患詳情這類頁面通常包含多個任務與資訊模組，請以較高層級覆蓋個案摘要、待辦/追蹤、風險警示、量測趨勢、健康計畫、紀錄、通知、報告、頁籤切換、編輯與匯出等可從畫面推論的重點，不要逐欄位拆埋點。",
-    "派工詳情、任務詳情這類頁面必須特別檢查是否有藥品、檢體、衛教、環境介紹、執行進度、區域檢體清單、異常處理、再次預約與交付完成等模組；若稿件中存在，請用高層級事件覆蓋，不可只分析逾時或交付狀態。",
+    "派工詳情、任務詳情這類頁面必須特別檢查是否有病患資訊、藥品、檢體、衛教、環境介紹、執行進度、任務狀態、區域檢體清單、取送與交付流程、異常處理、再次預約與交付完成等模組；若稿件中存在，請用高層級事件覆蓋，不可只分析藥品、逾時或任何單一頁籤。",
     "建立派工、新增派工、建立任務這類流程頁必須檢查基本資料、派工對象、預約時間、藥品、檢體、衛教、環境介紹、驗證錯誤與送出完成；若稿件中存在多個模組，事件應分散覆蓋主要模組，不可只集中在藥品或任一單一區塊。",
     "每一筆事件都必須通過決策價值檢查：若數據變高或變低，都能幫團隊決定保留、降低層級、整併、調整入口、修正流程或補強功能，才值得列入。",
     "若某功能屬於基本可用性或必要導覽，即使使用率低也不能合理移除或弱化，例如返回鍵、上一頁、取消、關閉提示、關閉彈窗、收合展開、日期前後導覽，第一階段不要為它建立埋點。",
@@ -973,8 +1116,10 @@ function buildPrompt(requestBody: AnalyzeRequest, figmaContext: FigmaContext) {
         `請依實際需要產出第一階段追蹤事件，通常可參考 ${eventCountTarget.minimum} 到 ${eventCountTarget.preferred} 筆，但這不是硬性數量；不得用微互動、必要導覽或靜態資訊湊數。`,
         "必須覆蓋 figmaInspection.nodes 中能看出的主要任務、核心入口與可決策流程；大型工作頁可以比一般頁多，但每筆都要能回答明確產品問題。",
         "輸出前請先讀取 figmaInspection.contentCoverage.moduleInventory；若多個模組都有節點例子，請逐項判斷是否需要埋點，不可只輸出第一個或最多節點的模組。",
+        "正式輸出前，請先在內部建立 content inventory：盤點選定 Page 的頁面標題、頁籤、主要卡片、資訊區、彈窗、狀態、錯誤、列表與主要 CTA；這份盤點不用輸出，但事件清單必須反映其中有產品決策價值的主模組。",
         "輸出前必須完整掃描 figmaInspection.nodes，不可只根據前段節點或第一個畫面區塊產出；若後段節點出現重要模組，也要納入分析。",
-        "若分析範圍是派工詳情或任務詳情，請逐一確認藥品、檢體、衛教、環境介紹、執行進度、區域檢體清單、異常處理、再次預約與交付完成是否出現在稿件中；出現就應以高層級埋點覆蓋其中有產品決策價值的項目。",
+        "若分析範圍是派工詳情或任務詳情，請逐一確認病患資訊、藥品、檢體、衛教、環境介紹、執行進度、任務狀態、區域檢體清單、取送與交付流程、異常處理、再次預約與交付完成是否出現在稿件中；出現就應以高層級埋點覆蓋其中有產品決策價值的項目。",
+        "派工詳情不能只針對藥品、逾時或任何單一頁籤輸出；如果稿件同時出現多個資訊模組，請讓事件分散覆蓋主要模組，並合併過細的欄位與靜態資訊。",
         "若分析範圍是建立派工或新增派工，請逐一確認藥品、檢體、衛教、環境介紹、預約時間、派工對象、必填驗證與送出完成是否出現在稿件中；不能只因藥品模組最先出現或文字最多，就忽略其他模組。",
         "請先把畫面分成頁面層級、核心任務入口、搜尋/篩選、狀態/頁籤切換、建立/編輯、流程完成、下載/匯出、錯誤/流失等類別，再為每個有明確產品決策價值的類別建立事件。",
         "輸出前逐筆檢查：如果這個事件的低使用率不會讓團隊考慮移除、降級、整併、調整入口或修正流程，就不要列入。",
@@ -2054,19 +2199,19 @@ function eventCoversTemplate(event: TrackingEvent, template: TrackingEventTempla
 }
 
 function getDetectedDispatchWorkflowTemplates(figmaContext: FigmaContext) {
-  if (!isDispatchCreationContext(figmaContext)) {
+  const templateSet = isDispatchDetailContext(figmaContext)
+    ? dispatchDetailCoverageTemplates
+    : isDispatchCreationContext(figmaContext)
+      ? dispatchWorkflowCoverageTemplates
+      : [];
+
+  if (!templateSet.length) {
     return [];
   }
 
-  const haystack = [
-    figmaContext.fileName,
-    figmaContext.targetName,
-    ...figmaContext.contentCoverage.detectedModules,
-    ...figmaContext.contentCoverage.moduleInventory.flatMap((module) => [module.label, ...module.examples]),
-    ...figmaContext.nodes,
-  ].join(" ");
+  const haystack = buildFocusedFigmaHaystack(figmaContext);
 
-  return dispatchWorkflowCoverageTemplates.filter((template) => template.pattern.test(haystack));
+  return templateSet.filter((template) => template.pattern.test(haystack));
 }
 
 function enforceDetectedModuleCoverage(events: TrackingEvent[], figmaContext: FigmaContext) {
@@ -2252,13 +2397,15 @@ function limitPageExposureEvents(events: TrackingEvent[]) {
 function ensureUsefulEvents(events: TrackingEvent[], figmaContext: FigmaContext) {
   const eventCountTarget = getEventCountTarget(figmaContext);
   const maximumEventCount = Math.min(eventCountTarget.maximum, MAX_TRACKING_EVENTS);
-  const scopedEvents = enforceDetectedModuleCoverage(limitPageExposureEvents(events), figmaContext);
+  const scopedEvents = limitPageExposureEvents(enforceDetectedModuleCoverage(limitPageExposureEvents(events), figmaContext));
 
   if (scopedEvents.length > 0) {
     return renumberEvents(rebalancePriorities(scopedEvents.slice(0, maximumEventCount)));
   }
 
-  const fallbackEvents = enforceDetectedModuleCoverage(limitPageExposureEvents(buildFallbackEvents(figmaContext)), figmaContext);
+  const fallbackEvents = limitPageExposureEvents(
+    enforceDetectedModuleCoverage(limitPageExposureEvents(buildFallbackEvents(figmaContext)), figmaContext),
+  );
 
   return renumberEvents(
     rebalancePriorities(fallbackEvents.slice(0, Math.min(fallbackEvents.length, maximumEventCount))),
