@@ -102,7 +102,7 @@ function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
     return "你的 Figma 授權無法讀取這份檔案。請確認授權的 Figma 帳號能開啟此檔案，或重新授權後再試一次。";
   }
 
-  return "站台預設 Figma 權限無法讀取這份檔案。請確認檔案已分享給平台帳號，或改用 Figma OAuth 讓使用者授權自己的檔案。";
+  return "站台預設 Figma 權限無法讀取這份檔案。請確認檔案已分享給產生站台權限的 Figma 帳號；若要讓使用者授權自己的檔案，需等 Figma OAuth app 通過公開審核後才能使用。";
 }
 
 async function resolveFigmaToken(request: Request, requestToken: unknown) {
@@ -200,6 +200,8 @@ export async function POST(request: Request) {
         message: oauthConfigured
           ? "尚未完成 Figma 授權，請先允許平台讀取 Figma 檔案。"
           : "尚未設定 Figma OAuth 或站台預設 Figma 權限，因此無法讀取 Figma Page 清單。",
+        oauthConfigured,
+        tokenSource,
       },
       { status: 503 },
     );
@@ -217,6 +219,8 @@ export async function POST(request: Request) {
           {
             code: "invalid_figma_token",
             message: getFigmaAuthErrorMessage(tokenSource),
+            oauthConfigured,
+            tokenSource,
           },
           { status: 401 },
         );

@@ -126,11 +126,14 @@ type AnalysisModelOption = {
 };
 
 type FigmaPagesResponse = {
+  code?: string;
   fileName?: string;
   mode?: Extract<FigmaSourceMode, "file" | "node">;
   nodeId?: string;
   nodeName?: string;
   pages?: FigmaPage[];
+  oauthConfigured?: boolean;
+  tokenSource?: "user" | "oauth" | "site";
   message?: string;
 };
 
@@ -148,6 +151,8 @@ type FigmaOAuthStartResponse = {
 type FigmaPagesLoadResult = {
   pages: FigmaPage[];
   sourceInfo: FigmaSourceInfo;
+  authErrorMessage?: string;
+  requiresOAuth?: boolean;
 };
 
 const EMPTY_FIGMA_SOURCE: FigmaSourceInfo = {
@@ -2383,7 +2388,16 @@ export default function Home() {
       const result = await readFigmaPagesResponse(response);
 
       if (!response.ok) {
-        throw new Error(result.message || "無法讀取 Figma Page 清單");
+        const error = new Error(result.message || "無法讀取 Figma Page 清單") as Error & {
+          code?: string;
+          oauthConfigured?: boolean;
+          tokenSource?: FigmaPagesResponse["tokenSource"];
+        };
+
+        error.code = result.code;
+        error.oauthConfigured = result.oauthConfigured;
+        error.tokenSource = result.tokenSource;
+        throw error;
       }
 
       const pages = Array.isArray(result.pages) ? result.pages.map(normalizeFigmaPage) : [];
@@ -2410,6 +2424,17 @@ export default function Home() {
       return { pages, sourceInfo };
     } catch (error) {
       const message = error instanceof Error ? error.message : "無法讀取 Figma Page 清單";
+      const figmaError = error as Error & {
+        code?: string;
+        oauthConfigured?: boolean;
+        tokenSource?: FigmaPagesResponse["tokenSource"];
+      };
+      const shouldOfferOAuth = Boolean(
+        !figmaOAuthStatus.connected &&
+          (figmaError.oauthConfigured ?? figmaOAuthStatus.configured) &&
+          (figmaError.code === "missing_figma_token" ||
+            (figmaError.code === "invalid_figma_token" && figmaError.tokenSource === "site")),
+      );
       const fallbackResult = createLocalFigmaPagesFallback(nextInfo);
 
       if (fallbackResult) {
@@ -2426,7 +2451,7 @@ export default function Home() {
             ? "已先匯入連結；完成 Figma 授權後可讀取完整內容"
             : "已先使用連結資訊匯入",
         );
-        return fallbackResult;
+        return { ...fallbackResult, authErrorMessage: message, requiresOAuth: shouldOfferOAuth };
       }
 
       setLoadedPages([]);
@@ -2435,7 +2460,7 @@ export default function Home() {
       setHasImportedPages(false);
       setPageLoadError(message);
       setAnalysisState("");
-      return emptyResult;
+      return { ...emptyResult, authErrorMessage: message, requiresOAuth: shouldOfferOAuth };
     } finally {
       setIsLoadingPages(false);
     }
@@ -2464,7 +2489,7 @@ export default function Home() {
     setQuery("");
     setAnalysisState("");
 
-    const { pages, sourceInfo } = await loadFigmaPages(nextInfo);
+    const { pages, sourceInfo, authErrorMessage, requiresOAuth } = await loadFigmaPages(nextInfo);
 
     if (pages.length) {
       const resolvedSourceId = getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, sourceInfo);
@@ -2477,6 +2502,14 @@ export default function Home() {
       }
 
       saveImportedSource(sourceInfo, pages);
+      if (requiresOAuth) {
+        openFigmaOAuthPrompt(sourceInfo, authErrorMessage || "");
+      }
+      return;
+    }
+
+    if (requiresOAuth) {
+      openFigmaOAuthPrompt(nextInfo, authErrorMessage || "");
     }
   }
 
@@ -2511,16 +2544,6 @@ export default function Home() {
     if (duplicatedSource) {
       applyImportedSourceToState(duplicatedSource);
       showToast("已切換到這個 Figma 來源");
-      return;
-    }
-
-    const currentOAuthStatus = figmaOAuthStatus.isLoaded ? figmaOAuthStatus : await refreshFigmaOAuthStatus();
-
-    if (!currentOAuthStatus.connected) {
-      openFigmaOAuthPrompt(
-        nextInfo,
-        currentOAuthStatus.configured ? "" : FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE,
-      );
       return;
     }
 
