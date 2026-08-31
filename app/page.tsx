@@ -45,6 +45,14 @@ type LibraryColumnKey =
   | "source"
   | "actions";
 
+type StickyTableHeaderState = {
+  kind: "analysis" | "library";
+  left: number;
+  width: number;
+  tableWidth: number;
+  scrollLeft: number;
+};
+
 type FigmaPage = {
   id: string;
   name: string;
@@ -1068,10 +1076,13 @@ export default function Home() {
   const [libraryColumnWidths, setLibraryColumnWidths] =
     useState<Record<LibraryColumnKey, number>>(defaultLibraryColumnWidths);
   const [resizingLibraryColumn, setResizingLibraryColumn] = useState<LibraryColumnKey | null>(null);
+  const [stickyTableHeader, setStickyTableHeader] = useState<StickyTableHeaderState | null>(null);
   const analysisRunId = useRef(0);
   const oauthResumeRef = useRef(false);
   const applyFigmaSourceRef = useRef<((nextInfo: FigmaSourceInfo) => Promise<void>) | null>(null);
   const cachedAnalysisResultsRef = useRef<Record<string, CachedAnalysisResult>>({});
+  const analysisTableWrapRef = useRef<HTMLDivElement | null>(null);
+  const libraryTableWrapRef = useRef<HTMLDivElement | null>(null);
   const pageSelectRef = useRef<HTMLDivElement | null>(null);
   const projectMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceMenuRef = useRef<HTMLDivElement | null>(null);
@@ -1530,6 +1541,84 @@ export default function Home() {
       return typeMatch && priorityMatch && sourceMatch && queryMatch;
     });
   }, [currentProjectLibraryRows, effectiveLibrarySourceFilter, libraryPriorityFilter, libraryQuery, libraryTypeFilter]);
+
+  useEffect(() => {
+    let animationFrame = 0;
+
+    function updateStickyTableHeader() {
+      animationFrame = 0;
+
+      const kind = isLibraryOpen ? "library" : "analysis";
+      const tableWrap = isLibraryOpen ? libraryTableWrapRef.current : analysisTableWrapRef.current;
+      const hasRows = isLibraryOpen ? libraryVisibleRows.length > 0 : visibleRows.length > 0;
+      const table = tableWrap?.querySelector("table");
+      const tableHead = table?.querySelector("thead");
+
+      if (!tableWrap || !table || !tableHead || !hasRows) {
+        setStickyTableHeader((currentHeader) => (currentHeader ? null : currentHeader));
+        return;
+      }
+
+      const wrapRect = tableWrap.getBoundingClientRect();
+      const tableHeadRect = tableHead.getBoundingClientRect();
+      const shouldStick = wrapRect.top <= 0 && wrapRect.bottom > tableHeadRect.height;
+
+      if (!shouldStick) {
+        setStickyTableHeader((currentHeader) => (currentHeader ? null : currentHeader));
+        return;
+      }
+
+      const left = Math.max(wrapRect.left, 0);
+      const right = Math.min(wrapRect.right, window.innerWidth);
+      const nextHeader: StickyTableHeaderState = {
+        kind,
+        left,
+        width: Math.max(0, right - left),
+        tableWidth: table.scrollWidth || table.getBoundingClientRect().width,
+        scrollLeft: tableWrap.scrollLeft,
+      };
+
+      setStickyTableHeader((currentHeader) => {
+        if (
+          currentHeader &&
+          currentHeader.kind === nextHeader.kind &&
+          Math.abs(currentHeader.left - nextHeader.left) < 0.5 &&
+          Math.abs(currentHeader.width - nextHeader.width) < 0.5 &&
+          Math.abs(currentHeader.tableWidth - nextHeader.tableWidth) < 0.5 &&
+          Math.abs(currentHeader.scrollLeft - nextHeader.scrollLeft) < 0.5
+        ) {
+          return currentHeader;
+        }
+
+        return nextHeader;
+      });
+    }
+
+    function scheduleStickyTableHeaderUpdate() {
+      if (animationFrame) {
+        return;
+      }
+
+      animationFrame = window.requestAnimationFrame(updateStickyTableHeader);
+    }
+
+    const activeTableWrap = isLibraryOpen ? libraryTableWrapRef.current : analysisTableWrapRef.current;
+
+    scheduleStickyTableHeaderUpdate();
+    window.addEventListener("scroll", scheduleStickyTableHeaderUpdate, { passive: true });
+    window.addEventListener("resize", scheduleStickyTableHeaderUpdate);
+    activeTableWrap?.addEventListener("scroll", scheduleStickyTableHeaderUpdate, { passive: true });
+
+    return () => {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+
+      window.removeEventListener("scroll", scheduleStickyTableHeaderUpdate);
+      window.removeEventListener("resize", scheduleStickyTableHeaderUpdate);
+      activeTableWrap?.removeEventListener("scroll", scheduleStickyTableHeaderUpdate);
+    };
+  }, [isLibraryOpen, libraryColumnWidths, libraryVisibleRows.length, visibleRows.length]);
 
   const summary = useMemo(() => {
     const rows = hasAppliedSource && hasAnalyzed ? analysisRows : [];
@@ -2003,6 +2092,111 @@ export default function Home() {
           />
         </span>
       </th>
+    );
+  }
+
+  function renderAnalysisColgroup() {
+    return (
+      <colgroup>
+        <col className="event-col-select" />
+        <col className="event-col-id" />
+        <col className="event-col-priority" />
+        <col className="event-col-page" />
+        <col className="event-col-metric-name" />
+        <col className="event-col-purpose" />
+        <col className="event-col-analysis" />
+        <col className="event-col-trigger" />
+        <col className="event-col-metric" />
+        <col className="event-col-properties" />
+      </colgroup>
+    );
+  }
+
+  function renderAnalysisHeaderRow() {
+    return (
+      <tr>
+        <th className="select-column">
+          <span className="sr-only">選取</span>
+        </th>
+        <th>編號</th>
+        <th>優先級</th>
+        <th>頁面/區塊</th>
+        <th>指標名稱</th>
+        <th>追蹤目的</th>
+        <th>分析原因</th>
+        <th>埋點事件</th>
+        <th>指標計算</th>
+        <th>屬性參數</th>
+      </tr>
+    );
+  }
+
+  function renderStickyTableHeader() {
+    if (!stickyTableHeader) {
+      return null;
+    }
+
+    const stickyStyle = {
+      left: `${stickyTableHeader.left}px`,
+      width: `${stickyTableHeader.width}px`,
+    };
+    const scrollStyle = {
+      transform: `translateX(-${stickyTableHeader.scrollLeft}px)`,
+      width: `${stickyTableHeader.tableWidth}px`,
+    };
+
+    if (stickyTableHeader.kind === "library") {
+      const actionWidth = libraryColumnWidths.actions ?? libraryColumnLookup.actions.width;
+      const scrollableWidth = Math.max(0, stickyTableHeader.tableWidth - actionWidth);
+      const visibleActionLeft = stickyTableHeader.width - actionWidth;
+
+      return (
+        <div className="sticky-table-header sticky-library-header" style={stickyStyle} aria-hidden="true">
+          <div className="sticky-table-header-scroll" style={{ ...scrollStyle, width: `${scrollableWidth}px` }}>
+            <table className="library-table sticky-table-clone" style={{ minWidth: `${scrollableWidth}px`, width: `${scrollableWidth}px` }}>
+              <colgroup>
+                {libraryColumnConfig
+                  .filter((column) => column.key !== "actions")
+                  .map((column) => (
+                    <col key={column.key} style={{ width: `${libraryColumnWidths[column.key]}px` }} />
+                  ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  {libraryColumnConfig
+                    .filter((column) => column.key !== "actions")
+                    .map((column) => (
+                      <th key={column.key} scope="col">
+                        {column.label}
+                      </th>
+                    ))}
+                </tr>
+              </thead>
+            </table>
+          </div>
+          <table
+            className="library-table sticky-table-clone sticky-library-action-head"
+            style={{ left: `${Math.max(0, visibleActionLeft)}px`, width: `${actionWidth}px` }}
+          >
+            <thead>
+              <tr>
+                <th scope="col">操作</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+      );
+    }
+
+    return (
+      <div className="sticky-table-header" style={stickyStyle} aria-hidden="true">
+        <div className="sticky-table-header-scroll" style={scrollStyle}>
+          <table className="event-table sticky-table-clone" style={{ minWidth: `${stickyTableHeader.tableWidth}px`, width: `${stickyTableHeader.tableWidth}px` }}>
+            {renderAnalysisColgroup()}
+            <thead>{renderAnalysisHeaderRow()}</thead>
+          </table>
+        </div>
+      </div>
     );
   }
 
@@ -3018,7 +3212,7 @@ export default function Home() {
           </div>
 
           {libraryVisibleRows.length ? (
-            <div className="library-table-wrap">
+            <div className="library-table-wrap" ref={libraryTableWrapRef}>
               <table className={`library-table ${resizingLibraryColumn ? "is-resizing" : ""}`}>
                 <colgroup>
                   {libraryColumnConfig.map((column) => (
@@ -3083,6 +3277,7 @@ export default function Home() {
           )}
         </section>
 
+        {renderStickyTableHeader()}
         {libraryDraft ? (
           <div className="library-drawer-layer" role="dialog" aria-modal="true" aria-label="編輯埋點事件">
             <button className="drawer-scrim" type="button" onClick={handleCancelLibraryEdit} aria-label="關閉編輯抽屜" />
@@ -3614,35 +3809,11 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="event-table-wrap">
+          <div className="event-table-wrap" ref={analysisTableWrapRef}>
             <table className="event-table">
-              <colgroup>
-                <col className="event-col-select" />
-                <col className="event-col-id" />
-                <col className="event-col-priority" />
-                <col className="event-col-page" />
-                <col className="event-col-metric-name" />
-                <col className="event-col-purpose" />
-                <col className="event-col-analysis" />
-                <col className="event-col-trigger" />
-                <col className="event-col-metric" />
-                <col className="event-col-properties" />
-              </colgroup>
+              {renderAnalysisColgroup()}
               <thead>
-                <tr>
-                  <th className="select-column">
-                    <span className="sr-only">選取</span>
-                  </th>
-                  <th>編號</th>
-                  <th>優先級</th>
-                  <th>頁面/區塊</th>
-                  <th>指標名稱</th>
-                  <th>追蹤目的</th>
-                  <th>分析原因</th>
-                  <th>埋點事件</th>
-                  <th>指標計算</th>
-                  <th>屬性參數</th>
-                </tr>
+                {renderAnalysisHeaderRow()}
               </thead>
               <tbody>
                 {visibleRows.length === 0 ? (
@@ -3700,6 +3871,7 @@ export default function Home() {
           </div>
         </section>
 
+        {renderStickyTableHeader()}
         {renderProjectModal()}
         {renderProjectDeleteConfirm()}
         {renderFigmaOAuthPrompt()}
