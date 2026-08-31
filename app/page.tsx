@@ -3203,7 +3203,7 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell planner-shell">
+    <main className="app-shell planner-shell planner-workspace-shell">
       <header className="topbar">
         <div className="topbar-title">
           <button className="planner-back-icon topbar-back-icon" type="button" onClick={handleReturnHome} aria-label="返回首頁">
