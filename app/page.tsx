@@ -1,6 +1,6 @@
 "use client";
 
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type TrackingEvent = {
@@ -2095,6 +2095,33 @@ export default function Home() {
     );
   }
 
+  function handleTableWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      return;
+    }
+
+    const deltaY =
+      event.deltaMode === 1
+        ? event.deltaY * 16
+        : event.deltaMode === 2
+          ? event.deltaY * window.innerHeight
+          : event.deltaY;
+
+    if (!deltaY) {
+      return;
+    }
+
+    const maxScrollTop = document.documentElement.scrollHeight - window.innerHeight;
+    const nextScrollTop = Math.max(0, Math.min(window.scrollY + deltaY, maxScrollTop));
+
+    if (Math.abs(nextScrollTop - window.scrollY) < 0.5) {
+      return;
+    }
+
+    event.preventDefault();
+    window.scrollTo({ top: nextScrollTop, behavior: "auto" });
+  }
+
   function renderAnalysisColgroup() {
     return (
       <colgroup>
@@ -3212,7 +3239,7 @@ export default function Home() {
           </div>
 
           {libraryVisibleRows.length ? (
-            <div className="library-table-wrap" ref={libraryTableWrapRef}>
+            <div className="library-table-wrap" ref={libraryTableWrapRef} onWheel={handleTableWheel}>
               <table className={`library-table ${resizingLibraryColumn ? "is-resizing" : ""}`}>
                 <colgroup>
                   {libraryColumnConfig.map((column) => (
@@ -3809,7 +3836,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="event-table-wrap" ref={analysisTableWrapRef}>
+          <div className="event-table-wrap" ref={analysisTableWrapRef} onWheel={handleTableWheel}>
             <table className="event-table">
               {renderAnalysisColgroup()}
               <thead>

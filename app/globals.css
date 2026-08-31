@@ -1177,68 +1177,62 @@ select:focus {
 .floating-cube {
   align-items: center;
   animation: cubeFloat 5.5s ease-in-out infinite;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgb(223 255 231 / 24%);
-  border-radius: 30px;
-  box-shadow:
-    0 30px 70px rgb(0 0 0 / 32%),
-    inset 0 1px 0 rgb(255 255 255 / 20%),
-    inset 0 -18px 42px rgb(26 107 63 / 16%);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 22px;
+  box-shadow: 0 28px 54px rgb(0 0 0 / 28%);
   display: grid;
-  height: 112px;
+  height: 78px;
   justify-content: center;
   position: absolute;
-  width: 112px;
+  width: 78px;
   z-index: 3;
 }
 
 .figma-cube {
-  --cube-rotate: -13deg;
+  --cube-rotate: -14deg;
   --cube-x: 0px;
   --cube-y: 0px;
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 17%), rgb(101 225 145 / 7%)),
-    rgb(57 92 70 / 22%);
-  left: clamp(16px, 4.2vw, 56px);
-  top: clamp(4px, 2vw, 30px);
+  background: rgb(75 222 128 / 12%);
+  left: -86px;
+  top: -24px;
 }
 
 .figma-cube span {
   border-radius: 999px;
-  filter: drop-shadow(0 8px 14px rgb(0 0 0 / 22%));
-  height: 25px;
+  height: 18px;
   position: absolute;
-  width: 25px;
+  width: 18px;
 }
 
 .figma-cube span:nth-child(1) {
   background: #ff6b45;
-  left: 42px;
-  top: 34px;
+  left: 30px;
+  top: 24px;
 }
 
 .figma-cube span:nth-child(2) {
   background: #ffb64a;
-  left: 61px;
-  top: 34px;
+  left: 44px;
+  top: 24px;
 }
 
 .figma-cube span:nth-child(3) {
   background: #9b6cff;
-  left: 42px;
-  top: 54px;
+  left: 30px;
+  top: 40px;
 }
 
 .figma-cube span:nth-child(4) {
   background: #57a9ff;
-  left: 61px;
-  top: 54px;
+  left: 44px;
+  top: 40px;
 }
 
 .figma-cube span:nth-child(5) {
   background: #55dc92;
-  left: 42px;
-  top: 74px;
+  left: 30px;
+  top: 56px;
 }
 
 .icon-button {
@@ -1367,7 +1361,8 @@ select:disabled {
   border-top: 1px solid var(--line);
   flex: 0 0 auto;
   min-height: 0;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   overflow-x: auto;
   overflow-y: visible;
 }
@@ -2715,7 +2710,8 @@ select:disabled {
   border-top: 1px solid var(--line);
   flex: 0 0 auto;
   min-height: 0;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   overflow-x: auto;
   overflow-y: visible;
 }
