@@ -1554,7 +1554,7 @@ select:disabled {
   justify-content: center;
   padding: 20px;
   position: fixed;
-  z-index: 40;
+  z-index: 240;
 }
 
 .confirm-dialog {
