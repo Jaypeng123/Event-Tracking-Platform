@@ -1838,6 +1838,18 @@ select:disabled {
   white-space: nowrap;
 }
 
+.figma-connect-notice {
+  gap: 8px;
+}
+
+.figma-connect-notice .primary-button {
+  margin-top: 8px;
+}
+
+.source-connect-error {
+  color: var(--red-700) !important;
+}
+
 .source-card code {
   max-height: 68px;
   overflow: hidden;
@@ -2081,64 +2093,6 @@ select:disabled {
 
 .project-name-field input {
   width: 100%;
-}
-
-.figma-oauth-dialog {
-  display: grid;
-  gap: 12px;
-  max-width: 520px;
-  width: min(520px, 100%);
-}
-
-.oauth-permission-list {
-  background: #f7faf6;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--muted);
-  display: grid;
-  font-size: 13px;
-  gap: 8px;
-  list-style: disc;
-  list-style-position: outside;
-  line-height: 1.55;
-  margin: 0;
-  padding: 12px 12px 12px 30px;
-}
-
-.oauth-permission-list li {
-  display: list-item;
-}
-
-.oauth-permission-list li::marker {
-  color: var(--green-700);
-}
-
-.oauth-error {
-  background: var(--red-100);
-  border: 1px solid #efb8a5;
-  border-radius: 6px;
-  color: var(--red-700) !important;
-  padding: 10px;
-}
-
-.figma-token-field {
-  color: var(--muted);
-  display: grid;
-  font-size: 12px;
-  font-weight: 800;
-  gap: 6px;
-}
-
-.figma-token-field input {
-  background: #fbfcfa;
-  border-color: #bfcbbd;
-  color: var(--foreground);
-  font-size: 13px;
-  width: 100%;
-}
-
-.confirm-actions.with-oauth {
-  grid-template-columns: 1fr 1fr 1fr;
 }
 
 .confirm-actions.single-action {

@@ -16,6 +16,14 @@ export type FigmaOAuthSession = {
   tokenType: string;
 };
 
+export type FigmaOAuthSessionState = {
+  session: FigmaOAuthSession | null;
+  refreshedCookie?: string;
+  clearCookie?: string;
+  reconnectRequired: boolean;
+  reconnectReason: string;
+};
+
 const FIGMA_OAUTH_AUTHORIZE_URL = "https://www.figma.com/oauth";
 const FIGMA_OAUTH_TOKEN_URL = "https://api.figma.com/v1/oauth/token";
 const FIGMA_OAUTH_SESSION_COOKIE = "tracking_plan_figma_oauth";
@@ -163,9 +171,7 @@ export function getFigmaOAuthConfig(request: Request): FigmaOAuthConfig {
     new URL("/api/figma/oauth/callback", request.url).toString();
   const scopes = process.env.FIGMA_OAUTH_SCOPES?.trim() || "file_content:read";
   const configured = Boolean(clientId && clientSecret && cookieSecret && redirectUri);
-  const enabled =
-    readEnabledFlag(process.env.FIGMA_OAUTH_ENABLED) &&
-    readEnabledFlag(process.env.FIGMA_OAUTH_PUBLIC_READY);
+  const enabled = readEnabledFlag(process.env.FIGMA_OAUTH_ENABLED);
   const available = configured && enabled;
 
   return {
@@ -212,28 +218,114 @@ export function clearSessionCookie(request: Request) {
 
 export async function createSessionCookie(request: Request, config: FigmaOAuthConfig, session: FigmaOAuthSession) {
   const value = await encryptSession(session, config.cookieSecret);
-  const secondsUntilExpiry = Math.max(60, Math.floor((session.expiresAt - Date.now()) / 1000));
+  const secondsUntilAccessExpiry = Math.max(60, Math.floor((session.expiresAt - Date.now()) / 1000));
+  const secondsUntilCookieExpiry = session.refreshToken ? 60 * 60 * 24 * 90 : secondsUntilAccessExpiry;
 
   return serializeCookie(request, FIGMA_OAUTH_SESSION_COOKIE, value, {
-    maxAge: Math.min(secondsUntilExpiry, 60 * 60 * 24 * 90),
+    maxAge: Math.min(secondsUntilCookieExpiry, 60 * 60 * 24 * 90),
   });
 }
 
-export async function readFigmaOAuthSession(request: Request) {
+async function refreshFigmaOAuthSession(config: FigmaOAuthConfig, refreshToken: string): Promise<FigmaOAuthSession> {
+  const body = new URLSearchParams({
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+  const response = await fetch(FIGMA_OAUTH_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${base64Encode(`${config.clientId}:${config.clientSecret}`)}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+    cache: "no-store",
+  });
+  const payload = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(extractFigmaOAuthError(payload, `Figma OAuth refresh 回傳 ${response.status}`));
+  }
+
+  const accessToken = asString(payload.access_token);
+  const nextRefreshToken = asString(payload.refresh_token, refreshToken);
+  const tokenType = asString(payload.token_type, "bearer");
+  const expiresIn = typeof payload.expires_in === "number" ? payload.expires_in : 60 * 60 * 24 * 90;
+
+  if (!accessToken) {
+    throw new Error("Figma OAuth refresh 沒有回傳 access token");
+  }
+
+  return {
+    accessToken,
+    refreshToken: nextRefreshToken,
+    tokenType,
+    expiresAt: Date.now() + Math.max(60, expiresIn - 60) * 1000,
+  };
+}
+
+export async function readFigmaOAuthSessionState(request: Request): Promise<FigmaOAuthSessionState> {
   const config = getFigmaOAuthConfig(request);
   const sessionCookie = readCookie(request, FIGMA_OAUTH_SESSION_COOKIE);
 
   if (!config.available || !sessionCookie) {
-    return null;
+    return {
+      session: null,
+      reconnectRequired: false,
+      reconnectReason: "",
+    };
   }
 
   const session = await decryptSession(sessionCookie, config.cookieSecret);
 
-  if (!session || session.expiresAt <= Date.now() + 30_000) {
-    return null;
+  if (!session) {
+    return {
+      session: null,
+      clearCookie: clearSessionCookie(request),
+      reconnectRequired: true,
+      reconnectReason: "figma_oauth_session_invalid",
+    };
   }
 
-  return session;
+  if (session.expiresAt > Date.now() + 30_000) {
+    return {
+      session,
+      reconnectRequired: false,
+      reconnectReason: "",
+    };
+  }
+
+  if (!session.refreshToken) {
+    return {
+      session: null,
+      clearCookie: clearSessionCookie(request),
+      reconnectRequired: true,
+      reconnectReason: "figma_oauth_refresh_missing",
+    };
+  }
+
+  try {
+    const refreshedSession = await refreshFigmaOAuthSession(config, session.refreshToken);
+
+    return {
+      session: refreshedSession,
+      refreshedCookie: await createSessionCookie(request, config, refreshedSession),
+      reconnectRequired: false,
+      reconnectReason: "",
+    };
+  } catch {
+    return {
+      session: null,
+      clearCookie: clearSessionCookie(request),
+      reconnectRequired: true,
+      reconnectReason: "figma_oauth_refresh_failed",
+    };
+  }
+}
+
+export async function readFigmaOAuthSession(request: Request) {
+  const sessionState = await readFigmaOAuthSessionState(request);
+
+  return sessionState.session;
 }
 
 async function readJsonResponse(response: Response) {

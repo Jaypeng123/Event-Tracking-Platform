@@ -1,4 +1,4 @@
-import { getFigmaOAuthConfig, readFigmaOAuthSession } from "../figma/oauth/shared";
+import { getFigmaOAuthConfig, readFigmaOAuthSessionState } from "../figma/oauth/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,6 @@ type TrackingEvent = {
 
 type AnalyzeRequest = {
   scope?: Scope;
-  figmaAccessToken?: string;
   ai?: {
     provider?: string;
     openAIModel?: string;
@@ -94,7 +93,16 @@ type FigmaContext = {
   isPartial: boolean;
 };
 
-type FigmaTokenSource = "user" | "oauth" | "site";
+type FigmaTokenSource = "oauth" | "site";
+type ResolvedFigmaToken = {
+  rawToken: string;
+  tokenValue: string;
+  tokenSource: FigmaTokenSource;
+  oauthAvailable: boolean;
+  oauthReconnectRequired: boolean;
+  oauthReconnectReason: string;
+  oauthCookie?: string;
+};
 type FigmaModuleDefinition = {
   key: string;
   label: string;
@@ -844,16 +852,6 @@ function isFigmaAuthError(response: Response, payload: Record<string, unknown>) 
   );
 }
 
-function isDefinitiveFigmaAuthError(response: Response, payload: Record<string, unknown>) {
-  const message = extractFigmaError(payload, "");
-
-  return (
-    response.status === 401 ||
-    response.status === 403 ||
-    /invalid token|invalid access token|unauthorized|forbidden/i.test(message)
-  );
-}
-
 function isInvalidFigmaTokenError(response: Response, payload: Record<string, unknown>) {
   const message = extractFigmaError(payload, "");
 
@@ -861,10 +859,6 @@ function isInvalidFigmaTokenError(response: Response, payload: Record<string, un
 }
 
 function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
-  if (tokenSource === "user") {
-    return "你的私人 Figma 存取權杖無法讀取這份檔案。請確認權杖沒有過期或被撤銷、具備 file_content:read 權限，且產生權杖的 Figma 帳號能開啟這份檔案。請只貼權杖本身，不要包含 Bearer 或 X-Figma-Token。";
-  }
-
   if (tokenSource === "oauth") {
     return "你的 Figma 授權無法讀取這份檔案。請確認授權的 Figma 帳號能開啟此檔案，或重新授權後再試一次。";
   }
@@ -872,31 +866,40 @@ function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
   return "站台預設 Figma 權限無法讀取這份檔案。請確認 Figma 分享設定已開放「知道連結的人可以檢視」，或檔案已分享給產生站台權限的 Figma 帳號，調整後重新匯入。";
 }
 
-async function resolveFigmaToken(request: Request, requestToken: unknown) {
-  const oauthConfig = getFigmaOAuthConfig(request);
-  const userToken = asString(requestToken);
+function jsonWithOAuthCookie(data: unknown, init: ResponseInit = {}, oauthCookie = "") {
+  const headers = new Headers(init.headers);
 
-  if (userToken) {
-    return {
-      rawToken: userToken,
-      tokenValue: normalizeFigmaToken(userToken).tokenValue,
-      tokenSource: "user" as const,
-      oauthConfigured: oauthConfig.available,
-      oauthUnavailableReason: oauthConfig.unavailableReason,
-    };
+  if (oauthCookie) {
+    headers.append("Set-Cookie", oauthCookie);
   }
 
-  const oauthSession = oauthConfig.available ? await readFigmaOAuthSession(request) : null;
+  return Response.json(data, {
+    ...init,
+    headers,
+  });
+}
 
-  if (oauthSession?.accessToken) {
-    const rawToken = `Bearer ${oauthSession.accessToken}`;
+class FigmaOAuthReconnectError extends Error {
+  code = "figma_oauth_reconnect_required";
+  status = 401;
+}
+
+async function resolveFigmaToken(request: Request): Promise<ResolvedFigmaToken> {
+  const oauthConfig = getFigmaOAuthConfig(request);
+  const oauthSessionState = oauthConfig.available ? await readFigmaOAuthSessionState(request) : null;
+  const oauthCookie = oauthSessionState?.refreshedCookie || oauthSessionState?.clearCookie || "";
+
+  if (oauthSessionState?.session?.accessToken) {
+    const rawToken = `Bearer ${oauthSessionState.session.accessToken}`;
 
     return {
       rawToken,
       tokenValue: normalizeFigmaToken(rawToken).tokenValue,
       tokenSource: "oauth" as const,
-      oauthConfigured: true,
-      oauthUnavailableReason: "",
+      oauthAvailable: true,
+      oauthReconnectRequired: false,
+      oauthReconnectReason: "",
+      oauthCookie,
     };
   }
 
@@ -906,8 +909,10 @@ async function resolveFigmaToken(request: Request, requestToken: unknown) {
     rawToken,
     tokenValue: normalizeFigmaToken(rawToken).tokenValue,
     tokenSource: "site" as const,
-    oauthConfigured: oauthConfig.available,
-    oauthUnavailableReason: oauthConfig.unavailableReason,
+    oauthAvailable: oauthConfig.available,
+    oauthReconnectRequired: Boolean(oauthSessionState?.reconnectRequired),
+    oauthReconnectReason: oauthSessionState?.reconnectReason ?? "",
+    oauthCookie,
   };
 }
 
@@ -1452,7 +1457,8 @@ async function fetchFigmaContext(
   figmaTokenSource: FigmaTokenSource,
 ): Promise<FigmaContext> {
   const fileKey = asString(requestBody.source?.fileKey);
-  const nodeId = asString(requestBody.source?.nodeId);
+  const rawNodeId = asString(requestBody.source?.nodeId);
+  const nodeId = rawNodeId === "file" ? "" : rawNodeId;
   const targetId = nodeId;
   const targetNameHint = asString(requestBody.source?.nodeName);
   const encodedFileKey = encodeURIComponent(fileKey);
@@ -1468,20 +1474,43 @@ async function fetchFigmaContext(
   let lastRecoverableMessage = "";
 
   for (const [index, path] of candidatePaths.entries()) {
-    const { response, payload } = await fetchFigmaPayload(path, figmaToken);
+    let result: Awaited<ReturnType<typeof fetchFigmaPayload>>;
+
+    try {
+      result = await fetchFigmaPayload(path, figmaToken);
+    } catch (error) {
+      lastRecoverableMessage = error instanceof Error ? error.message : "Figma API 暫時無法連線";
+      continue;
+    }
+
+    const { response, payload } = result;
 
     if (!response.ok) {
       const isNodeScopedRequest = path.includes("/nodes?") || path.includes("?ids=");
 
       if (isInvalidFigmaTokenError(response, payload)) {
-        throw new Error(getFigmaAuthErrorMessage(figmaTokenSource));
+        if (figmaTokenSource === "oauth") {
+          throw new FigmaOAuthReconnectError(getFigmaAuthErrorMessage(figmaTokenSource));
+        }
+
+        lastRecoverableMessage = getFigmaAuthErrorMessage(figmaTokenSource);
+        break;
       }
 
-      if (isDefinitiveFigmaAuthError(response, payload) && (!targetId || !isNodeScopedRequest)) {
-        throw new Error(getFigmaAuthErrorMessage(figmaTokenSource));
+      if (isFigmaAuthError(response, payload) && (!targetId || !isNodeScopedRequest)) {
+        if (figmaTokenSource === "oauth") {
+          throw new FigmaOAuthReconnectError(getFigmaAuthErrorMessage(figmaTokenSource));
+        }
+
+        lastRecoverableMessage = getFigmaAuthErrorMessage(figmaTokenSource);
+        break;
       }
 
       if (targetId && isFigmaAuthError(response, payload)) {
+        if (figmaTokenSource === "oauth" && response.status !== 404) {
+          throw new FigmaOAuthReconnectError(getFigmaAuthErrorMessage(figmaTokenSource));
+        }
+
         lastRecoverableMessage = extractFigmaError(payload, `Figma API 回傳 ${response.status}`);
         continue;
       }
@@ -3284,34 +3313,23 @@ export async function POST(request: Request) {
     rawToken: rawFigmaToken,
     tokenValue: figmaToken,
     tokenSource: figmaTokenSource,
-    oauthConfigured,
-    oauthUnavailableReason,
-  } = await resolveFigmaToken(
-    request,
-    requestBody.figmaAccessToken,
-  );
+    oauthAvailable,
+    oauthReconnectRequired,
+    oauthCookie,
+  } = await resolveFigmaToken(request);
 
   if (!fileKey) {
     return Response.json({ message: "缺少 Figma file key，請先套用有效的 Figma 連結" }, { status: 400 });
   }
 
-  if (!asString(requestBody.source?.nodeId)) {
-    return Response.json(
-      {
-        code: "page_required",
-        message: "整份 Figma 檔案請先匯入 Page 清單，選擇其中一個 Page 後再進行 AI 分析。",
-      },
-      { status: 400 },
-    );
-  }
-
   if (!geminiKey && !openAIKey) {
-    return Response.json(
+    return jsonWithOAuthCookie(
       {
         code: "missing_ai_key",
         message: MISSING_AI_SERVICE_MESSAGE,
       },
       { status: 503 },
+      oauthCookie,
     );
   }
 
@@ -3322,22 +3340,25 @@ export async function POST(request: Request) {
         ? "openai"
         : requestedProvider;
 
-  if (!figmaToken) {
-    return Response.json(
-      {
-        code: "missing_figma_token",
-        message: oauthUnavailableReason
-          ? `${oauthUnavailableReason} 目前也尚未設定站台預設 Figma 權限，因此 AI 無法讀取 Figma 檔案內容。`
-          : oauthConfigured
-            ? "尚未完成 Figma 授權，請先允許平台讀取 Figma 檔案。"
-            : "尚未設定 Figma OAuth 或站台預設 Figma 權限，因此 AI 無法讀取 Figma 檔案內容。",
-      },
-      { status: 503 },
-    );
-  }
-
   try {
-    const figmaContext = await fetchFigmaContext(requestBody, rawFigmaToken, figmaTokenSource);
+    if (!figmaToken && oauthAvailable) {
+      return jsonWithOAuthCookie(
+        {
+          code: oauthReconnectRequired ? "figma_oauth_reconnect_required" : "figma_oauth_required",
+          message: oauthReconnectRequired
+            ? "Figma 授權已失效，請重新連結 Figma 後再分析。"
+            : "尚未連結 Figma，請先連結 Figma 後再分析。",
+          reconnectRequired: oauthReconnectRequired,
+          tokenSource: figmaTokenSource,
+        },
+        { status: 401 },
+        oauthCookie,
+      );
+    }
+
+    const figmaContext = figmaToken
+      ? await fetchFigmaContext(requestBody, rawFigmaToken, figmaTokenSource)
+      : buildPartialFigmaContext(requestBody, "站台尚未設定可用的 Figma 讀取權限，已改用連結、檔名與已匯入 Page 資訊分析。");
     let analysis:
       | {
           model: string;
@@ -3380,35 +3401,45 @@ export async function POST(request: Request) {
     }
 
     const analysisProcess = figmaContext.isPartial
-      ? Array.from(new Set(["Figma 頁面過大，已改用精簡摘要分析", ...analysis.analysisProcess])).slice(0, 6)
+      ? Array.from(new Set(["Figma 讀取未完整，已改用精簡摘要分析", ...analysis.analysisProcess])).slice(0, 6)
       : analysis.analysisProcess;
 
-    return Response.json({
-      ...analysis,
-      analysisProcess,
-      figma: {
-        fileName: figmaContext.fileName,
-        targetName: figmaContext.targetName,
-        targetType: figmaContext.targetType,
-        pages: figmaContext.pages,
-        nodeCount: figmaContext.nodeCount,
-        textCount: figmaContext.textCount,
-        contentCoverage: figmaContext.contentCoverage,
-        isPartial: figmaContext.isPartial,
+    return jsonWithOAuthCookie(
+      {
+        ...analysis,
+        analysisProcess,
+        figma: {
+          fileName: figmaContext.fileName,
+          targetName: figmaContext.targetName,
+          targetType: figmaContext.targetType,
+          pages: figmaContext.pages,
+          nodeCount: figmaContext.nodeCount,
+          textCount: figmaContext.textCount,
+          contentCoverage: figmaContext.contentCoverage,
+          isPartial: figmaContext.isPartial,
+        },
       },
-    });
+      {},
+      oauthCookie,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "AI 分析失敗，請稍後再試";
+    const isOAuthReconnectError = error instanceof FigmaOAuthReconnectError;
     const isFigmaAccessError = /figma/i.test(message) && /權限|權杖|授權|token|unauthorized|forbidden|invalid/i.test(message);
 
-    return Response.json(
+    return jsonWithOAuthCookie(
       {
-        code: isFigmaAccessError ? "invalid_figma_token" : "analysis_failed",
+        code: isOAuthReconnectError
+          ? error.code
+          : isFigmaAccessError
+            ? "figma_oauth_reconnect_required"
+            : "analysis_failed",
         message,
-        oauthConfigured,
+        reconnectRequired: isOAuthReconnectError || isFigmaAccessError,
         tokenSource: figmaTokenSource,
       },
-      { status: isFigmaAccessError ? 401 : 502 },
+      { status: isOAuthReconnectError || isFigmaAccessError ? 401 : 502 },
+      oauthCookie,
     );
   }
 }
