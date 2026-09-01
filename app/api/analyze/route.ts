@@ -103,6 +103,11 @@ type ResolvedFigmaToken = {
   oauthReconnectReason: string;
   oauthCookie?: string;
 };
+type AnalysisResult = {
+  model: string;
+  analysisProcess: string[];
+  events: TrackingEvent[];
+};
 type FigmaModuleDefinition = {
   key: string;
   label: string;
@@ -3359,43 +3364,60 @@ export async function POST(request: Request) {
     const figmaContext = figmaToken
       ? await fetchFigmaContext(requestBody, rawFigmaToken, figmaTokenSource)
       : buildPartialFigmaContext(requestBody, "Figma 尚未完成連結，已先用目前可取得的頁面資訊分析。");
-    let analysis:
-      | {
-          model: string;
-          analysisProcess: string[];
-          events: TrackingEvent[];
-        }
-      | null = null;
+    const providerAttempts: Array<() => Promise<AnalysisResult>> = [];
+    const attemptedProviders = new Set<ModelProvider>();
+    let analysis: AnalysisResult | null = null;
     let providerError: unknown = null;
 
-    if (effectiveProvider === "openai") {
-      analysis = await analyzeWithOpenAI(requestBody, figmaContext, openAIKey as string, selectedOpenAIModel);
-    } else if (effectiveProvider === "gemini") {
-      analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey as string, selectedGeminiModel);
-    } else if (geminiKey) {
-      try {
-        analysis = await analyzeWithGemini(requestBody, figmaContext, geminiKey, selectedGeminiModel);
-      } catch (error) {
-        providerError = error;
+    function addProviderAttempt(provider: Exclude<ModelProvider, "auto">) {
+      if (attemptedProviders.has(provider)) {
+        return;
+      }
+
+      attemptedProviders.add(provider);
+
+      if (provider === "openai" && openAIKey) {
+        const apiKey = openAIKey;
+
+        providerAttempts.push(() => analyzeWithOpenAI(requestBody, figmaContext, apiKey, selectedOpenAIModel));
+      }
+
+      if (provider === "gemini" && geminiKey) {
+        const apiKey = geminiKey;
+
+        providerAttempts.push(() => analyzeWithGemini(requestBody, figmaContext, apiKey, selectedGeminiModel));
       }
     }
 
-    if (!analysis && openAIKey) {
+    if (effectiveProvider === "openai") {
+      addProviderAttempt("openai");
+      addProviderAttempt("gemini");
+    } else if (effectiveProvider === "gemini") {
+      addProviderAttempt("gemini");
+      addProviderAttempt("openai");
+    } else {
+      addProviderAttempt("gemini");
+      addProviderAttempt("openai");
+    }
+
+    for (const analyze of providerAttempts) {
       try {
-        analysis = await analyzeWithOpenAI(requestBody, figmaContext, openAIKey, selectedOpenAIModel);
+        analysis = await analyze();
+        break;
       } catch (error) {
         providerError = error;
       }
     }
 
     if (!analysis) {
-      if (providerError) {
-        throw providerError;
-      }
-
       analysis = {
-        model: "Figma structure fallback",
-        analysisProcess: ["讀取 Figma 節點結構", "模型回傳不足，改以 Figma 結構補強", "建立優先級", "輸出 Excel 欄位格式"],
+        model: "Figma 結構備援",
+        analysisProcess: [
+          providerError ? "AI 模型暫時未完成，已使用 Figma 結構補強" : "讀取 Figma 節點結構",
+          "整理頁面與功能區塊",
+          "建立優先級",
+          "輸出 Excel 欄位格式",
+        ],
         events: buildFallbackEvents(figmaContext),
       };
     }
