@@ -12,9 +12,16 @@ npm run dev
 
 `.env.local` 需要設定：
 
-- `FIGMA_ACCESS_TOKEN`
+- `FIGMA_OAUTH_CLIENT_ID`
+- `FIGMA_OAUTH_CLIENT_SECRET`
+- `FIGMA_OAUTH_COOKIE_SECRET`
+- `FIGMA_OAUTH_REDIRECT_URI`
+- `FIGMA_OAUTH_SCOPES`，預設 `file_content:read`
+- `FIGMA_OAUTH_ENABLED=true`
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`，預設 `gpt-5.6-luna`
+
+若 Figma OAuth 尚未通過審核，管理者可暫時設定 `FIGMA_ACCESS_TOKEN` 作為平台備援；這不會出現在使用者介面，也不需要使用者理解 token。
 
 ## Cloudflare Workers Deployment
 
@@ -28,8 +35,15 @@ Cloudflare build settings 建議使用：
 
 Worker runtime 需要在 Cloudflare 的 Variables and Secrets 新增：
 
-- `FIGMA_ACCESS_TOKEN`
+- `FIGMA_OAUTH_CLIENT_ID`
+- `FIGMA_OAUTH_CLIENT_SECRET`
+- `FIGMA_OAUTH_COOKIE_SECRET`
+- `FIGMA_OAUTH_REDIRECT_URI`
+- `FIGMA_OAUTH_SCOPES`
+- `FIGMA_OAUTH_ENABLED`
 - `OPENAI_API_KEY`
+
+`FIGMA_ACCESS_TOKEN` 只作為管理者備援 secret，不是一般使用者授權流程。
 
 若要在模型選單使用 Gemini，另外新增：
 

@@ -31,7 +31,7 @@ export const FIGMA_OAUTH_STATE_COOKIE = "tracking_plan_figma_oauth_state";
 export const FIGMA_OAUTH_NOT_CONFIGURED_MESSAGE =
   "尚未設定 Figma OAuth，請先由管理者設定 FIGMA_OAUTH_CLIENT_ID 與 FIGMA_OAUTH_CLIENT_SECRET。";
 export const FIGMA_OAUTH_UNAVAILABLE_MESSAGE =
-  "Figma OAuth app 尚未通過公開審核，外部 Figma 帳號暫時無法授權。平台會先使用站台預設 Figma 權限讀取稿件。";
+  "Figma 連結功能暫時無法使用，審核通過後即可使用官方授權流程。";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 

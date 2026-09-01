@@ -104,10 +104,10 @@ function isFigmaAuthError(response: Response, payload: Record<string, unknown>) 
 
 function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
   if (tokenSource === "oauth") {
-    return "你的 Figma 授權無法讀取這份檔案。請確認授權的 Figma 帳號能開啟此檔案，或重新授權後再試一次。";
+    return "需要重新連結 Figma。重新授權後即可讀取你有權限的設計檔。";
   }
 
-  return "站台預設 Figma 權限無法讀取這份檔案。請確認 Figma 分享設定已開放「知道連結的人可以檢視」，或檔案已分享給產生站台權限的 Figma 帳號，調整後重新匯入。";
+  return "需要連結 Figma。授權後即可讀取你有權限的設計檔。";
 }
 
 function jsonWithOAuthCookie(data: unknown, init: ResponseInit = {}, oauthCookie = "") {
@@ -215,7 +215,7 @@ export async function POST(request: Request) {
     return jsonWithOAuthCookie(
       {
         code: oauthReconnectRequired ? "figma_oauth_reconnect_required" : "figma_oauth_required",
-        message: oauthReconnectRequired ? "Figma 授權已失效，請重新連結 Figma。" : "尚未連結 Figma，請先連結 Figma 後再匯入。",
+        message: oauthReconnectRequired ? "Figma 授權已失效，請重新連結 Figma。" : "需要連結 Figma。授權後即可讀取你有權限的設計檔。",
         oauthConfigured: oauthAvailable,
         reconnectRequired: oauthReconnectRequired,
         tokenSource,
@@ -229,7 +229,7 @@ export async function POST(request: Request) {
     return jsonWithOAuthCookie(
       {
         code: "missing_figma_token",
-        message: "尚未設定 Figma OAuth 或站台預設 Figma 權限，因此無法讀取 Figma Page 清單。",
+        message: "需要連結 Figma。授權後即可讀取你有權限的設計檔。",
         oauthConfigured: false,
         reconnectRequired: false,
         tokenSource,
@@ -253,7 +253,7 @@ export async function POST(request: Request) {
           {
             code: shouldReconnect ? "figma_oauth_reconnect_required" : "figma_oauth_required",
             message: shouldReconnect
-              ? "Figma 授權已失效、權限不足，或這份檔案沒有分享給目前連結的帳號。請重新連結 Figma。"
+              ? "需要重新連結 Figma。重新授權後即可讀取你有權限的設計檔。"
               : getFigmaAuthErrorMessage(tokenSource),
             oauthConfigured: oauthAvailable,
             reconnectRequired: shouldReconnect,

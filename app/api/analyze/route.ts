@@ -860,10 +860,10 @@ function isInvalidFigmaTokenError(response: Response, payload: Record<string, un
 
 function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
   if (tokenSource === "oauth") {
-    return "你的 Figma 授權無法讀取這份檔案。請確認授權的 Figma 帳號能開啟此檔案，或重新授權後再試一次。";
+    return "需要重新連結 Figma。重新授權後即可讀取你有權限的設計檔。";
   }
 
-  return "站台預設 Figma 權限無法讀取這份檔案。請確認 Figma 分享設定已開放「知道連結的人可以檢視」，或檔案已分享給產生站台權限的 Figma 帳號，調整後重新匯入。";
+  return "需要連結 Figma。授權後即可讀取你有權限的設計檔。";
 }
 
 function jsonWithOAuthCookie(data: unknown, init: ResponseInit = {}, oauthCookie = "") {
@@ -3347,7 +3347,7 @@ export async function POST(request: Request) {
           code: oauthReconnectRequired ? "figma_oauth_reconnect_required" : "figma_oauth_required",
           message: oauthReconnectRequired
             ? "Figma 授權已失效，請重新連結 Figma 後再分析。"
-            : "尚未連結 Figma，請先連結 Figma 後再分析。",
+            : "需要連結 Figma。授權後即可讀取你有權限的設計檔。",
           reconnectRequired: oauthReconnectRequired,
           tokenSource: figmaTokenSource,
         },
@@ -3358,7 +3358,7 @@ export async function POST(request: Request) {
 
     const figmaContext = figmaToken
       ? await fetchFigmaContext(requestBody, rawFigmaToken, figmaTokenSource)
-      : buildPartialFigmaContext(requestBody, "站台尚未設定可用的 Figma 讀取權限，已改用連結、檔名與已匯入 Page 資訊分析。");
+      : buildPartialFigmaContext(requestBody, "Figma 尚未完成連結，已先用目前可取得的頁面資訊分析。");
     let analysis:
       | {
           model: string;

@@ -2874,6 +2874,12 @@ select:disabled {
   text-align: center;
 }
 
+.table-empty-action {
+  margin-top: 16px;
+  min-height: 44px;
+  width: min(100%, 220px);
+}
+
 .table-empty.plain-loading {
   background: transparent;
   border: 0;

@@ -184,9 +184,9 @@ const FIGMA_OAUTH_CONNECTED_STORAGE_KEY = "tracking-plan-figma-oauth-connected-v
 const ANALYSIS_RESULTS_STORAGE_KEY = "tracking-plan-analysis-results-v1";
 const LEGACY_PROJECT_ID = "legacy-project";
 const FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE =
-  "此站台尚未完成 Figma OAuth 設定。請平台管理者先設定 FIGMA_OAUTH_CLIENT_ID 與 FIGMA_OAUTH_CLIENT_SECRET，使用者才能在這裡授權。";
+  "Figma 連結功能尚未開放，請稍後再試。";
 const FIGMA_OAUTH_UNAVAILABLE_MESSAGE =
-  "Figma OAuth 暫時無法使用。平台會先使用站台預設 Figma 權限讀取稿件。";
+  "Figma 連結功能暫時無法使用，審核通過後即可使用官方授權流程。";
 
 const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
   YxOzcNURPPgfDq9qiXj1uk: {
@@ -2535,7 +2535,7 @@ export default function Home() {
         setAnalysisState("");
         setFigmaConnectionMode(action);
         setFigmaOAuthError(message);
-        showToast(action === "reconnect" ? "請重新連結 Figma" : "請先連結 Figma");
+        showToast(action === "reconnect" ? "請重新連結 Figma" : "需要連結 Figma");
         return emptyResult;
       }
 
@@ -2856,6 +2856,8 @@ export default function Home() {
   const isWaitingForPageImport = needsPageSelection && !hasImportedPages && !isLoadingPages && !pageLoadError;
   const isWaitingForPageSelection = needsPageSelection && hasImportedPages && Boolean(pageOptions.length) && !selectedPage;
   const hasNoImportedPages = needsPageSelection && hasImportedPages && !pageOptions.length;
+  const needsFigmaConnection =
+    Boolean(figmaInfo.fileKey) && (figmaConnectionMode === "connect" || figmaConnectionMode === "reconnect");
   const hasNoAnalysisRows =
     hasAppliedSource &&
     hasAnalyzed &&
@@ -2865,48 +2867,94 @@ export default function Home() {
     !isWaitingForPageSelection &&
     !hasNoImportedPages;
   const hasNoFilteredRows = hasAppliedSource && hasAnalyzed && Boolean(analysisRows.length) && !visibleRows.length;
-  const tableEmptyTitle = isAnalyzing
-    ? "AI 正在分析頁面內容"
-    : analysisError
-      ? "分析未完成"
-      : isLoadingPages
-        ? "正在讀取 Figma 稿件"
-        : isWaitingForPageImport
-          ? "請先匯入 Figma Page"
-          : pageLoadError
-            ? "Page 清單尚未完成"
-            : isWaitingForPageSelection
-              ? "請選擇要分析的 Page"
-              : hasNoImportedPages
-                ? "沒有可分析的 Page"
-                : hasNoAnalysisRows
-                  ? "尚無可追蹤的分析指標"
-                  : hasNoFilteredRows
-                    ? "沒有符合條件的分析指標"
-                    : hasAppliedSource
-                      ? "尚未產生埋點建議"
-                      : "尚未套用 Figma 連結";
-  const tableEmptyDescription = isAnalyzing
-    ? "正在讀取Figma稿件"
-    : analysisError
-      ? analysisError
-      : isLoadingPages
-        ? "正在讀取Figma稿件"
-        : isWaitingForPageImport
-          ? "整份檔案需要先匯入 Page 清單，選擇單一 Page 後才會分析。"
-          : pageLoadError
-            ? pageLoadError
-            : isWaitingForPageSelection
-              ? "請在左側選一個 Page，再點擊 AI 分析。"
-              : hasNoImportedPages
-                ? "這份 Figma 檔案沒有讀到可選 Page，請確認檔案權限或改貼指定 Page 連結。"
-                : hasNoAnalysisRows
-                  ? "模型沒有從目前連結範圍判斷出需要第一階段追蹤的事件。"
-                  : hasNoFilteredRows
-                    ? "請調整搜尋文字、事件類型或優先級篩選。"
-                    : hasAppliedSource
-                      ? "按下分析頁面內容後會列出事件。"
-                      : "左側套用連結後再開始分析。";
+  const tableEmptyTitle = (() => {
+    if (isAnalyzing) {
+      return "AI 正在分析頁面內容";
+    }
+
+    if (needsFigmaConnection) {
+      return figmaConnectionMode === "reconnect" ? "需要重新連結 Figma" : "需要連結 Figma";
+    }
+
+    if (analysisError) {
+      return "分析未完成";
+    }
+
+    if (isLoadingPages) {
+      return "正在讀取 Figma 稿件";
+    }
+
+    if (isWaitingForPageImport) {
+      return "請先匯入 Figma Page";
+    }
+
+    if (pageLoadError) {
+      return "Page 清單尚未完成";
+    }
+
+    if (isWaitingForPageSelection) {
+      return "請選擇要分析的 Page";
+    }
+
+    if (hasNoImportedPages) {
+      return "沒有可分析的 Page";
+    }
+
+    if (hasNoAnalysisRows) {
+      return "尚無可追蹤的分析指標";
+    }
+
+    if (hasNoFilteredRows) {
+      return "沒有符合條件的分析指標";
+    }
+
+    return hasAppliedSource ? "尚未產生埋點建議" : "尚未套用 Figma 連結";
+  })();
+  const tableEmptyDescription = (() => {
+    if (isAnalyzing) {
+      return "正在讀取Figma稿件";
+    }
+
+    if (needsFigmaConnection) {
+      return figmaConnectionMode === "reconnect"
+        ? "重新授權後即可讀取你有權限的設計檔。"
+        : "授權後即可讀取你有權限的設計檔。";
+    }
+
+    if (analysisError) {
+      return analysisError;
+    }
+
+    if (isLoadingPages) {
+      return "正在讀取Figma稿件";
+    }
+
+    if (isWaitingForPageImport) {
+      return "整份檔案需要先匯入 Page 清單，選擇單一 Page 後才會分析。";
+    }
+
+    if (pageLoadError) {
+      return pageLoadError;
+    }
+
+    if (isWaitingForPageSelection) {
+      return "請在左側選一個 Page，再點擊 AI 分析。";
+    }
+
+    if (hasNoImportedPages) {
+      return "這份 Figma 檔案沒有讀到可選 Page，請確認檔案權限或改貼指定 Page 連結。";
+    }
+
+    if (hasNoAnalysisRows) {
+      return "模型沒有從目前連結範圍判斷出需要第一階段追蹤的事件。";
+    }
+
+    if (hasNoFilteredRows) {
+      return "請調整搜尋文字、事件類型或優先級篩選。";
+    }
+
+    return hasAppliedSource ? "按下分析頁面內容後會列出事件。" : "左側套用連結後再開始分析。";
+  })();
 
   function renderPlannerNav() {
     return (
@@ -3755,7 +3803,7 @@ export default function Home() {
                       />
                       {shouldConnectFigmaBeforeImport ? (
                         <div className="source-empty figma-connect-notice">
-                          <strong>{activeFigmaConnectionAction === "reconnect" ? "需要重新連結 Figma" : "尚未連結 Figma"}</strong>
+                          <strong>{activeFigmaConnectionAction === "reconnect" ? "需要重新連結 Figma" : "需要連結 Figma"}</strong>
                           <span>
                             {activeFigmaConnectionAction === "reconnect"
                               ? "重新連結後會回到平台，並直接重新匯入與分析這個連結。"
@@ -4021,6 +4069,25 @@ export default function Home() {
                         {isAnalyzing ? <span className="loading-spinner" aria-hidden="true" /> : null}
                         <strong>{tableEmptyTitle}</strong>
                         <span>{tableEmptyDescription}</span>
+                        {needsFigmaConnection ? (
+                          <button
+                            className="primary-button table-empty-action"
+                            type="button"
+                            onClick={() =>
+                              void startFigmaOAuthForSource(
+                                figmaInfo,
+                                figmaConnectionMode === "reconnect" ? "reconnect" : "connect",
+                              )
+                            }
+                            disabled={isStartingFigmaOAuth}
+                          >
+                            {isStartingFigmaOAuth
+                              ? "前往授權中"
+                              : figmaConnectionMode === "reconnect"
+                                ? "重新連結 Figma"
+                                : "連結 Figma"}
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
