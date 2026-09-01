@@ -187,6 +187,9 @@ const FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE =
   "Figma 連結功能尚未開放，請稍後再試。";
 const FIGMA_OAUTH_UNAVAILABLE_MESSAGE =
   "Figma 連結功能暫時無法使用，審核通過後即可使用官方授權流程。";
+const FIGMA_CONNECT_MESSAGE = "需要連結 Figma。授權後即可讀取你有權限的設計檔。";
+const FIGMA_RECONNECT_MESSAGE = "需要重新連結 Figma。重新授權後即可讀取你有權限的設計檔。";
+const ANALYSIS_FAILURE_MESSAGE = "AI 暫時無法完成分析，請稍後再試。";
 
 const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
   YxOzcNURPPgfDq9qiXj1uk: {
@@ -931,20 +934,21 @@ async function readAnalyzeResponse(response: Response): Promise<AnalyzeResponse>
 
   if (response.status === 401) {
     return {
-      message:
-        "分析 API 需要 ChatGPT 登入授權。目前站台是私有權限，請重新整理並完成登入，或將站台改成公開權限後再分析。",
+      code: "figma_oauth_required",
+      message: FIGMA_CONNECT_MESSAGE,
     };
   }
 
-  const readableSnippet = trimmedText
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .slice(0, 120);
+  if (response.status === 403) {
+    return {
+      code: "figma_oauth_reconnect_required",
+      reconnectRequired: true,
+      message: FIGMA_RECONNECT_MESSAGE,
+    };
+  }
 
   return {
-    message: `分析 API 回傳非 JSON 內容（HTTP ${response.status}）。${readableSnippet || "請重新整理後再試。"}`,
+    message: ANALYSIS_FAILURE_MESSAGE,
   };
 }
 
@@ -964,12 +968,21 @@ async function readFigmaPagesResponse(response: Response): Promise<FigmaPagesRes
 
   if (response.status === 401) {
     return {
-      message: "讀取 Page 清單需要 ChatGPT 登入授權。請重新整理並完成登入後再套用連結。",
+      code: "figma_oauth_required",
+      message: FIGMA_CONNECT_MESSAGE,
+    };
+  }
+
+  if (response.status === 403) {
+    return {
+      code: "figma_oauth_reconnect_required",
+      reconnectRequired: true,
+      message: FIGMA_RECONNECT_MESSAGE,
     };
   }
 
   return {
-    message: `Page 清單 API 回傳非 JSON 內容（HTTP ${response.status}）。請重新整理後再試。`,
+    message: "目前無法讀取 Figma Page，請稍後再試。",
   };
 }
 
@@ -2395,6 +2408,42 @@ export default function Home() {
     return code === "figma_oauth_required" || code === "figma_oauth_reconnect_required";
   }
 
+  function getFigmaConnectionMessage(action: "connect" | "reconnect") {
+    return action === "reconnect" ? FIGMA_RECONNECT_MESSAGE : FIGMA_CONNECT_MESSAGE;
+  }
+
+  function getMessageFromAnalyzeResponse(result: AnalyzeResponse, fallback: string) {
+    const apiMessage = typeof result.message === "string" ? result.message.trim() : "";
+    const apiError = typeof (result as AnalyzeResponse & { error?: unknown }).error === "string"
+      ? String((result as AnalyzeResponse & { error?: string }).error).trim()
+      : "";
+
+    return apiMessage || apiError || fallback;
+  }
+
+  function getFigmaConnectionActionFromAnalyzeFailure(
+    responseStatus: number,
+    result: AnalyzeResponse,
+  ): "connect" | "reconnect" | "" {
+    if (result.code === "figma_oauth_reconnect_required" || result.reconnectRequired) {
+      return "reconnect";
+    }
+
+    if (result.code === "figma_oauth_required") {
+      return hasKnownFigmaOAuthConnection() ? "reconnect" : "connect";
+    }
+
+    if (responseStatus === 403) {
+      return "reconnect";
+    }
+
+    if (responseStatus === 401) {
+      return getFigmaConnectionAction();
+    }
+
+    return "";
+  }
+
   async function startFigmaOAuthForSource(nextInfo: FigmaSourceInfo, action: "connect" | "reconnect" = "connect") {
     setIsStartingFigmaOAuth(true);
     setFigmaOAuthError("");
@@ -2769,15 +2818,21 @@ export default function Home() {
       }
 
       if (!response.ok) {
-        const error = new Error(result.message || "AI 分析失敗，請確認環境變數與 Figma 權限") as Error & {
+        const figmaAction = getFigmaConnectionActionFromAnalyzeFailure(response.status, result);
+        const fallbackMessage = figmaAction ? getFigmaConnectionMessage(figmaAction) : ANALYSIS_FAILURE_MESSAGE;
+        const error = new Error(getMessageFromAnalyzeResponse(result, fallbackMessage)) as Error & {
           code?: string;
           reconnectRequired?: boolean;
           tokenSource?: AnalyzeResponse["tokenSource"];
+          status?: number;
+          figmaAction?: "connect" | "reconnect" | "";
         };
 
-        error.code = result.code;
-        error.reconnectRequired = result.reconnectRequired;
+        error.code = result.code || (figmaAction ? `figma_oauth_${figmaAction === "reconnect" ? "reconnect_" : ""}required` : undefined);
+        error.reconnectRequired = result.reconnectRequired || figmaAction === "reconnect";
         error.tokenSource = result.tokenSource;
+        error.status = response.status;
+        error.figmaAction = figmaAction;
         throw error;
       }
 
@@ -2807,21 +2862,31 @@ export default function Home() {
       const analysisFailure = error as Error & {
         code?: string;
         reconnectRequired?: boolean;
+        figmaAction?: "connect" | "reconnect" | "";
+        status?: number;
       };
+      const fallbackFigmaAction =
+        analysisFailure.figmaAction ||
+        (analysisFailure.status === 403
+          ? "reconnect"
+          : analysisFailure.status === 401
+            ? getFigmaConnectionAction()
+            : "");
 
       setAnalysisError(message);
       setAnalysisState(message);
 
-      if (isFigmaOAuthActionCode(analysisFailure.code) || analysisFailure.reconnectRequired) {
-        const action =
-          analysisFailure.code === "figma_oauth_reconnect_required" ||
-          analysisFailure.reconnectRequired ||
-          hasKnownFigmaOAuthConnection()
+      if (isFigmaOAuthActionCode(analysisFailure.code) || analysisFailure.reconnectRequired || fallbackFigmaAction) {
+        const action: "connect" | "reconnect" = fallbackFigmaAction
+          ? fallbackFigmaAction
+          : analysisFailure.code === "figma_oauth_reconnect_required" ||
+              analysisFailure.reconnectRequired ||
+              hasKnownFigmaOAuthConnection()
             ? "reconnect"
             : "connect";
 
         setFigmaConnectionMode(action);
-        setFigmaOAuthError(message);
+        setFigmaOAuthError(getFigmaConnectionMessage(action));
       }
     } finally {
       if (analysisRunId.current === runId) {
@@ -3935,7 +4000,7 @@ export default function Home() {
                         <strong>{hasImportedPages ? "尚未讀到 Page" : "尚未匯入 Page"}</strong>
                         <span>
                           {hasImportedPages
-                            ? "請確認 Figma 權限，或改貼指定 Page / 節點連結。"
+                            ? "授權後即可讀取你有權限的設計檔，或改貼指定 Page / 節點連結。"
                             : "匯入 Figma 連結後，會列出這份檔案中的 Page。"}
                         </span>
                       </div>
@@ -3984,7 +4049,37 @@ export default function Home() {
                 </div>
               </div>
             ) : null}
-            {analysisError ? <p className="analysis-state error-state">{analysisError}</p> : null}
+            {analysisError ? (
+              needsFigmaConnection ? (
+                <div className="analysis-state figma-auth-state" role="alert">
+                  <strong>{figmaConnectionMode === "reconnect" ? "需要重新連結 Figma" : "需要連結 Figma"}</strong>
+                  <span>
+                    {figmaConnectionMode === "reconnect"
+                      ? "重新授權後即可讀取你有權限的設計檔。"
+                      : "授權後即可讀取你有權限的設計檔。"}
+                  </span>
+                  <button
+                    className="primary-button analysis-state-action"
+                    type="button"
+                    onClick={() =>
+                      void startFigmaOAuthForSource(
+                        figmaInfo,
+                        figmaConnectionMode === "reconnect" ? "reconnect" : "connect",
+                      )
+                    }
+                    disabled={isStartingFigmaOAuth}
+                  >
+                    {isStartingFigmaOAuth
+                      ? "前往授權中"
+                      : figmaConnectionMode === "reconnect"
+                        ? "重新連結 Figma"
+                        : "連結 Figma"}
+                  </button>
+                </div>
+              ) : (
+                <p className="analysis-state error-state">{analysisError}</p>
+              )
+            ) : null}
             </div>
           ) : null}
         </aside>

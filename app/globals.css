@@ -2110,6 +2110,33 @@ select:disabled {
   padding: 10px;
 }
 
+.analysis-state strong,
+.analysis-state span {
+  display: block;
+}
+
+.analysis-state strong {
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.analysis-state span {
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.analysis-state-action {
+  margin-top: 12px;
+  min-height: 44px;
+  width: 100%;
+}
+
+.figma-auth-state {
+  background: #f7faf6;
+  border-color: #bfcebd;
+  color: var(--ink);
+}
+
 .app-toast {
   background: var(--amber-100);
   border: 1px solid #e3be64;
