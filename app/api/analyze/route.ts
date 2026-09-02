@@ -133,6 +133,7 @@ const MAX_FIGMA_NODES = 1200;
 const MAX_FIGMA_CONTEXT_CHARS = 96000;
 const MAX_TRACKING_EVENTS = 80;
 const MAX_CONTENT_INVENTORY_AREAS = 24;
+const AI_PROVIDER_TIMEOUT_MS = 28_000;
 const allowedPriorities = new Set<Priority>(["P0", "P1", "P2"]);
 const openAIModelOptions = [
   { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
@@ -149,7 +150,6 @@ const supportedOpenAIModelIds = new Set<string>(openAIModelOptions.map((option) 
 const supportedGeminiModelIds = new Set<string>(geminiModelOptions.map((option) => option.id));
 const DEFAULT_OPENAI_MODEL = openAIModelOptions[0].id;
 const DEFAULT_GEMINI_MODEL = geminiModelOptions[0].id;
-const MISSING_AI_SERVICE_MESSAGE = "平台 AI 分析服務尚未啟用，請聯繫平台管理員完成設定後再試。";
 
 const contentModuleDefinitions: FigmaModuleDefinition[] = [
   { key: "patient", label: "病患資訊", pattern: /病患|患者|個案|病房|病床|床號|patient|ward|bed/i },
@@ -822,6 +822,26 @@ async function readJsonResponse(response: Response) {
     return JSON.parse(text) as Record<string, unknown>;
   } catch {
     return { raw: text };
+  }
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, timeoutMessage: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(timeoutMessage);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -3147,33 +3167,72 @@ function renumberEvents(events: TrackingEvent[]) {
   }));
 }
 
+function buildFallbackAnalysisResult(figmaContext: FigmaContext, firstStep = "AI 模型暫時未完成，已使用 Figma 結構補強"): AnalysisResult {
+  return {
+    model: "Figma 結構備援",
+    analysisProcess: [
+      firstStep,
+      "整理頁面與功能區塊",
+      "建立優先級",
+      "輸出 Excel 欄位格式",
+    ],
+    events: ensureUsefulEvents([], figmaContext),
+  };
+}
+
+function buildAnalysisPayload(analysis: AnalysisResult, figmaContext: FigmaContext) {
+  const analysisProcess = figmaContext.isPartial
+    ? Array.from(new Set(["Figma 讀取未完整，已改用精簡摘要分析", ...analysis.analysisProcess])).slice(0, 6)
+    : analysis.analysisProcess;
+
+  return {
+    ...analysis,
+    analysisProcess,
+    figma: {
+      fileName: figmaContext.fileName,
+      targetName: figmaContext.targetName,
+      targetType: figmaContext.targetType,
+      pages: figmaContext.pages,
+      nodeCount: figmaContext.nodeCount,
+      textCount: figmaContext.textCount,
+      contentCoverage: figmaContext.contentCoverage,
+      isPartial: figmaContext.isPartial,
+    },
+  };
+}
+
 async function analyzeWithOpenAI(
   requestBody: AnalyzeRequest,
   figmaContext: FigmaContext,
   openAIKey: string,
   model: string,
 ) {
-  const response = await fetch(OPENAI_RESPONSES_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openAIKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      instructions: buildInstructions(),
-      input: buildPrompt(requestBody, figmaContext),
-      max_output_tokens: 20000,
-      text: {
-        format: {
-          type: "json_schema",
-          name: "tracking_plan",
-          strict: true,
-          schema: responseSchema,
-        },
+  const response = await fetchWithTimeout(
+    OPENAI_RESPONSES_URL,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openAIKey}`,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        model,
+        instructions: buildInstructions(),
+        input: buildPrompt(requestBody, figmaContext),
+        max_output_tokens: 20000,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "tracking_plan",
+            strict: true,
+            schema: responseSchema,
+          },
+        },
+      }),
+    },
+    AI_PROVIDER_TIMEOUT_MS,
+    "OpenAI 暫時回應逾時",
+  );
   const payload = await readJsonResponse(response);
 
   if (!response.ok) {
@@ -3245,35 +3304,40 @@ async function analyzeWithGemini(
   geminiKey: string,
   model: string,
 ) {
-  const response = await fetch(`${GEMINI_GENERATE_CONTENT_BASE_URL}/models/${encodeURIComponent(model)}:generateContent`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": geminiKey,
-    },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: buildInstructions() }],
+  const response = await fetchWithTimeout(
+    `${GEMINI_GENERATE_CONTENT_BASE_URL}/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": geminiKey,
       },
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: [
-                buildPrompt(requestBody, figmaContext),
-                "請只輸出符合 schema 的 JSON，不要加入 markdown code block 或額外解釋。",
-              ].join("\n\n"),
-            },
-          ],
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: buildInstructions() }],
         },
-      ],
-      generationConfig: {
-        maxOutputTokens: 20000,
-        responseMimeType: "application/json",
-      },
-    }),
-  });
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: [
+                  buildPrompt(requestBody, figmaContext),
+                  "請只輸出符合 schema 的 JSON，不要加入 markdown code block 或額外解釋。",
+                ].join("\n\n"),
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          maxOutputTokens: 20000,
+          responseMimeType: "application/json",
+        },
+      }),
+    },
+    AI_PROVIDER_TIMEOUT_MS,
+    "Gemini 暫時回應逾時",
+  );
   const payload = await readJsonResponse(response);
 
   if (!response.ok) {
@@ -3314,6 +3378,24 @@ export async function POST(request: Request) {
     process.env.GOOGLE_AI_API_KEY ||
     process.env.GOOGLE_STUDIO_API_KEY
   )?.trim();
+  let resolvedFigmaToken: ResolvedFigmaToken;
+
+  try {
+    resolvedFigmaToken = await resolveFigmaToken(request);
+  } catch {
+    const rawToken = process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN || "";
+
+    resolvedFigmaToken = {
+      rawToken,
+      tokenValue: normalizeFigmaToken(rawToken).tokenValue,
+      tokenSource: "site",
+      oauthAvailable: false,
+      oauthReconnectRequired: false,
+      oauthReconnectReason: "figma_oauth_state_unreadable",
+      oauthCookie: "",
+    };
+  }
+
   const {
     rawToken: rawFigmaToken,
     tokenValue: figmaToken,
@@ -3321,21 +3403,20 @@ export async function POST(request: Request) {
     oauthAvailable,
     oauthReconnectRequired,
     oauthCookie,
-  } = await resolveFigmaToken(request);
+  } = resolvedFigmaToken;
 
   if (!fileKey) {
     return Response.json({ message: "缺少 Figma file key，請先套用有效的 Figma 連結" }, { status: 400 });
   }
 
   if (!geminiKey && !openAIKey) {
-    return jsonWithOAuthCookie(
-      {
-        code: "missing_ai_key",
-        message: MISSING_AI_SERVICE_MESSAGE,
-      },
-      { status: 503 },
-      oauthCookie,
+    const figmaContext = buildPartialFigmaContext(
+      requestBody,
+      "平台 AI 分析服務尚未啟用，已先用目前可取得的 Figma 來源資訊分析。",
     );
+    const fallbackAnalysis = buildFallbackAnalysisResult(figmaContext, "平台 AI 分析服務暫時未啟用，已使用 Figma 來源資訊補強");
+
+    return jsonWithOAuthCookie(buildAnalysisPayload(fallbackAnalysis, figmaContext), {}, oauthCookie);
   }
 
   const effectiveProvider: ModelProvider =
@@ -3410,44 +3491,27 @@ export async function POST(request: Request) {
     }
 
     if (!analysis) {
-      analysis = {
-        model: "Figma 結構備援",
-        analysisProcess: [
-          providerError ? "AI 模型暫時未完成，已使用 Figma 結構補強" : "讀取 Figma 節點結構",
-          "整理頁面與功能區塊",
-          "建立優先級",
-          "輸出 Excel 欄位格式",
-        ],
-        events: buildFallbackEvents(figmaContext),
-      };
+      analysis = buildFallbackAnalysisResult(
+        figmaContext,
+        providerError ? "AI 模型暫時未完成，已使用 Figma 結構補強" : "讀取 Figma 節點結構",
+      );
     }
 
-    const analysisProcess = figmaContext.isPartial
-      ? Array.from(new Set(["Figma 讀取未完整，已改用精簡摘要分析", ...analysis.analysisProcess])).slice(0, 6)
-      : analysis.analysisProcess;
-
-    return jsonWithOAuthCookie(
-      {
-        ...analysis,
-        analysisProcess,
-        figma: {
-          fileName: figmaContext.fileName,
-          targetName: figmaContext.targetName,
-          targetType: figmaContext.targetType,
-          pages: figmaContext.pages,
-          nodeCount: figmaContext.nodeCount,
-          textCount: figmaContext.textCount,
-          contentCoverage: figmaContext.contentCoverage,
-          isPartial: figmaContext.isPartial,
-        },
-      },
-      {},
-      oauthCookie,
-    );
+    return jsonWithOAuthCookie(buildAnalysisPayload(analysis, figmaContext), {}, oauthCookie);
   } catch (error) {
     const message = error instanceof Error ? error.message : "AI 分析失敗，請稍後再試";
     const isOAuthReconnectError = error instanceof FigmaOAuthReconnectError;
     const isFigmaAccessError = /figma/i.test(message) && /權限|權杖|授權|token|unauthorized|forbidden|invalid/i.test(message);
+
+    if (!isOAuthReconnectError && !isFigmaAccessError) {
+      const fallbackContext = buildPartialFigmaContext(
+        requestBody,
+        "分析流程暫時未完成，已改用目前可取得的 Figma 來源資訊分析。",
+      );
+      const fallbackAnalysis = buildFallbackAnalysisResult(fallbackContext);
+
+      return jsonWithOAuthCookie(buildAnalysisPayload(fallbackAnalysis, fallbackContext), {}, oauthCookie);
+    }
 
     return jsonWithOAuthCookie(
       {
