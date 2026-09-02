@@ -572,6 +572,13 @@ function deriveLocalFallbackMetricCalculation(area: string, eventType: TrackingE
 function getLocalFallbackAreas(source: FigmaSourceInfo, selectedPage: FigmaPage | null, pageOptions: FigmaPage[]) {
   const pageName = cleanScopeName(selectedPage?.name || source.nodeName || source.fileName, "Figma 分析範圍", 72);
   const haystack = [source.fileName, source.nodeName, pageName, ...(selectedPage?.relatedEventPages ?? [])].join(" ");
+  const hasHealthcareSignals =
+    /病患|患者|病人|病歷|醫療|醫護|護理|護理師|醫師|院所|門診|住院|病房|病床|慢病|照護|健康計畫|照護計畫|用藥|藥品|藥物|檢體|檢驗|衛教|生理體徵|生命徵象|血壓|血糖|血氧|體溫|心率|脈搏|心電|patient|medical|nurs|doctor|hospital|clinic|ward|medication|specimen|vital|health\s*plan|care\s*plan/i.test(
+      haystack,
+    );
+  const isStaticInfo =
+    !hasHealthcareSignals &&
+    /資訊|說明|公告|條款|政策|文章|內容頁|靜態|information|about|article|policy|terms|content/i.test(haystack);
   const caseDetailAreas = [
     "個案基本資料",
     "待處理任務",
@@ -594,22 +601,31 @@ function getLocalFallbackAreas(source: FigmaSourceInfo, selectedPage: FigmaPage 
   const notificationAreas = ["通知列表", "通知詳情", "未讀通知", "通知分類篩選", "通知狀態更新", "通知設定"];
   const loginAreas = ["登入表單", "帳號密碼驗證", "忘記密碼", "第三方登入", "登入錯誤"];
   const generalAreas = ["主要內容", "搜尋與篩選", "詳情查看", "頁籤切換", "建立與編輯", "流程完成", "匯出資料", "操作錯誤與流程流失"];
-  const domainAreas = /個案|病患|患者|生理體徵|血壓|血糖|慢病|醫療|照護/.test(haystack)
+  const staticActionAreas = [
+    ...(/表單|填寫|送出|提交|申請|報名|訂閱|聯絡|form|submit|apply|contact/i.test(haystack) ? ["表單送出"] : []),
+    ...(/下載|download/i.test(haystack) ? ["資料下載"] : []),
+    ...(/匯出|export/i.test(haystack) ? ["資料匯出"] : []),
+    ...(/搜尋|篩選|查詢|search|filter/i.test(haystack) ? ["搜尋與篩選"] : []),
+    ...(/分享|share/i.test(haystack) ? ["分享內容"] : []),
+  ];
+  const domainAreas = hasHealthcareSignals
     ? caseDetailAreas
     : /通知|提醒|訊息|推播/.test(haystack)
       ? notificationAreas
       : /登入|登錄|login|sign in/i.test(haystack)
         ? loginAreas
+        : isStaticInfo
+          ? staticActionAreas
         : [];
   const relatedAreas = selectedPage?.relatedEventPages ?? [];
   const samePageAreas = pageOptions
     .filter((page) => page.id === selectedPage?.id)
     .flatMap((page) => page.relatedEventPages ?? []);
 
-  return Array.from(new Set([...domainAreas, ...relatedAreas, ...samePageAreas, ...generalAreas]))
+  return Array.from(new Set(isStaticInfo ? [...domainAreas] : [...domainAreas, ...relatedAreas, ...samePageAreas, ...generalAreas]))
     .map((area) => cleanScopeName(area, "主要區塊", 40))
     .filter((area) => area && area !== pageName)
-    .slice(0, /個案|病患|患者|生理體徵|血壓|血糖|慢病|醫療|照護/.test(haystack) ? 18 : 10);
+    .slice(0, hasHealthcareSignals ? 18 : isStaticInfo ? 4 : 10);
 }
 
 function createLocalAnalysisFallbackRows(
@@ -641,7 +657,7 @@ function createLocalAnalysisFallbackRows(
       properties: "page_name; user_role; entry_source; component_name",
       propertyDefinitions: "頁面名稱; 使用者角色; 進入來源; 元件或區塊名稱",
       dataTypes: "string; string; string; string",
-      sampleValues: `${page}; medical_staff; sidebar; ${cleanScopeName(area, "主要區塊", 24)}`,
+      sampleValues: `${page}; member; sidebar; ${cleanScopeName(area, "主要區塊", 24)}`,
       priority: deriveLocalFallbackPriority(eventType, index),
       status: "本地補強",
     };
@@ -946,7 +962,7 @@ function normalizeCachedAnalysisEvent(row: TrackingEvent): TrackingEvent {
     sampleValues:
       typeof row.sampleValues === "string" && row.sampleValues.trim()
         ? row.sampleValues
-        : "patient_detail; doctor; sidebar",
+        : "detail_page; member; sidebar",
     priority,
     status: typeof row.status === "string" && row.status.trim() ? row.status : "AI 產生",
   };
