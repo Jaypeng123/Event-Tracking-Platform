@@ -181,7 +181,7 @@ const FIGMA_SOURCES_STORAGE_KEY = "tracking-plan-figma-sources-v1";
 const PENDING_FIGMA_IMPORT_STORAGE_KEY = "tracking-plan-pending-figma-import-v1";
 const PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY = "tracking-plan-pending-figma-auto-analyze-v1";
 const FIGMA_OAUTH_CONNECTED_STORAGE_KEY = "tracking-plan-figma-oauth-connected-v1";
-const ANALYSIS_RESULTS_STORAGE_KEY = "tracking-plan-analysis-results-v1";
+const ANALYSIS_RESULTS_STORAGE_KEY = "tracking-plan-analysis-results-v2";
 const LEGACY_PROJECT_ID = "legacy-project";
 const FIGMA_OAUTH_SETUP_REQUIRED_MESSAGE =
   "Figma 連結功能尚未開放，請稍後再試。";
