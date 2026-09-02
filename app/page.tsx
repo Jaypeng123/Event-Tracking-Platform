@@ -617,11 +617,11 @@ function createLocalAnalysisFallbackRows(
   selectedPage: FigmaPage | null,
   pageOptions: FigmaPage[],
 ) {
-  if (!source.fileKey || !selectedPage) {
+  if (!selectedPage && !source.nodeName && !source.fileName) {
     return [];
   }
 
-  const page = cleanScopeName(selectedPage.name || source.nodeName || source.fileName, "Figma 分析範圍", 48);
+  const page = cleanScopeName(selectedPage?.name || source.nodeName || source.fileName, "Figma 分析範圍", 48);
   const areas = ["頁面載入", ...getLocalFallbackAreas(source, selectedPage, pageOptions)];
 
   return areas.map((area, index): TrackingEvent => {
