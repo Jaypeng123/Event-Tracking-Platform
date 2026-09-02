@@ -415,6 +415,239 @@ function deriveMetricName(page: string, area: string, eventType: TrackingEvent["
   }
 }
 
+function toEventNameToken(value: string, fallback: string) {
+  const token = value
+    .normalize("NFKD")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_{2,}/g, "_")
+    .toLowerCase();
+
+  return token || `${fallback}_${hashText(value).slice(0, 5)}`;
+}
+
+function inferLocalAnalysisEventType(area: string, index: number): TrackingEvent["eventType"] {
+  if (index === 0) {
+    return "PageView";
+  }
+
+  if (/搜尋|篩選|查詢|排序|filter|search/i.test(area)) {
+    return "SearchFilter";
+  }
+
+  if (/新增|編輯|建立|儲存|填寫|設定|create|edit|save/i.test(area)) {
+    return "CreateEdit";
+  }
+
+  if (/完成|送出|提交|匯入|驗證|complete|submit/i.test(area)) {
+    return "FlowComplete";
+  }
+
+  if (/錯誤|異常|失敗|流失|警示|風險|逾時|error|alert|risk/i.test(area)) {
+    return "ErrorDropoff";
+  }
+
+  if (/匯出|下載|報告|excel|download|export|report/i.test(area)) {
+    return "ExportDownload";
+  }
+
+  return "Click";
+}
+
+function deriveLocalFallbackPriority(eventType: TrackingEvent["eventType"], index: number): TrackingEvent["priority"] {
+  if (index === 0 || eventType === "FlowComplete" || eventType === "ErrorDropoff") {
+    return "P0";
+  }
+
+  if (eventType === "Click" || eventType === "SearchFilter" || eventType === "CreateEdit") {
+    return "P1";
+  }
+
+  return "P2";
+}
+
+function deriveLocalFallbackEventName(page: string, area: string, eventType: TrackingEvent["eventType"], index: number) {
+  const pageToken = toEventNameToken(page, "page");
+  const areaToken = toEventNameToken(area, `area_${index + 1}`);
+
+  switch (eventType) {
+    case "PageView":
+      return `view_${pageToken}`;
+    case "SearchFilter":
+      return `apply_${areaToken}_filter`;
+    case "FlowComplete":
+      return `complete_${areaToken}`;
+    case "CreateEdit":
+      return `save_${areaToken}`;
+    case "ErrorDropoff":
+      return `encounter_${areaToken}_issue`;
+    case "ExportDownload":
+      return `download_${areaToken}`;
+    case "Click":
+    default:
+      return `click_${areaToken}`;
+  }
+}
+
+function deriveLocalFallbackTrigger(page: string, area: string, eventType: TrackingEvent["eventType"]) {
+  switch (eventType) {
+    case "PageView":
+      return `進入「${page}」並成功顯示主要內容`;
+    case "SearchFilter":
+      return `在「${area}」套用搜尋或篩選條件並回傳結果`;
+    case "FlowComplete":
+      return `完成「${area}」相關流程並成功送出`;
+    case "CreateEdit":
+      return `在「${area}」完成新增、編輯或儲存`;
+    case "ErrorDropoff":
+      return `操作「${area}」時出現錯誤、異常或流程中斷`;
+    case "ExportDownload":
+      return `點擊「${area}」匯出或下載資料`;
+    case "Click":
+    default:
+      return `點擊「${area}」並成功顯示對應內容`;
+  }
+}
+
+function deriveLocalFallbackPurpose(area: string, eventType: TrackingEvent["eventType"]) {
+  switch (eventType) {
+    case "PageView":
+      return "了解使用者是否會進入此頁面查看主要內容。";
+    case "SearchFilter":
+      return `了解使用者是否會透過「${area}」縮小查找範圍。`;
+    case "FlowComplete":
+      return `衡量使用者是否能順利完成「${area}」流程。`;
+    case "CreateEdit":
+      return `評估使用者是否會維護「${area}」相關資料。`;
+    case "ErrorDropoff":
+      return `找出「${area}」是否造成使用者操作中斷。`;
+    case "ExportDownload":
+      return `評估「${area}」資料是否有被帶出使用的需求。`;
+    case "Click":
+    default:
+      return `了解使用者是否會查看或操作「${area}」。`;
+  }
+}
+
+function deriveLocalFallbackAnalysisValue(area: string, eventType: TrackingEvent["eventType"]) {
+  switch (eventType) {
+    case "PageView":
+      return "判斷此頁面是否為使用者完成主要任務時會實際進入的範圍。";
+    case "SearchFilter":
+      return `確認「${area}」是否能幫助使用者更快找到需要的資料。`;
+    case "FlowComplete":
+      return `找出「${area}」流程是否能被順利完成，以及是否需要優化中斷步驟。`;
+    case "CreateEdit":
+      return `判斷「${area}」是否為使用者需要維護的核心資料。`;
+    case "ErrorDropoff":
+      return `辨識「${area}」是否存在會阻礙核心任務完成的問題。`;
+    case "ExportDownload":
+      return `判斷「${area}」是否需要保留匯出或下載入口。`;
+    case "Click":
+    default:
+      return `比較「${area}」的實際使用率，判斷此功能在頁面中的權重是否合理。`;
+  }
+}
+
+function deriveLocalFallbackMetricCalculation(area: string, eventType: TrackingEvent["eventType"]) {
+  switch (eventType) {
+    case "PageView":
+      return "進入此頁面的不重複使用者數 ÷ 平台活躍不重複使用者數 × 100%";
+    case "SearchFilter":
+      return `${area}搜尋或篩選次數 ÷ 進入此頁面的不重複使用者數 × 100%`;
+    case "FlowComplete":
+      return `${area}完成次數 ÷ ${area}開始次數 × 100%`;
+    case "CreateEdit":
+      return `${area}成功儲存次數 ÷ ${area}編輯開始次數 × 100%`;
+    case "ErrorDropoff":
+      return `${area}錯誤或中斷次數 ÷ ${area}開始操作次數 × 100%`;
+    case "ExportDownload":
+      return `${area}匯出下載次數 ÷ 進入此頁面的不重複使用者數 × 100%`;
+    case "Click":
+    default:
+      return `${area}點擊次數 ÷ 進入此頁面的不重複使用者數 × 100%`;
+  }
+}
+
+function getLocalFallbackAreas(source: FigmaSourceInfo, selectedPage: FigmaPage | null, pageOptions: FigmaPage[]) {
+  const pageName = cleanScopeName(selectedPage?.name || source.nodeName || source.fileName, "Figma 分析範圍", 72);
+  const haystack = [source.fileName, source.nodeName, pageName, ...(selectedPage?.relatedEventPages ?? [])].join(" ");
+  const caseDetailAreas = [
+    "個案基本資料",
+    "待處理任務",
+    "異常警報",
+    "健康計畫",
+    "生理體徵總覽",
+    "血壓資料",
+    "血糖資料",
+    "體溫資料",
+    "心率與脈搏資料",
+    "血氧資料",
+    "體重與 BMI",
+    "心電報告",
+    "照護紀錄",
+    "推播通知",
+    "檢驗報告",
+    "編輯個案資料",
+    "匯出個案報告",
+  ];
+  const notificationAreas = ["通知列表", "通知詳情", "未讀通知", "通知分類篩選", "通知狀態更新", "通知設定"];
+  const loginAreas = ["登入表單", "帳號密碼驗證", "忘記密碼", "第三方登入", "登入錯誤"];
+  const generalAreas = ["主要內容", "搜尋與篩選", "詳情查看", "頁籤切換", "建立與編輯", "流程完成", "匯出資料", "操作錯誤與流程流失"];
+  const domainAreas = /個案|病患|患者|生理體徵|血壓|血糖|慢病|醫療|照護/.test(haystack)
+    ? caseDetailAreas
+    : /通知|提醒|訊息|推播/.test(haystack)
+      ? notificationAreas
+      : /登入|登錄|login|sign in/i.test(haystack)
+        ? loginAreas
+        : [];
+  const relatedAreas = selectedPage?.relatedEventPages ?? [];
+  const samePageAreas = pageOptions
+    .filter((page) => page.id === selectedPage?.id)
+    .flatMap((page) => page.relatedEventPages ?? []);
+
+  return Array.from(new Set([...domainAreas, ...relatedAreas, ...samePageAreas, ...generalAreas]))
+    .map((area) => cleanScopeName(area, "主要區塊", 40))
+    .filter((area) => area && area !== pageName)
+    .slice(0, /個案|病患|患者|生理體徵|血壓|血糖|慢病|醫療|照護/.test(haystack) ? 18 : 10);
+}
+
+function createLocalAnalysisFallbackRows(
+  source: FigmaSourceInfo,
+  selectedPage: FigmaPage | null,
+  pageOptions: FigmaPage[],
+) {
+  if (!source.fileKey || !selectedPage) {
+    return [];
+  }
+
+  const page = cleanScopeName(selectedPage.name || source.nodeName || source.fileName, "Figma 分析範圍", 48);
+  const areas = ["頁面載入", ...getLocalFallbackAreas(source, selectedPage, pageOptions)];
+
+  return areas.map((area, index): TrackingEvent => {
+    const eventType = inferLocalAnalysisEventType(area, index);
+
+    return {
+      id: `AI_${String(index + 1).padStart(3, "0")}`,
+      page,
+      area: cleanScopeName(area, page, 48),
+      metricName: deriveMetricName(page, area, eventType),
+      eventName: deriveLocalFallbackEventName(page, area, eventType, index),
+      eventType,
+      trigger: deriveLocalFallbackTrigger(page, area, eventType),
+      purpose: deriveLocalFallbackPurpose(area, eventType),
+      analysisValue: deriveLocalFallbackAnalysisValue(area, eventType),
+      metricCalculation: deriveLocalFallbackMetricCalculation(area, eventType),
+      properties: "page_name; user_role; entry_source; component_name",
+      propertyDefinitions: "頁面名稱; 使用者角色; 進入來源; 元件或區塊名稱",
+      dataTypes: "string; string; string; string",
+      sampleValues: `${page}; medical_staff; sidebar; ${cleanScopeName(area, "主要區塊", 24)}`,
+      priority: deriveLocalFallbackPriority(eventType, index),
+      status: "本地補強",
+    };
+  });
+}
+
 function toNumberedDisplayList(value: string) {
   const normalized = value.replace(/\r/g, "").replace(/\s*\n+\s*/g, "\n").trim();
   const cleanItem = (item: string) => item.replace(/^[-•]\s*/, "").replace(/^\d+[.)、]\s*/, "").trim();
@@ -2777,6 +3010,34 @@ export default function Home() {
       return nextResults;
     });
 
+    const applyLocalAnalysisFallback = (toast = "AI 服務暫時不穩，已先用 Figma 結構產生分析") => {
+      const rows = createLocalAnalysisFallbackRows(figmaInfo, selectedPage, pageOptions);
+
+      if (!rows.length) {
+        return false;
+      }
+
+      setAnalysisRows(rows);
+      setHasAnalyzed(true);
+      setAnalysisError("");
+      setAnalysisState("");
+      setFigmaConnectionMode("");
+      setFigmaOAuthError("");
+      showToast(toast);
+      updateAnalysisResultCache((currentResults) =>
+        compactAnalysisResults({
+          ...currentResults,
+          [cacheKey]: {
+            rows,
+            modelId: selectedAnalysisModel.id,
+            analyzedAt: new Date().toISOString(),
+          },
+        }),
+      );
+
+      return true;
+    };
+
     try {
       const sourceForAnalysis = selectedPage && selectedPage.id !== "file"
         ? {
@@ -2836,13 +3097,17 @@ export default function Home() {
         throw error;
       }
 
-      const rows = Array.isArray(result.events) ? result.events : [];
+      const apiRows = Array.isArray(result.events) ? result.events : [];
+      const rows = apiRows.length ? apiRows : createLocalAnalysisFallbackRows(figmaInfo, selectedPage, pageOptions);
 
       setAnalysisRows(rows);
       setHasAnalyzed(true);
       setAnalysisState("");
       setFigmaConnectionMode("");
       setFigmaOAuthError("");
+      if (!apiRows.length && rows.length) {
+        showToast("已先用 Figma 結構補強分析");
+      }
       updateAnalysisResultCache((currentResults) =>
         compactAnalysisResults({
           ...currentResults,
@@ -2872,6 +3137,14 @@ export default function Home() {
           : analysisFailure.status === 401
             ? getFigmaConnectionAction()
             : "");
+      const shouldUseLocalFallback =
+        !isFigmaOAuthActionCode(analysisFailure.code) &&
+        !analysisFailure.reconnectRequired &&
+        !fallbackFigmaAction;
+
+      if (shouldUseLocalFallback && applyLocalAnalysisFallback()) {
+        return;
+      }
 
       setAnalysisError(message);
       setAnalysisState(message);
