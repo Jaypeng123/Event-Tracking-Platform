@@ -1211,6 +1211,11 @@ select:focus {
   --cube-rotate: -14deg;
   --cube-x: 0px;
   --cube-y: 0px;
+  --figma-logo-left: calc(50% - 16px);
+  --figma-logo-top: calc(50% - 25px);
+  --figma-logo-col-gap: 14px;
+  --figma-logo-row-gap: 16px;
+  --figma-logo-row-gap-double: 32px;
   background: rgb(75 222 128 / 12%);
   left: -86px;
   top: -24px;
@@ -1225,32 +1230,32 @@ select:focus {
 
 .figma-cube span:nth-child(1) {
   background: #ff6b45;
-  left: 30px;
-  top: 24px;
+  left: var(--figma-logo-left);
+  top: var(--figma-logo-top);
 }
 
 .figma-cube span:nth-child(2) {
   background: #ffb64a;
-  left: 44px;
-  top: 24px;
+  left: calc(var(--figma-logo-left) + var(--figma-logo-col-gap));
+  top: var(--figma-logo-top);
 }
 
 .figma-cube span:nth-child(3) {
   background: #9b6cff;
-  left: 30px;
-  top: 40px;
+  left: var(--figma-logo-left);
+  top: calc(var(--figma-logo-top) + var(--figma-logo-row-gap));
 }
 
 .figma-cube span:nth-child(4) {
   background: #57a9ff;
-  left: 44px;
-  top: 40px;
+  left: calc(var(--figma-logo-left) + var(--figma-logo-col-gap));
+  top: calc(var(--figma-logo-top) + var(--figma-logo-row-gap));
 }
 
 .figma-cube span:nth-child(5) {
   background: #55dc92;
-  left: 30px;
-  top: 56px;
+  left: var(--figma-logo-left);
+  top: calc(var(--figma-logo-top) + var(--figma-logo-row-gap-double));
 }
 
 .icon-button {
