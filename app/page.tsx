@@ -226,9 +226,9 @@ const priorityOptions: Array<{ value: PriorityFilter; label: string }> = [
 ];
 
 const priorityDescriptions: Record<TrackingEvent["priority"], string> = {
-  P0: "第一階段沒有這支，就無法回答核心產品問題",
-  P1: "有助於理解使用情境與功能價值",
-  P2: "微互動與細節優化",
+  P0: "缺少此埋點，無法驗證核心問題",
+  P1: "用於理解核心流程中的使用行為",
+  P2: "用於觀察次要功能與操作細節",
 };
 
 const analysisModelOptions: AnalysisModelOption[] = [

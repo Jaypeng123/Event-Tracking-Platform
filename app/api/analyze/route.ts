@@ -1573,7 +1573,7 @@ function buildInstructions() {
     "eventName 必須是英文 snake_case 的 verb_object，例如 view_patient_detail、click_pending_task、open_advanced_search、apply_patient_filter、switch_health_metric、download_ecg_report、save_custom_health_plan。",
     "不可直接把 Figma Layer Name 轉成 eventName；遇到個人中心（1.4~1.8）/ Arrow 2 這類圖層，必須做語意轉換，不可輸出 use_1_4_1_8_arrow_2、use_pending_task、track_event_1。",
     "使用率、點擊率、完成率是 metric，不是 event；eventName 要描述發生了什麼使用者行為。",
-    "priority 必須使用 P0、P1、P2。P0：第一階段沒有這支，就無法回答核心產品問題。P1：有助於理解使用情境與功能價值。P2：微互動與細節優化。",
+    "priority 必須使用 P0、P1、P2。P0：缺少此埋點，無法驗證核心問題。P1：用於理解核心流程中的使用行為。P2：用於觀察次要功能與操作細節。",
     "請只把真正關鍵的頁面曝光、核心入口、關鍵流程列為 P0；不要把全部事件都標成 P0。",
     "page 與 area 不可留空，也不可使用未命名頁面、未命名區塊等占位詞；若節點名稱不清楚，請根據畫面文字自行命名具體頁面與區塊。",
     "page 與 area 不要保留版本號或頁碼，例如 個人中心（1.4~1.8）要輸出 個人中心，訂單列表-待處理 (4) 要輸出 訂單列表-待處理。",
