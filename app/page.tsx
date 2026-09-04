@@ -978,6 +978,24 @@ function clearTemporaryAnalysisSessionStorage({ keepPendingOAuth = false } = {})
   }
 }
 
+function clearAllBrowserRecords({ keepPendingOAuth = false } = {}) {
+  try {
+    window.localStorage.removeItem(PROJECTS_STORAGE_KEY);
+    window.localStorage.removeItem(ACTIVE_PROJECT_STORAGE_KEY);
+    window.localStorage.removeItem(EVENT_LIBRARY_STORAGE_KEY);
+    window.localStorage.removeItem(FIGMA_SOURCES_STORAGE_KEY);
+    window.localStorage.removeItem(ANALYSIS_RESULTS_STORAGE_KEY);
+    window.localStorage.removeItem(FIGMA_OAUTH_CONNECTED_STORAGE_KEY);
+
+    if (!keepPendingOAuth) {
+      window.localStorage.removeItem(PENDING_FIGMA_IMPORT_STORAGE_KEY);
+      window.localStorage.removeItem(PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY);
+    }
+  } catch {
+    // Browser refresh should behave like a new workspace even if storage cleanup fails.
+  }
+}
+
 function readStoredEventLibrary() {
   try {
     const storedLibrary = window.localStorage.getItem(EVENT_LIBRARY_STORAGE_KEY);
@@ -1276,12 +1294,16 @@ export default function Home() {
     const hasFigmaOAuthCallback = new URL(window.location.href).searchParams.has("figma_oauth");
 
     const timer = window.setTimeout(() => {
-      const storedProjects = readStoredProjects();
-      const storedActiveProjectId = readStoredActiveProjectId();
+      const storedProjects = hasFigmaOAuthCallback ? readStoredProjects() : [];
+      const storedActiveProjectId = hasFigmaOAuthCallback ? readStoredActiveProjectId() : "";
       const nextActiveProjectId =
         storedProjects.find((project) => project.id === storedActiveProjectId)?.id ?? storedProjects[0]?.id ?? "";
 
-      clearTemporaryAnalysisSessionStorage({ keepPendingOAuth: hasFigmaOAuthCallback });
+      if (hasFigmaOAuthCallback) {
+        clearTemporaryAnalysisSessionStorage({ keepPendingOAuth: true });
+      } else {
+        clearAllBrowserRecords();
+      }
 
       setProjects(storedProjects);
       setImportedSources([]);
@@ -1305,7 +1327,7 @@ export default function Home() {
       setPriorityFilter("All");
       setQuery("");
       setActiveView(hasFigmaOAuthCallback ? "planner" : "landing");
-      setLibraryRows(readStoredEventLibrary());
+      setLibraryRows(hasFigmaOAuthCallback ? readStoredEventLibrary() : []);
       setHasLoadedLibrary(true);
       setHasLoadedWorkspace(true);
     }, 0);
@@ -2409,19 +2431,7 @@ export default function Home() {
         isLoaded: true,
       };
 
-      let wasConnectedBefore = false;
-
-      try {
-        wasConnectedBefore = window.localStorage.getItem(FIGMA_OAUTH_CONNECTED_STORAGE_KEY) === "1";
-
-        if (nextStatus.connected) {
-          window.localStorage.setItem(FIGMA_OAUTH_CONNECTED_STORAGE_KEY, "1");
-        }
-      } catch {
-        // Ignore storage failures; the current OAuth status still drives the UI.
-      }
-
-      if (nextStatus.reconnectRequired || (wasConnectedBefore && !nextStatus.connected)) {
+      if (nextStatus.reconnectRequired) {
         setFigmaConnectionMode("reconnect");
       } else if (nextStatus.connected) {
         setFigmaConnectionMode("");
@@ -2447,16 +2457,8 @@ export default function Home() {
     }
   }
 
-  function hasKnownFigmaOAuthConnection() {
-    try {
-      return window.localStorage.getItem(FIGMA_OAUTH_CONNECTED_STORAGE_KEY) === "1";
-    } catch {
-      return false;
-    }
-  }
-
   function getFigmaConnectionAction(status = figmaOAuthStatus): "connect" | "reconnect" {
-    return status.reconnectRequired || hasKnownFigmaOAuthConnection() ? "reconnect" : "connect";
+    return status.reconnectRequired ? "reconnect" : "connect";
   }
 
   function isFigmaOAuthActionCode(code?: string) {
@@ -2485,7 +2487,7 @@ export default function Home() {
     }
 
     if (result.code === "figma_oauth_required") {
-      return hasKnownFigmaOAuthConnection() ? "reconnect" : "connect";
+      return figmaOAuthStatus.connected ? "reconnect" : "connect";
     }
 
     if (responseStatus === 403) {
@@ -2633,7 +2635,7 @@ export default function Home() {
 
       if (isFigmaOAuthActionCode(figmaError.code)) {
         const action =
-          figmaError.code === "figma_oauth_reconnect_required" || figmaError.reconnectRequired || hasKnownFigmaOAuthConnection()
+          figmaError.code === "figma_oauth_reconnect_required" || figmaError.reconnectRequired || figmaOAuthStatus.connected
             ? "reconnect"
             : "connect";
 
@@ -3047,7 +3049,7 @@ export default function Home() {
           ? fallbackFigmaAction
           : analysisFailure.code === "figma_oauth_reconnect_required" ||
               analysisFailure.reconnectRequired ||
-              hasKnownFigmaOAuthConnection()
+              figmaOAuthStatus.connected
             ? "reconnect"
             : "connect";
 
