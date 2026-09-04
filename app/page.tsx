@@ -164,6 +164,12 @@ type FigmaPagesLoadResult = {
   sourceInfo: FigmaSourceInfo;
 };
 
+type FigmaPagesLoadOptions = {
+  preferredPageId?: string;
+  allowLocalFallback?: boolean;
+  forceRefresh?: boolean;
+};
+
 const EMPTY_FIGMA_SOURCE: FigmaSourceInfo = {
   mode: "empty",
   fileKey: "",
@@ -192,19 +198,6 @@ const FIGMA_RECONNECT_MESSAGE = "需要重新連結 Figma。重新授權後即�
 const ANALYSIS_FAILURE_MESSAGE = "AI 暫時無法完成分析，請稍後再試。";
 
 const knownFigmaFiles: Record<string, { name: string; pages: FigmaPage[]; nodes: Record<string, string> }> = {
-  YxOzcNURPPgfDq9qiXj1uk: {
-    name: "台灣 慢病 醫療人員 UX V7.9.0",
-    pages: [
-      {
-        id: "0:1",
-        name: "專案封面",
-        relatedEventPages: ["個案詳情", "健康計畫", "CoDoctor Watch：血壓"],
-      },
-    ],
-    nodes: {
-      "11575:278819": "慢病管理-個案詳情",
-    },
-  },
 };
 
 const filterOptions: Array<{ value: EventFilter; label: string }> = [
@@ -901,83 +894,6 @@ function normalizeStoredEvent(row: SavedTrackingEvent): SavedTrackingEvent {
   };
 }
 
-function isTrackingEventDraftLike(value: unknown): value is TrackingEvent {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-
-  return (
-    typeof record.id === "string" &&
-    typeof record.page === "string" &&
-    typeof record.area === "string" &&
-    typeof record.eventName === "string"
-  );
-}
-
-function normalizeCachedAnalysisEvent(row: TrackingEvent): TrackingEvent {
-  const page = cleanScopeName(row.page, "Figma 分析範圍");
-  const area = cleanScopeName(row.area, row.page || "主要區塊");
-  const eventType = coerceEventType(row.eventType);
-  const priority =
-    row.priority === "P0" || row.priority === "P1" || row.priority === "P2" ? row.priority : "P1";
-
-  return {
-    id: row.id,
-    page,
-    area,
-    metricName:
-      typeof row.metricName === "string" && row.metricName.trim()
-        ? cleanScopeName(row.metricName, deriveMetricName(page, area, eventType), 36)
-        : deriveMetricName(page, area, eventType),
-    eventName: row.eventName,
-    eventType,
-    trigger:
-      typeof row.trigger === "string" && row.trigger.trim()
-        ? normalizeTrackingEventCopy(row.trigger)
-        : "完成指定埋點行為",
-    purpose:
-      typeof row.purpose === "string" && row.purpose.trim()
-        ? row.purpose
-        : "了解此事件是否能回答目前頁面的核心產品問題。",
-    analysisValue:
-      typeof row.analysisValue === "string" && row.analysisValue.trim()
-        ? toNumberedDisplayList(row.analysisValue)
-        : "判斷此事件是否能回答目前頁面的核心產品問題。",
-    metricCalculation:
-      typeof row.metricCalculation === "string" && row.metricCalculation.trim()
-        ? normalizeMetricCalculationCopy(toNumberedDisplayList(row.metricCalculation))
-        : "事件不重複使用者數 ÷ 平台活躍不重複使用者數",
-    properties:
-      typeof row.properties === "string" && row.properties.trim()
-        ? row.properties
-        : "page_name; user_role; entry_source",
-    propertyDefinitions:
-      typeof row.propertyDefinitions === "string" && row.propertyDefinitions.trim()
-        ? row.propertyDefinitions
-        : "頁面名稱; 使用者角色; 進入來源",
-    dataTypes:
-      typeof row.dataTypes === "string" && row.dataTypes.trim() ? row.dataTypes : "string; string; string",
-    sampleValues:
-      typeof row.sampleValues === "string" && row.sampleValues.trim()
-        ? row.sampleValues
-        : "detail_page; member; sidebar",
-    priority,
-    status: typeof row.status === "string" && row.status.trim() ? row.status : "AI 產生",
-  };
-}
-
-function isCachedAnalysisResultLike(value: unknown): value is CachedAnalysisResult {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-
-  return Array.isArray(record.rows);
-}
-
 function compactAnalysisResults(results: Record<string, CachedAnalysisResult>) {
   return Object.fromEntries(
     Object.entries(results)
@@ -1027,34 +943,6 @@ function readStoredActiveProjectId() {
   }
 }
 
-function isImportedFigmaSourceLike(value: unknown): value is ImportedFigmaSource {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-
-  return (
-    typeof record.id === "string" &&
-    typeof record.projectId === "string" &&
-    typeof record.fileKey === "string" &&
-    typeof record.normalizedUrl === "string" &&
-    Array.isArray(record.pages)
-  );
-}
-
-function isLegacyFrameImport(source: ImportedFigmaSource) {
-  const parsedSource = parseFigmaUrl(source.normalizedUrl);
-
-  return (
-    source.mode === "node" &&
-    source.importBehavior !== "auto" &&
-    parsedSource.mode === "file" &&
-    parsedSource.fileKey === source.fileKey &&
-    Boolean(parsedSource.nodeId)
-  );
-}
-
 function getFigmaSourceId(projectId: string, source: FigmaSourceInfo) {
   return `figma_${hashText([projectId, source.fileKey, source.mode === "node" ? source.nodeId : "file"].join("|"))}`;
 }
@@ -1076,81 +964,17 @@ function getDefaultSelectedPageId(pages: FigmaPage[], preferredPageId = "") {
   return pages.length === 1 ? pages[0].id : "";
 }
 
-function normalizeStoredFigmaSource(source: ImportedFigmaSource): ImportedFigmaSource {
-  const now = new Date().toISOString();
-  const pages = Array.isArray(source.pages) ? source.pages.map(normalizeFigmaPage) : [];
-  const mode = source.mode === "node" ? "node" : "file";
-
-  return {
-    ...source,
-    id: source.id || `figma_${hashText(source.normalizedUrl || source.fileKey)}`,
-    projectId: source.projectId || LEGACY_PROJECT_ID,
-    mode,
-    fileName: cleanScopeName(source.fileName, "Figma 來源", 48),
-    nodeId: mode === "node" ? source.nodeId : "",
-    nodeName: mode === "node" && source.nodeName ? cleanScopeName(source.nodeName, "指定節點", 48) : "",
-    pages,
-    selectedPageId: getDefaultSelectedPageId(pages, source.selectedPageId),
-    importedAt: typeof source.importedAt === "string" ? source.importedAt : now,
-    updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : now,
-    ...(source.importBehavior === "auto" ? { importBehavior: source.importBehavior } : {}),
-  };
-}
-
-function readStoredFigmaSources() {
+function clearTemporaryAnalysisSessionStorage({ keepPendingOAuth = false } = {}) {
   try {
-    const storedSources = window.localStorage.getItem(FIGMA_SOURCES_STORAGE_KEY);
-    const parsed = storedSources ? JSON.parse(storedSources) : [];
+    window.localStorage.removeItem(FIGMA_SOURCES_STORAGE_KEY);
+    window.localStorage.removeItem(ANALYSIS_RESULTS_STORAGE_KEY);
 
-    return Array.isArray(parsed)
-      ? parsed
-          .filter(isImportedFigmaSourceLike)
-          .map(normalizeStoredFigmaSource)
-          .filter((source) => !isLegacyFrameImport(source))
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function readStoredAnalysisResults() {
-  try {
-    const storedResults = window.localStorage.getItem(ANALYSIS_RESULTS_STORAGE_KEY);
-    const parsed = storedResults ? JSON.parse(storedResults) : {};
-
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
+    if (!keepPendingOAuth) {
+      window.localStorage.removeItem(PENDING_FIGMA_IMPORT_STORAGE_KEY);
+      window.localStorage.removeItem(PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY);
     }
-
-    const now = new Date().toISOString();
-    const normalizedEntries = Object.entries(parsed as Record<string, unknown>).flatMap(([cacheKey, result]) => {
-      if (!cacheKey || !isCachedAnalysisResultLike(result)) {
-        return [];
-      }
-
-      const rows = result.rows
-        .filter(isTrackingEventDraftLike)
-        .map(normalizeCachedAnalysisEvent);
-
-      if (!rows.length) {
-        return [];
-      }
-
-      return [
-        [
-          cacheKey,
-          {
-            rows,
-            modelId: typeof result.modelId === "string" ? result.modelId : "",
-            analyzedAt: typeof result.analyzedAt === "string" ? result.analyzedAt : now,
-          },
-        ],
-      ];
-    });
-
-    return compactAnalysisResults(Object.fromEntries(normalizedEntries));
   } catch {
-    return {};
+    // Analysis session state is in-memory only; storage cleanup is best-effort.
   }
 }
 
@@ -1449,48 +1273,38 @@ export default function Home() {
   const activeFigmaConnectionAction = figmaConnectionMode || (figmaOAuthStatus.reconnectRequired ? "reconnect" : "connect");
   const figmaConnectionButtonLabel = activeFigmaConnectionAction === "reconnect" ? "重新連結 Figma" : "連結 Figma";
   useEffect(() => {
+    const hasFigmaOAuthCallback = new URL(window.location.href).searchParams.has("figma_oauth");
+
     const timer = window.setTimeout(() => {
       const storedProjects = readStoredProjects();
-      const storedSources = readStoredFigmaSources();
-      const storedAnalysisResults = readStoredAnalysisResults();
       const storedActiveProjectId = readStoredActiveProjectId();
       const nextActiveProjectId =
         storedProjects.find((project) => project.id === storedActiveProjectId)?.id ?? storedProjects[0]?.id ?? "";
-      const nextSource = storedSources.find((source) => source.projectId === nextActiveProjectId) ?? null;
+
+      clearTemporaryAnalysisSessionStorage({ keepPendingOAuth: hasFigmaOAuthCallback });
 
       setProjects(storedProjects);
-      setImportedSources(storedSources);
-      cachedAnalysisResultsRef.current = storedAnalysisResults;
-      setCachedAnalysisResults(storedAnalysisResults);
+      setImportedSources([]);
+      cachedAnalysisResultsRef.current = {};
+      setCachedAnalysisResults({});
       setActiveProjectId(nextActiveProjectId);
       setIsProjectModalOpen(false);
-      setIsAddingSource(!nextSource);
-      if (nextSource) {
-        const selectedSourcePageId = getDefaultSelectedPageId(nextSource.pages, nextSource.selectedPageId);
-        const cachedResult = storedAnalysisResults[getSourceAnalysisCacheKey(nextSource, selectedSourcePageId)] ?? null;
-
-        setActiveSourceId(nextSource.id);
-        setDraftFigmaUrl("");
-        setAppliedFigmaUrl(nextSource.normalizedUrl);
-        setLoadedPages(nextSource.pages);
-        setSelectedPageId(selectedSourcePageId);
-        setHasImportedPages(true);
-        setPageLoadError(nextSource.pages.length ? "" : "這個來源沒有讀到可分析的 Page");
-        setAnalysisRows(cachedResult?.rows ?? []);
-        setHasAnalyzed(Boolean(cachedResult));
-        setAnalysisState("");
-      } else {
-        setActiveSourceId("");
-        setDraftFigmaUrl("");
-        setAppliedFigmaUrl("");
-        setLoadedPages([]);
-        setSelectedPageId("");
-        setHasImportedPages(false);
-        setPageLoadError("");
-        setAnalysisRows([]);
-        setHasAnalyzed(false);
-        setAnalysisState("尚未提供 Figma 連結");
-      }
+      setIsAddingSource(true);
+      setActiveSourceId("");
+      setDraftFigmaUrl("");
+      setAppliedFigmaUrl("");
+      setLoadedPages([]);
+      setSelectedPageId("");
+      setHasImportedPages(false);
+      setPageLoadError("");
+      setAnalysisRows([]);
+      setHasAnalyzed(false);
+      setAnalysisError("");
+      setAnalysisState("尚未提供 Figma 連結");
+      setFilter("All");
+      setPriorityFilter("All");
+      setQuery("");
+      setActiveView(hasFigmaOAuthCallback ? "planner" : "landing");
       setLibraryRows(readStoredEventLibrary());
       setHasLoadedLibrary(true);
       setHasLoadedWorkspace(true);
@@ -1520,7 +1334,7 @@ export default function Home() {
       return;
     }
 
-    window.localStorage.setItem(FIGMA_SOURCES_STORAGE_KEY, JSON.stringify(importedSources));
+    clearTemporaryAnalysisSessionStorage({ keepPendingOAuth: true });
   }, [hasLoadedWorkspace, importedSources]);
 
   useEffect(() => {
@@ -1528,14 +1342,7 @@ export default function Home() {
       return;
     }
 
-    try {
-      window.localStorage.setItem(
-        ANALYSIS_RESULTS_STORAGE_KEY,
-        JSON.stringify(compactAnalysisResults(cachedAnalysisResults)),
-      );
-    } catch {
-      // Ignore localStorage quota failures; the current in-memory result still remains usable.
-    }
+    clearTemporaryAnalysisSessionStorage({ keepPendingOAuth: true });
   }, [cachedAnalysisResults, hasLoadedWorkspace]);
 
   useEffect(() => {
@@ -1984,13 +1791,25 @@ export default function Home() {
     );
   }
 
-  function getSourceAnalysisCacheKey(source: ImportedFigmaSource, pageId: string) {
-    return getAnalysisResultCacheKey(
-      source.projectId || LEGACY_PROJECT_ID,
-      source.fileKey,
-      source.mode === "node" ? source.nodeId : "",
-      pageId,
-    );
+  function getReparsedCurrentFigmaInfo() {
+    const sourceUrl =
+      selectedImportedSource?.normalizedUrl || appliedFigmaUrl || figmaInfo.normalizedUrl || draftFigmaUrl;
+    const reparsedInfo = parseFigmaUrl(sourceUrl);
+
+    if (reparsedInfo.mode !== "file" && reparsedInfo.mode !== "node") {
+      return figmaInfo;
+    }
+
+    return {
+      ...figmaInfo,
+      mode: reparsedInfo.mode,
+      fileKey: reparsedInfo.fileKey,
+      fileName: figmaInfo.fileName || reparsedInfo.fileName,
+      nodeId: reparsedInfo.nodeId,
+      nodeName: figmaInfo.nodeName || reparsedInfo.nodeName,
+      pages: pageOptions.length ? pageOptions : figmaInfo.pages,
+      normalizedUrl: reparsedInfo.normalizedUrl,
+    };
   }
 
   function updateAnalysisResultCache(updater: (currentResults: Record<string, CachedAnalysisResult>) => Record<string, CachedAnalysisResult>) {
@@ -2002,32 +1821,19 @@ export default function Home() {
     });
   }
 
-  function restoreCachedAnalysisResult(cacheKey: string, emptyStateMessage = "") {
+  function resetAnalysisResultForScope(emptyStateMessage = "") {
     analysisRunId.current += 1;
-
-    const cachedResult = cachedAnalysisResultsRef.current[cacheKey] ?? cachedAnalysisResults[cacheKey] ?? null;
 
     setIsAnalyzing(false);
     setAnalysisError("");
     setIsAnalysisModelMenuOpen(false);
-
-    if (cachedResult) {
-      setAnalysisRows(cachedResult.rows);
-      setHasAnalyzed(true);
-      setAnalysisState("");
-      return;
-    }
-
     setAnalysisRows([]);
     setHasAnalyzed(false);
     setAnalysisState(emptyStateMessage);
   }
 
-  function restoreCachedAnalysisResultForSource(source: ImportedFigmaSource, pageId: string) {
-    restoreCachedAnalysisResult(
-      getSourceAnalysisCacheKey(source, pageId),
-      pageId ? "" : "請先選擇要分析的 Page",
-    );
+  function resetAnalysisResultForSource(pageId: string) {
+    resetAnalysisResultForScope(pageId ? "" : "請先選擇要分析的 Page");
   }
 
   function applyImportedSourceToState(source: ImportedFigmaSource | null) {
@@ -2059,7 +1865,7 @@ export default function Home() {
     setHasImportedPages(true);
     setPageLoadError(source.pages.length ? "" : "這個來源沒有讀到可分析的 Page");
     setIsAddingSource(false);
-    restoreCachedAnalysisResultForSource(source, selectedSourcePageId);
+    resetAnalysisResultForSource(selectedSourcePageId);
     setFilter("All");
     setPriorityFilter("All");
     setQuery("");
@@ -2742,7 +2548,11 @@ export default function Home() {
     }
   }
 
-  async function loadFigmaPages(nextInfo: FigmaSourceInfo): Promise<FigmaPagesLoadResult> {
+  async function loadFigmaPages(
+    nextInfo: FigmaSourceInfo,
+    options: FigmaPagesLoadOptions = {},
+  ): Promise<FigmaPagesLoadResult> {
+    const { preferredPageId = "", allowLocalFallback = true, forceRefresh = false } = options;
     const emptyResult = { pages: [], sourceInfo: nextInfo };
 
     if (!nextInfo.fileKey || nextInfo.mode === "empty" || nextInfo.mode === "invalid" || nextInfo.mode === "unsupported") {
@@ -2765,12 +2575,14 @@ export default function Home() {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
         },
         body: JSON.stringify({
           fileKey: nextInfo.fileKey,
           fileName: nextInfo.fileName,
           nodeId: nextInfo.nodeId,
           nodeName: nextInfo.nodeName,
+          forceRefresh,
         }),
         cache: "no-store",
         credentials: "include",
@@ -2803,7 +2615,7 @@ export default function Home() {
             : "",
         pages,
       };
-      const nextSelectedPageId = getDefaultSelectedPageId(pages);
+      const nextSelectedPageId = getDefaultSelectedPageId(pages, preferredPageId);
 
       setLoadedPages(pages);
       setSelectedPageId(nextSelectedPageId);
@@ -2834,16 +2646,21 @@ export default function Home() {
         setFigmaConnectionMode(action);
         setFigmaOAuthError(message);
         showToast(action === "reconnect" ? "請重新連結 Figma" : "需要連結 Figma");
+
+        if (!allowLocalFallback) {
+          throw error;
+        }
+
         return emptyResult;
       }
 
       const fallbackResult = createLocalFigmaPagesFallback(nextInfo);
 
-      if (fallbackResult) {
+      if (fallbackResult && allowLocalFallback) {
         const fallbackPages = fallbackResult.pages;
 
         setLoadedPages(fallbackPages);
-        setSelectedPageId(getDefaultSelectedPageId(fallbackPages));
+        setSelectedPageId(getDefaultSelectedPageId(fallbackPages, preferredPageId));
         setIsPageMenuOpen(false);
         setHasImportedPages(true);
         setPageLoadError("");
@@ -2862,6 +2679,11 @@ export default function Home() {
       setHasImportedPages(false);
       setPageLoadError(message);
       setAnalysisState("");
+
+      if (!allowLocalFallback) {
+        throw error;
+      }
+
       return emptyResult;
     } finally {
       setIsLoadingPages(false);
@@ -2870,18 +2692,9 @@ export default function Home() {
 
   async function applyFigmaSource(nextInfo: FigmaSourceInfo) {
     const nextSourceId = getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo);
-    const duplicatedSource = currentProjectSources.find((source) => source.id === nextSourceId);
-
-    if (duplicatedSource) {
-      applyImportedSourceToState(duplicatedSource);
-      setFigmaConnectionMode("");
-      setFigmaOAuthError("");
-      showToast("已切換到這個 Figma 來源");
-      return;
-    }
 
     setAppliedFigmaUrl(nextInfo.normalizedUrl);
-    setActiveSourceId("");
+    setActiveSourceId(nextSourceId);
     setLoadedPages([]);
     setSelectedPageId("");
     setIsPageMenuOpen(false);
@@ -2944,15 +2757,6 @@ export default function Home() {
       return;
     }
 
-    const nextSourceId = getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo);
-    const duplicatedSource = currentProjectSources.find((source) => source.id === nextSourceId);
-
-    if (duplicatedSource) {
-      applyImportedSourceToState(duplicatedSource);
-      showToast("已切換到這個 Figma 來源");
-      return;
-    }
-
     await applyFigmaSource(nextInfo);
   }
 
@@ -2977,7 +2781,7 @@ export default function Home() {
       setPriorityFilter("All");
       setQuery("");
     }
-    restoreCachedAnalysisResult(getCurrentAnalysisCacheKey(pageId), pageId ? "" : "請先選擇要分析的 Page");
+    resetAnalysisResultForScope(pageId ? "" : "請先選擇要分析的 Page");
   }
 
   async function runAnalysis() {
@@ -3006,8 +2810,19 @@ export default function Home() {
       return;
     }
 
+    const requestedPageId = selectedPageId;
+    const reparsedFigmaInfo = getReparsedCurrentFigmaInfo();
     const runId = analysisRunId.current + 1;
-    const cacheKey = getCurrentAnalysisCacheKey();
+    let latestFigmaInfo = reparsedFigmaInfo;
+    let latestPageOptions = pageOptions;
+    let latestSelectedPage = selectedPage;
+    let didFetchLatestFigma = false;
+    let cacheKey = getAnalysisResultCacheKey(
+      activeProjectId || LEGACY_PROJECT_ID,
+      reparsedFigmaInfo.fileKey,
+      reparsedFigmaInfo.nodeId,
+      requestedPageId,
+    );
 
     analysisRunId.current = runId;
     setIsAnalyzing(true);
@@ -3016,18 +2831,10 @@ export default function Home() {
     setAnalysisError("");
     setAnalysisState("");
     setIsAnalysisModelMenuOpen(false);
-    updateAnalysisResultCache((currentResults) => {
-      if (!cacheKey || !currentResults[cacheKey]) {
-        return currentResults;
-      }
-
-      const nextResults = { ...currentResults };
-      delete nextResults[cacheKey];
-      return nextResults;
-    });
+    updateAnalysisResultCache(() => ({}));
 
     const applyLocalAnalysisFallback = (toast = "AI 服務暫時不穩，已先用 Figma 結構產生分析") => {
-      const rows = createLocalAnalysisFallbackRows(figmaInfo, selectedPage, pageOptions);
+      const rows = createLocalAnalysisFallbackRows(latestFigmaInfo, latestSelectedPage, latestPageOptions);
 
       if (!rows.length) {
         return false;
@@ -3055,26 +2862,95 @@ export default function Home() {
     };
 
     try {
-      const sourceForAnalysis = selectedPage && selectedPage.id !== "file"
+      const refreshedFigma = await loadFigmaPages(reparsedFigmaInfo, {
+        preferredPageId: requestedPageId,
+        allowLocalFallback: false,
+        forceRefresh: true,
+      });
+
+      if (analysisRunId.current !== runId) {
+        return;
+      }
+
+      latestFigmaInfo = refreshedFigma.sourceInfo;
+      latestPageOptions = refreshedFigma.pages;
+
+      const refreshedSelectedPage =
+        refreshedFigma.pages.find((page) => page.id === requestedPageId) ??
+        refreshedFigma.pages.find((page) => page.id === getDefaultSelectedPageId(refreshedFigma.pages, requestedPageId)) ??
+        null;
+
+      if (!refreshedSelectedPage) {
+        throw new Error(
+          refreshedFigma.pages.length
+            ? "請重新選擇要分析的 Figma Page。"
+            : "無法重新讀取最新 Figma Page，請確認權限後再試。",
+        );
+      }
+
+      latestSelectedPage = refreshedSelectedPage;
+      didFetchLatestFigma = true;
+      cacheKey = getAnalysisResultCacheKey(
+        activeProjectId || LEGACY_PROJECT_ID,
+        latestFigmaInfo.fileKey,
+        latestFigmaInfo.mode === "node" ? latestFigmaInfo.nodeId : "",
+        refreshedSelectedPage.id,
+      );
+
+      setSelectedPageId(refreshedSelectedPage.id);
+      setLoadedPages(refreshedFigma.pages);
+      setHasImportedPages(true);
+      setPageLoadError("");
+
+      if (activeSourceId) {
+        const now = new Date().toISOString();
+
+        setImportedSources((currentSources) =>
+          currentSources.map((source) =>
+            source.id === activeSourceId
+              ? {
+                  ...source,
+                  mode: latestFigmaInfo.mode === "node" ? "node" : "file",
+                  fileKey: latestFigmaInfo.fileKey,
+                  fileName: latestFigmaInfo.fileName,
+                  nodeId: latestFigmaInfo.mode === "node" ? latestFigmaInfo.nodeId : "",
+                  nodeName: latestFigmaInfo.mode === "node" ? latestFigmaInfo.nodeName : "",
+                  normalizedUrl: latestFigmaInfo.normalizedUrl,
+                  pages: refreshedFigma.pages,
+                  selectedPageId: refreshedSelectedPage.id,
+                  updatedAt: now,
+                }
+              : source,
+          ),
+        );
+      }
+
+      const sourcePagesForAnalysis = latestPageOptions.length ? latestPageOptions : latestFigmaInfo.pages;
+      const sourceForAnalysis = refreshedSelectedPage.id !== "file"
         ? {
-            ...figmaInfo,
+            ...latestFigmaInfo,
             mode: "node",
-            nodeId: selectedPage.id,
-            nodeName: selectedPage.name,
-            pages: pageOptions.length ? pageOptions : figmaInfo.pages,
+            nodeId: refreshedSelectedPage.id,
+            nodeName: refreshedSelectedPage.name,
+            pages: sourcePagesForAnalysis,
+            forceRefresh: true,
+            analysisRunId: `analysis_${runId}`,
           }
         : {
-            ...figmaInfo,
+            ...latestFigmaInfo,
             mode: "file",
             nodeId: "",
             nodeName: "",
-            pages: pageOptions.length ? pageOptions : figmaInfo.pages,
+            pages: sourcePagesForAnalysis,
+            forceRefresh: true,
+            analysisRunId: `analysis_${runId}`,
           };
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
         },
         body: JSON.stringify({
           source: sourceForAnalysis,
@@ -3114,7 +2990,7 @@ export default function Home() {
       }
 
       const apiRows = Array.isArray(result.events) ? result.events : [];
-      const rows = apiRows.length ? apiRows : createLocalAnalysisFallbackRows(figmaInfo, selectedPage, pageOptions);
+      const rows = apiRows.length ? apiRows : createLocalAnalysisFallbackRows(latestFigmaInfo, refreshedSelectedPage, latestPageOptions);
 
       setAnalysisRows(rows);
       setHasAnalyzed(true);
@@ -3154,6 +3030,7 @@ export default function Home() {
             ? getFigmaConnectionAction()
             : "");
       const shouldUseLocalFallback =
+        didFetchLatestFigma &&
         !isFigmaOAuthActionCode(analysisFailure.code) &&
         !analysisFailure.reconnectRequired &&
         !fallbackFigmaAction;

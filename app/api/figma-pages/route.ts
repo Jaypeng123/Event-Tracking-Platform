@@ -24,6 +24,7 @@ type FigmaPagesRequest = {
   fileName?: string;
   nodeId?: string;
   nodeName?: string;
+  forceRefresh?: boolean;
 };
 
 type ResolvedFigmaToken = {
@@ -35,8 +36,16 @@ type ResolvedFigmaToken = {
   oauthReconnectReason: string;
   oauthCookie?: string;
 };
+type FigmaFetchOptions = {
+  forceRefresh?: boolean;
+};
 
 const FIGMA_API_BASE_URL = "https://api.figma.com/v1";
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
 
 function asString(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
@@ -113,6 +122,10 @@ function getFigmaAuthErrorMessage(tokenSource: FigmaTokenSource) {
 function jsonWithOAuthCookie(data: unknown, init: ResponseInit = {}, oauthCookie = "") {
   const headers = new Headers(init.headers);
 
+  Object.entries(NO_STORE_HEADERS).forEach(([key, value]) => {
+    headers.set(key, value);
+  });
+
   if (oauthCookie) {
     headers.append("Set-Cookie", oauthCookie);
   }
@@ -165,9 +178,13 @@ function cleanPageName(value: string, fallback = "Untitled page") {
   return cleaned || fallback;
 }
 
-async function fetchFigmaPayload(path: string, figmaToken: string) {
+async function fetchFigmaPayload(path: string, figmaToken: string, { forceRefresh = true }: FigmaFetchOptions = {}) {
   const response = await fetch(`${FIGMA_API_BASE_URL}${path}`, {
-    headers: buildFigmaHeaders(figmaToken),
+    headers: {
+      ...buildFigmaHeaders(figmaToken),
+      "Cache-Control": forceRefresh ? "no-cache" : "no-store",
+      Pragma: "no-cache",
+    },
     cache: "no-store",
   });
   const payload = (await readJsonResponse(response)) as FigmaApiResponse & Record<string, unknown>;
@@ -193,7 +210,7 @@ export async function POST(request: Request) {
   try {
     requestBody = (await request.json()) as FigmaPagesRequest;
   } catch {
-    return Response.json({ message: "請提供有效的 JSON request body" }, { status: 400 });
+    return jsonWithOAuthCookie({ message: "請提供有效的 JSON request body" }, { status: 400 });
   }
 
   const fileKey = asString(requestBody.fileKey);
@@ -208,7 +225,7 @@ export async function POST(request: Request) {
   } = await resolveFigmaToken(request);
 
   if (!fileKey) {
-    return Response.json({ message: "缺少 Figma file key" }, { status: 400 });
+    return jsonWithOAuthCookie({ message: "缺少 Figma file key" }, { status: 400 });
   }
 
   if (!figmaToken && oauthAvailable) {
@@ -240,9 +257,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    const forceRefresh = requestBody.forceRefresh !== false;
     const { response, payload } = await fetchFigmaPayload(
       `/files/${encodeURIComponent(fileKey)}?depth=1`,
       rawFigmaToken,
+      { forceRefresh },
     );
 
     if (!response.ok) {
@@ -290,6 +309,7 @@ export async function POST(request: Request) {
     const nodeResult = await fetchFigmaPayload(
       `/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}&depth=1`,
       rawFigmaToken,
+      { forceRefresh },
     );
 
     if (!nodeResult.response.ok) {
