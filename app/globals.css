@@ -2314,6 +2314,36 @@ select:disabled {
   margin-top: 16px;
 }
 
+.analysis-requirement-field {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0;
+  min-width: 0;
+}
+
+.analysis-requirement-label {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.analysis-requirement-label .field-label {
+  margin: 0;
+}
+
+.analysis-requirement-label > span {
+  color: var(--muted);
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.analysis-requirement-field textarea {
+  line-height: 1.6;
+  min-height: 112px;
+  overflow-wrap: anywhere;
+}
+
 .analysis-fields {
   align-items: end;
   display: grid;

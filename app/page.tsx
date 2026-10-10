@@ -2,6 +2,7 @@
 
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MAX_ANALYSIS_REQUIREMENT_LENGTH } from "./analysis-requirement";
 
 type TrackingEvent = {
   id: string;
@@ -118,6 +119,14 @@ type CachedAnalysisResult = {
   analyzedAt: string;
 };
 
+type PendingAnalysisRequirement = {
+  projectId: string;
+  normalizedUrl: string;
+  pageId: string;
+  modelId: string;
+  currentUserPrompt: string;
+};
+
 type ModelProvider = "openai" | "gemini";
 type AppView = "landing" | "planner";
 
@@ -186,6 +195,7 @@ const ACTIVE_PROJECT_STORAGE_KEY = "tracking-plan-active-project-v1";
 const FIGMA_SOURCES_STORAGE_KEY = "tracking-plan-figma-sources-v1";
 const PENDING_FIGMA_IMPORT_STORAGE_KEY = "tracking-plan-pending-figma-import-v1";
 const PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY = "tracking-plan-pending-figma-auto-analyze-v1";
+const PENDING_ANALYSIS_REQUIREMENT_STORAGE_KEY = "tracking-plan-pending-analysis-requirement-v1";
 const FIGMA_OAUTH_CONNECTED_STORAGE_KEY = "tracking-plan-figma-oauth-connected-v1";
 const ANALYSIS_RESULTS_STORAGE_KEY = "tracking-plan-analysis-results-v2";
 const LEGACY_PROJECT_ID = "legacy-project";
@@ -972,6 +982,7 @@ function clearTemporaryAnalysisSessionStorage({ keepPendingOAuth = false } = {})
     if (!keepPendingOAuth) {
       window.localStorage.removeItem(PENDING_FIGMA_IMPORT_STORAGE_KEY);
       window.localStorage.removeItem(PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY);
+      window.localStorage.removeItem(PENDING_ANALYSIS_REQUIREMENT_STORAGE_KEY);
     }
   } catch {
     // Analysis session state is in-memory only; storage cleanup is best-effort.
@@ -990,6 +1001,7 @@ function clearAllBrowserRecords({ keepPendingOAuth = false } = {}) {
     if (!keepPendingOAuth) {
       window.localStorage.removeItem(PENDING_FIGMA_IMPORT_STORAGE_KEY);
       window.localStorage.removeItem(PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY);
+      window.localStorage.removeItem(PENDING_ANALYSIS_REQUIREMENT_STORAGE_KEY);
     }
   } catch {
     // Browser refresh should behave like a new workspace even if storage cleanup fails.
@@ -1209,6 +1221,7 @@ export default function Home() {
   const [analysisRows, setAnalysisRows] = useState<TrackingEvent[]>([]);
   const [cachedAnalysisResults, setCachedAnalysisResults] = useState<Record<string, CachedAnalysisResult>>({});
   const [analysisError, setAnalysisError] = useState("");
+  const [analysisRequirement, setAnalysisRequirement] = useState("");
   const [, setAnalysisState] = useState("尚未提供 Figma 連結");
   const [libraryRows, setLibraryRows] = useState<SavedTrackingEvent[]>([]);
   const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
@@ -1226,7 +1239,8 @@ export default function Home() {
   const [stickyTableHeader, setStickyTableHeader] = useState<StickyTableHeaderState | null>(null);
   const analysisRunId = useRef(0);
   const oauthResumeRef = useRef(false);
-  const applyFigmaSourceRef = useRef<((nextInfo: FigmaSourceInfo) => Promise<void>) | null>(null);
+  const applyFigmaSourceRef = useRef<((nextInfo: FigmaSourceInfo) => Promise<FigmaPage[]>) | null>(null);
+  const pendingAnalysisRequirementRef = useRef<PendingAnalysisRequirement | null>(null);
   const runAnalysisRef = useRef<(() => Promise<void>) | null>(null);
   const cachedAnalysisResultsRef = useRef<Record<string, CachedAnalysisResult>>({});
   const analysisTableWrapRef = useRef<HTMLDivElement | null>(null);
@@ -1285,6 +1299,7 @@ export default function Home() {
     hasAppliedSource && !isLoadingPages && hasImportedPages && Boolean(selectedPage);
   const selectedAnalysisModel =
     analysisModelOptions.find((option) => option.id === selectedAnalysisModelId) ?? analysisModelOptions[0];
+  const isDirectedAnalysis = Boolean(analysisRequirement.trim());
   const hasValidDraftSource = draftInfo.mode === "file" || draftInfo.mode === "node";
   const shouldConnectFigmaBeforeImport =
     hasValidDraftSource && figmaOAuthStatus.isLoaded && figmaOAuthStatus.available && !figmaOAuthStatus.connected;
@@ -1322,6 +1337,8 @@ export default function Home() {
       setAnalysisRows([]);
       setHasAnalyzed(false);
       setAnalysisError("");
+      setAnalysisRequirement("");
+      pendingAnalysisRequirementRef.current = null;
       setAnalysisState("尚未提供 Figma 連結");
       setFilter("All");
       setPriorityFilter("All");
@@ -1419,12 +1436,30 @@ export default function Home() {
 
     let pendingUrl = "";
     let shouldAutoAnalyze = false;
+    let pendingRequirement: PendingAnalysisRequirement | null = null;
 
     try {
       pendingUrl = window.localStorage.getItem(PENDING_FIGMA_IMPORT_STORAGE_KEY) ?? "";
       shouldAutoAnalyze = window.localStorage.getItem(PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY) === "1";
+      const storedRequirement = window.localStorage.getItem(PENDING_ANALYSIS_REQUIREMENT_STORAGE_KEY);
+      const parsedRequirement = storedRequirement ? JSON.parse(storedRequirement) as Partial<PendingAnalysisRequirement> : null;
+
+      if (
+        parsedRequirement?.projectId === activeProjectId &&
+        parsedRequirement.normalizedUrl === pendingUrl &&
+        typeof parsedRequirement.pageId === "string" &&
+        typeof parsedRequirement.currentUserPrompt === "string" &&
+        parsedRequirement.currentUserPrompt.length <= MAX_ANALYSIS_REQUIREMENT_LENGTH &&
+        analysisModelOptions.some((option) => option.id === parsedRequirement.modelId)
+      ) {
+        pendingRequirement = parsedRequirement as PendingAnalysisRequirement;
+      }
+      if (storedRequirement && !pendingRequirement) {
+        shouldAutoAnalyze = false;
+      }
       window.localStorage.removeItem(PENDING_FIGMA_IMPORT_STORAGE_KEY);
       window.localStorage.removeItem(PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY);
+      window.localStorage.removeItem(PENDING_ANALYSIS_REQUIREMENT_STORAGE_KEY);
     } catch {
       pendingUrl = "";
       shouldAutoAnalyze = false;
@@ -1448,17 +1483,30 @@ export default function Home() {
       oauthResumeRef.current = true;
       window.setTimeout(() => {
         setDraftFigmaUrl(pendingUrl);
-        void applyPendingFigmaSource(nextInfo).finally(() => {
-          if (shouldAutoAnalyze) {
+        void applyPendingFigmaSource(nextInfo).then((pages) => {
+          if (pendingRequirement) {
+            if (!pages.some((page) => page.id === pendingRequirement.pageId)) {
+              setSelectedPageId("");
+              setAnalysisError("原本選擇的 Page 已不存在，請重新選擇。");
+              return;
+            }
+
+            setSelectedPageId(pendingRequirement.pageId);
+            setAnalysisRequirement(pendingRequirement.currentUserPrompt);
+            setSelectedAnalysisModelId(pendingRequirement.modelId);
+          }
+
+          if (shouldAutoAnalyze && pages.length) {
             setShouldAutoAnalyzeAfterFigmaOAuth(true);
           }
+        }).finally(() => {
           setShouldResumeFigmaImport(false);
         });
       }, 0);
     } else {
       window.setTimeout(() => setShouldResumeFigmaImport(false), 0);
     }
-  }, [figmaOAuthStatus.connected, hasLoadedWorkspace, shouldResumeFigmaImport]);
+  }, [activeProjectId, figmaOAuthStatus.connected, hasLoadedWorkspace, shouldResumeFigmaImport]);
 
   useEffect(() => {
     if (!isPageMenuOpen) {
@@ -1845,6 +1893,7 @@ export default function Home() {
 
   function resetAnalysisResultForScope(emptyStateMessage = "") {
     analysisRunId.current += 1;
+    pendingAnalysisRequirementRef.current = null;
 
     setIsAnalyzing(false);
     setAnalysisError("");
@@ -1855,6 +1904,7 @@ export default function Home() {
   }
 
   function resetAnalysisResultForSource(pageId: string) {
+    setAnalysisRequirement("");
     resetAnalysisResultForScope(pageId ? "" : "請先選擇要分析的 Page");
   }
 
@@ -2386,6 +2436,8 @@ export default function Home() {
 
   function resetAnalysisResult() {
     analysisRunId.current += 1;
+    pendingAnalysisRequirementRef.current = null;
+    setAnalysisRequirement("");
     setIsAnalyzing(false);
     setAnalysisRows([]);
     setAnalysisError("");
@@ -2519,6 +2571,24 @@ export default function Home() {
 
       window.localStorage.setItem(PENDING_FIGMA_IMPORT_STORAGE_KEY, nextInfo.normalizedUrl);
       window.localStorage.setItem(PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY, "1");
+      const pendingRequirement = pendingAnalysisRequirementRef.current;
+      const requirementToResume = selectedPageId && nextInfo.normalizedUrl === figmaInfo.normalizedUrl
+        ? {
+            projectId: activeProjectId,
+            normalizedUrl: nextInfo.normalizedUrl,
+            pageId: selectedPageId,
+            modelId: selectedAnalysisModelId,
+            currentUserPrompt: analysisRequirement.trim(),
+          }
+        : pendingRequirement?.projectId === activeProjectId && pendingRequirement.normalizedUrl === nextInfo.normalizedUrl
+          ? pendingRequirement
+          : null;
+
+      if (requirementToResume) {
+        window.localStorage.setItem(PENDING_ANALYSIS_REQUIREMENT_STORAGE_KEY, JSON.stringify(requirementToResume));
+      } else {
+        window.localStorage.removeItem(PENDING_ANALYSIS_REQUIREMENT_STORAGE_KEY);
+      }
       const response = await fetch("/api/figma/oauth/start", {
         method: "POST",
         headers: {
@@ -2540,6 +2610,7 @@ export default function Home() {
       try {
         window.localStorage.removeItem(PENDING_FIGMA_IMPORT_STORAGE_KEY);
         window.localStorage.removeItem(PENDING_FIGMA_AUTO_ANALYZE_STORAGE_KEY);
+        window.localStorage.removeItem(PENDING_ANALYSIS_REQUIREMENT_STORAGE_KEY);
       } catch {
         // Ignore storage failures; the visible error state is enough.
       }
@@ -2692,7 +2763,7 @@ export default function Home() {
     }
   }
 
-  async function applyFigmaSource(nextInfo: FigmaSourceInfo) {
+  async function applyFigmaSource(nextInfo: FigmaSourceInfo): Promise<FigmaPage[]> {
     const nextSourceId = getFigmaSourceId(activeProjectId || LEGACY_PROJECT_ID, nextInfo);
 
     setAppliedFigmaUrl(nextInfo.normalizedUrl);
@@ -2717,14 +2788,16 @@ export default function Home() {
       if (resolvedSourceId !== nextSourceId && duplicatedResolvedSource) {
         showToast("這個 Figma 連結已經匯入過了");
         applyImportedSourceToState(duplicatedResolvedSource);
-        return;
+        return duplicatedResolvedSource.pages;
       }
 
       saveImportedSource(sourceInfo, pages);
       setFigmaConnectionMode("");
       setFigmaOAuthError("");
-      return;
+      return pages;
     }
+
+    return [];
   }
 
   applyFigmaSourceRef.current = applyFigmaSource;
@@ -2779,6 +2852,7 @@ export default function Home() {
     );
     setIsPageMenuOpen(false);
     if (isSwitchingPage) {
+      setAnalysisRequirement("");
       setFilter("All");
       setPriorityFilter("All");
       setQuery("");
@@ -2813,6 +2887,8 @@ export default function Home() {
     }
 
     const requestedPageId = selectedPageId;
+    const currentUserPrompt = analysisRequirement.trim();
+    const isDirected = Boolean(currentUserPrompt);
     const reparsedFigmaInfo = getReparsedCurrentFigmaInfo();
     const runId = analysisRunId.current + 1;
     let latestFigmaInfo = reparsedFigmaInfo;
@@ -2827,6 +2903,13 @@ export default function Home() {
     );
 
     analysisRunId.current = runId;
+    pendingAnalysisRequirementRef.current = {
+      projectId: activeProjectId,
+      normalizedUrl: reparsedFigmaInfo.normalizedUrl,
+      pageId: requestedPageId,
+      modelId: selectedAnalysisModelId,
+      currentUserPrompt,
+    };
     setIsAnalyzing(true);
     setAnalysisRows([]);
     setHasAnalyzed(false);
@@ -2879,10 +2962,13 @@ export default function Home() {
 
       const refreshedSelectedPage =
         refreshedFigma.pages.find((page) => page.id === requestedPageId) ??
-        refreshedFigma.pages.find((page) => page.id === getDefaultSelectedPageId(refreshedFigma.pages, requestedPageId)) ??
+        (!isDirected ? refreshedFigma.pages.find((page) => page.id === getDefaultSelectedPageId(refreshedFigma.pages, requestedPageId)) : null) ??
         null;
 
       if (!refreshedSelectedPage) {
+        if (isDirected) {
+          setSelectedPageId("");
+        }
         throw new Error(
           refreshedFigma.pages.length
             ? "請重新選擇要分析的 Figma Page。"
@@ -2955,6 +3041,7 @@ export default function Home() {
           "Cache-Control": "no-cache",
         },
         body: JSON.stringify({
+          currentUserPrompt,
           source: sourceForAnalysis,
           scope: sourceForAnalysis.nodeId ? "node" : "file",
           ai: {
@@ -2992,7 +3079,7 @@ export default function Home() {
       }
 
       const apiRows = Array.isArray(result.events) ? result.events : [];
-      const rows = apiRows.length ? apiRows : createLocalAnalysisFallbackRows(latestFigmaInfo, refreshedSelectedPage, latestPageOptions);
+      const rows = isDirected || apiRows.length ? apiRows : createLocalAnalysisFallbackRows(latestFigmaInfo, refreshedSelectedPage, latestPageOptions);
 
       setAnalysisRows(rows);
       setHasAnalyzed(true);
@@ -3032,6 +3119,7 @@ export default function Home() {
             ? getFigmaConnectionAction()
             : "");
       const shouldUseLocalFallback =
+        !isDirected &&
         didFetchLatestFigma &&
         !isFigmaOAuthActionCode(analysisFailure.code) &&
         !analysisFailure.reconnectRequired &&
@@ -3069,6 +3157,14 @@ export default function Home() {
     void runAnalysis();
   }
 
+  function handleUpdateAnalysisRequirement(value: string) {
+    setAnalysisRequirement(value);
+    resetAnalysisResultForScope();
+    setFilter("All");
+    setPriorityFilter("All");
+    setQuery("");
+  }
+
   useEffect(() => {
     if (!shouldAutoAnalyzeAfterFigmaOAuth || !canAnalyzeCurrentSource || isAnalyzing || isLoadingPages) {
       return;
@@ -3083,7 +3179,7 @@ export default function Home() {
   }, [canAnalyzeCurrentSource, isAnalyzing, isLoadingPages, shouldAutoAnalyzeAfterFigmaOAuth]);
 
   function handleExportExcel() {
-    handleExportRowsExcel(visibleRows, "慢病醫療人員_UX_第一階段埋點計畫.xls");
+    handleExportRowsExcel(visibleRows, isDirectedAnalysis ? "需求埋點計畫.xls" : "第一階段埋點計畫.xls");
   }
 
   const isWaitingForPageImport = needsPageSelection && !hasImportedPages && !isLoadingPages && !pageLoadError;
@@ -3134,7 +3230,7 @@ export default function Home() {
     }
 
     if (hasNoAnalysisRows) {
-      return "尚無可追蹤的分析指標";
+      return isDirectedAnalysis ? "未找到符合需求的埋點" : "尚無可追蹤的分析指標";
     }
 
     if (hasNoFilteredRows) {
@@ -3179,7 +3275,9 @@ export default function Home() {
     }
 
     if (hasNoAnalysisRows) {
-      return "模型沒有從目前連結範圍判斷出需要第一階段追蹤的事件。";
+      return isDirectedAnalysis
+        ? "目前從此 Figma 稿件無法確認。"
+        : "模型沒有從目前連結範圍判斷出需要第一階段追蹤的事件。";
     }
 
     if (hasNoFilteredRows) {
@@ -4187,6 +4285,22 @@ export default function Home() {
               </div>
             ) : null}
 
+            <div className="analysis-requirement-field">
+              <div className="analysis-requirement-label">
+                <label className="field-label" htmlFor="analysis-requirement">分析需求（選填）</label>
+                <span>{analysisRequirement.length} / {MAX_ANALYSIS_REQUIREMENT_LENGTH}</span>
+              </div>
+              <textarea
+                id="analysis-requirement"
+                value={analysisRequirement}
+                onChange={(event) => handleUpdateAnalysisRequirement(event.target.value)}
+                placeholder="幫我將逆向流程篩選出來"
+                maxLength={MAX_ANALYSIS_REQUIREMENT_LENGTH}
+                rows={4}
+                disabled={isAnalyzing || isLoadingPages}
+              />
+            </div>
+
             <button
               className="primary-button full-width"
               type="button"
@@ -4203,7 +4317,7 @@ export default function Home() {
               ) : needsPageSelection && !selectedPage ? (
                 "請先選擇 Page"
               ) : (
-                "分析頁面內容"
+                isDirectedAnalysis ? "依需求分析" : "分析頁面內容"
               )}
             </button>
             {isAnalyzing ? (
@@ -4272,7 +4386,7 @@ export default function Home() {
           <div className="table-toolbar">
             <div>
               <p className="eyebrow">Event Plan</p>
-              <h2>第一階段埋點建議</h2>
+              <h2>{isDirectedAnalysis ? "依需求埋點建議" : "第一階段埋點建議"}</h2>
             </div>
             <div className="toolbar-controls">
               <label className="filter-field search-field">

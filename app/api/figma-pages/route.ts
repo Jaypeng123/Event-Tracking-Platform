@@ -65,7 +65,7 @@ function normalizeFigmaToken(rawToken: string) {
   return { tokenValue, isOAuthToken };
 }
 
-function buildFigmaHeaders(token: string) {
+function buildFigmaHeaders(token: string): Record<string, string> {
   const { tokenValue, isOAuthToken } = normalizeFigmaToken(token);
 
   if (isOAuthToken) {
