@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>埋點規劃工具 · 設計分享</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<script id="icons">window.lucide={icons:{"app-window":"<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"M10 4v4\"/><path d=\"M2 8h20\"/><path d=\"M6 4v4\"/>","arrow-right":"<path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/>","bot":"<path d=\"M12 8V4H8\"/><rect width=\"16\" height=\"12\" x=\"4\" y=\"8\" rx=\"2\"/><path d=\"M2 14h2\"/><path d=\"M20 14h2\"/><path d=\"M15 13v2\"/><path d=\"M9 13v2\"/>","box":"<path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>","bug":"<path d=\"m8 2 1.88 1.88\"/><path d=\"M14.12 3.88 16 2\"/><path d=\"M9 7.13v-1a3.003 3.003 0 1 1 6 0v1\"/><path d=\"M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6\"/><path d=\"M12 20v-9\"/><path d=\"M6.53 9C4.6 8.8 3 7.1 3 5\"/><path d=\"M6 13H2\"/><path d=\"M3 21c0-2.1 1.7-3.9 3.8-4\"/><path d=\"M20.97 5c0 2.1-1.6 3.8-3.5 4\"/><path d=\"M22 13h-4\"/><path d=\"M17.2 17c2.1.1 3.8 1.9 3.8 4\"/>","check":"<path d=\"M20 6 9 17l-5-5\"/>","check-circle-2":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m9 12 2 2 4-4\"/>","chevron-left":"<path d=\"m15 18-6-6 6-6\"/>","chevron-right":"<path d=\"m9 18 6-6-6-6\"/>","circle-check-big":"<path d=\"M21.801 10A10 10 0 1 1 17 3.335\"/><path d=\"m9 11 3 3L22 4\"/>","circle-help":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"/><path d=\"M12 17h.01\"/>","clipboard-check":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"m9 14 2 2 4-4\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","code-xml":"<path d=\"m18 16 4-4-4-4\"/><path d=\"m6 8-4 4 4 4\"/><path d=\"m14.5 4-5 16\"/>","corner-down-left":"<polyline points=\"9 10 4 15 9 20\"/><path d=\"M20 4v7a4 4 0 0 1-4 4H4\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><line x1=\"2\" x2=\"22\" y1=\"10\" y2=\"10\"/>","crosshair":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"22\" x2=\"18\" y1=\"12\" y2=\"12\"/><line x1=\"6\" x2=\"2\" y1=\"12\" y2=\"12\"/><line x1=\"12\" x2=\"12\" y1=\"6\" y2=\"2\"/><line x1=\"12\" x2=\"12\" y1=\"22\" y2=\"18\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5V19A9 3 0 0 0 21 19V5\"/><path d=\"M3 12A9 3 0 0 0 21 12\"/>","database-zap":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5V19A9 3 0 0 0 15 21.84\"/><path d=\"M21 5V8\"/><path d=\"M21 12L18 17H22L19 22\"/><path d=\"M3 12A9 3 0 0 0 14.59 14.87\"/>","download":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>","external-link":"<path d=\"M15 3h6v6\"/><path d=\"M10 14 21 3\"/><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"/>","eye":"<path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","figma":"<path d=\"M5 5.5A3.5 3.5 0 0 1 8.5 2H12v7H8.5A3.5 3.5 0 0 1 5 5.5z\"/><path d=\"M12 2h3.5a3.5 3.5 0 1 1 0 7H12V2z\"/><path d=\"M12 12.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 1 1-7 0z\"/><path d=\"M5 19.5A3.5 3.5 0 0 1 8.5 16H12v3.5a3.5 3.5 0 1 1-7 0z\"/><path d=\"M5 12.5A3.5 3.5 0 0 1 8.5 9H12v7H8.5A3.5 3.5 0 0 1 5 12.5z\"/>","file-check-2":"<path d=\"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"m3 15 2 2 4-4\"/>","file-spreadsheet":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>","file-text":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>","file-warning":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>","files":"<path d=\"M20 7h-3a2 2 0 0 1-2-2V2\"/><path d=\"M9 18a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h7l4 4v10a2 2 0 0 1-2 2Z\"/><path d=\"M3 7.6v12.8A1.6 1.6 0 0 0 4.6 22h9.8\"/>","flask-conical":"<path d=\"M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2\"/><path d=\"M8.5 2h7\"/><path d=\"M7 16h10\"/>","folder-kanban":"<path d=\"M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z\"/><path d=\"M8 10v4\"/><path d=\"M12 10v2\"/><path d=\"M16 10v6\"/>","gem":"<path d=\"M6 3h12l4 6-10 13L2 9Z\"/><path d=\"M11 3 8 9l4 13 4-13-3-6\"/><path d=\"M2 9h20\"/>","git-merge":"<circle cx=\"18\" cy=\"18\" r=\"3\"/><circle cx=\"6\" cy=\"6\" r=\"3\"/><path d=\"M6 21V9a9 9 0 0 0 9 9\"/>","github":"<path d=\"M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4\"/><path d=\"M9 18c-4.51 2-5-2-7-2\"/>","graduation-cap":"<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\"/><path d=\"M22 10v6\"/><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\"/>","hourglass":"<path d=\"M5 22h14\"/><path d=\"M5 2h14\"/><path d=\"M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22\"/><path d=\"M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2\"/>","inbox":"<polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"/><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"/>","info":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 16v-4\"/><path d=\"M12 8h.01\"/>","key-round":"<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>","layers":"<path d=\"m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z\"/><path d=\"m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65\"/><path d=\"m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65\"/>","layout-dashboard":"<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>","layout-grid":"<rect width=\"7\" height=\"7\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"14\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"3\" y=\"14\" rx=\"1\"/>","lightbulb":"<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>","list-checks":"<path d=\"m3 17 2 2 4-4\"/><path d=\"m3 7 2 2 4-4\"/><path d=\"M13 6h8\"/><path d=\"M13 12h8\"/><path d=\"M13 18h8\"/>","list-ordered":"<path d=\"M10 12h11\"/><path d=\"M10 18h11\"/><path d=\"M10 6h11\"/><path d=\"M4 10h2\"/><path d=\"M4 6h1v4\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","list-video":"<path d=\"M12 12H3\"/><path d=\"M16 6H3\"/><path d=\"M12 18H3\"/><path d=\"m16 12 5 3-5 3v-6Z\"/>","lock":"<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>","maximize":"<path d=\"M8 3H5a2 2 0 0 0-2 2v3\"/><path d=\"M21 8V5a2 2 0 0 0-2-2h-3\"/><path d=\"M3 16v3a2 2 0 0 0 2 2h3\"/><path d=\"M16 21h3a2 2 0 0 0 2-2v-3\"/>","maximize-2":"<polyline points=\"15 3 21 3 21 9\"/><polyline points=\"9 21 3 21 3 15\"/><line x1=\"21\" x2=\"14\" y1=\"3\" y2=\"10\"/><line x1=\"3\" x2=\"10\" y1=\"21\" y2=\"14\"/>","message-circle":"<path d=\"M7.9 20A9 9 0 1 0 4 16.1L2 22Z\"/>","message-square-warning":"<path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/><path d=\"M12 7v2\"/><path d=\"M12 13h.01\"/>","messages-square":"<path d=\"M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z\"/><path d=\"M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1\"/>","mouse-pointer-click":"<path d=\"M14 4.1 12 6\"/><path d=\"m5.1 8-2.9-.8\"/><path d=\"m6 12-1.9 2\"/><path d=\"M7.2 2.2 8 5.1\"/><path d=\"M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z\"/>","network":"<rect x=\"16\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"/><rect x=\"2\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"/><rect x=\"9\" y=\"2\" width=\"6\" height=\"6\" rx=\"1\"/><path d=\"M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3\"/><path d=\"M12 12V8\"/>","notebook-pen":"<path d=\"M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4\"/><path d=\"M2 6h4\"/><path d=\"M2 10h4\"/><path d=\"M2 14h4\"/><path d=\"M2 18h4\"/><path d=\"M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z\"/>","pen-tool":"<path d=\"M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z\"/><path d=\"m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18\"/><path d=\"m2.3 2.3 7.286 7.286\"/><circle cx=\"11\" cy=\"11\" r=\"2\"/>","play":"<polygon points=\"6 3 20 12 6 21 6 3\"/>","plug":"<path d=\"M12 22v-5\"/><path d=\"M9 8V2\"/><path d=\"M15 8V2\"/><path d=\"M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z\"/>","plug-zap":"<path d=\"M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z\"/><path d=\"m2 22 3-3\"/><path d=\"M7.5 13.5 10 11\"/><path d=\"M10.5 16.5 13 14\"/><path d=\"m18 3-4 4h6l-4 4\"/>","quote":"<path d=\"M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\"/><path d=\"M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\"/>","refresh-cw":"<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"/><path d=\"M21 3v5h-5\"/><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"/><path d=\"M8 16H3v5\"/>","repeat":"<path d=\"m17 2 4 4-4 4\"/><path d=\"M3 11v-1a4 4 0 0 1 4-4h14\"/><path d=\"m7 22-4-4 4-4\"/><path d=\"M21 13v1a4 4 0 0 1-4 4H3\"/>","rocket":"<path d=\"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z\"/><path d=\"m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z\"/><path d=\"M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0\"/><path d=\"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5\"/>","rotate-ccw":"<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/>","rotate-cw":"<path d=\"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8\"/><path d=\"M21 3v5h-5\"/>","save":"<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\"/><path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\"/><path d=\"M7 3v4a1 1 0 0 0 1 1h7\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","send":"<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\"/><path d=\"m21.854 2.147-10.94 10.939\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\" ry=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\" ry=\"2\"/><line x1=\"6\" x2=\"6.01\" y1=\"6\" y2=\"6\"/><line x1=\"6\" x2=\"6.01\" y1=\"18\" y2=\"18\"/>","shield-check":"<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"/><path d=\"m9 12 2 2 4-4\"/>","shuffle":"<path d=\"M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22\"/><path d=\"m18 2 4 4-4 4\"/><path d=\"M2 6h1.9c1.5 0 2.9.9 3.6 2.2\"/><path d=\"M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8\"/><path d=\"m18 14 4 4-4 4\"/>","sparkles":"<path d=\"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z\"/><path d=\"M20 3v4\"/><path d=\"M22 5h-4\"/><path d=\"M4 17v2\"/><path d=\"M5 18H3\"/>","target":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/>","terminal":"<polyline points=\"4 17 10 11 4 5\"/><line x1=\"12\" x2=\"20\" y1=\"19\" y2=\"19\"/>","triangle":"<path d=\"M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"/>","triangle-alert":"<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","users-round":"<path d=\"M18 21a8 8 0 0 0-16 0\"/><circle cx=\"10\" cy=\"8\" r=\"5\"/><path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\"/>","wrench":"<path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"/>","x":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>"},createIcons(){document.querySelectorAll("i[data-lucide]").forEach(el=>{const d=this.icons[el.dataset.lucide];if(!d)return;const s=document.createElementNS("http://www.w3.org/2000/svg","svg");["width","height"].forEach(a=>s.setAttribute(a,"24"));s.setAttribute("viewBox","0 0 24 24");s.setAttribute("fill","none");s.setAttribute("stroke","currentColor");s.setAttribute("stroke-width","2");s.setAttribute("stroke-linecap","round");s.setAttribute("stroke-linejoin","round");s.setAttribute("class","lucide "+(el.getAttribute("class")||""));if(el.getAttribute("style"))s.setAttribute("style",el.getAttribute("style"));s.innerHTML=d;el.replaceWith(s);});}};</script>
+<style>
+:root{
+  --bg-0:#061a12; --bg-1:#0a2a1d; --bg-2:#0f3a28;
+  --card:rgba(255,255,255,.035); --card-2:rgba(255,255,255,.06);
+  --line:rgba(150,255,200,.12); --line-2:rgba(150,255,200,.22);
+  --green:#3ee07f; --green-2:#22c55e; --mint:#a7f3c4; --leaf:#1f7a4d;
+  --amber:#f2c14e; --violet:#8f80ff; --red:#ff6b6b;
+  --text:#ecf7f0; --text-2:#b9d4c4; --muted:#7f9f8e;
+  --sans:"Inter","Noto Sans TC",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{--mx:50%;--my:50%}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+i[data-lucide],svg.lucide{width:1em;height:1em;stroke-width:1.8;flex:none}
+
+/* ---------- viewport & stage ---------- */
+#viewport{position:fixed;inset:0;background:radial-gradient(1200px 700px at 80% 10%,#0f3a28 0%,transparent 60%),var(--bg-0)}
+#stage{position:absolute;left:50%;top:50%;width:1600px;height:900px;transform-origin:center;overflow:hidden;
+  background:linear-gradient(115deg,#05170f 0%,#0a2a1d 45%,#0f3d29 100%);border-radius:6px;box-shadow:0 30px 120px rgba(0,0,0,.55)}
+#bgfx{position:absolute;inset:0;pointer-events:none}
+.grid-bg{position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(150,255,200,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(150,255,200,.045) 1px,transparent 1px);
+  background-size:56px 56px;mask-image:radial-gradient(900px 600px at var(--sx,70%) var(--sy,30%),#000 0%,transparent 75%);
+  -webkit-mask-image:radial-gradient(900px 600px at var(--sx,70%) var(--sy,30%),#000 0%,transparent 75%)}
+.spot{position:absolute;inset:0;pointer-events:none;background:radial-gradient(520px 420px at var(--sx,70%) var(--sy,30%),rgba(62,224,127,.10),transparent 70%);transition:background .2s}
+.orb{position:absolute;border-radius:50%;filter:blur(60px);pointer-events:none;opacity:.55;animation:drift 18s ease-in-out infinite alternate}
+.orb.o1{width:420px;height:420px;background:#1c7a4a;right:-120px;top:-140px}
+.orb.o2{width:360px;height:360px;background:#0d5a3a;left:-140px;bottom:-160px;animation-duration:22s}
+@keyframes drift{to{transform:translate(-60px,50px) scale(1.15)}}
+
+/* ---------- slides ---------- */
+.slide{position:absolute;inset:0;padding:62px 92px 70px;display:flex;flex-direction:column;opacity:0;visibility:hidden;transition:opacity .55s var(--ease),visibility .55s}
+.slide.active{opacity:1;visibility:visible}
+.slide [data-a]{opacity:0;translate:0 22px}
+.slide.active [data-a]{opacity:1;translate:0 0;animation:rise .8s var(--ease) backwards;animation-delay:calc(var(--i,0) * 90ms + 120ms)}
+@keyframes rise{from{opacity:0;translate:0 22px}to{opacity:1;translate:0 0}}
+.fill{flex:1;min-height:0;margin-bottom:28px}
+.fill>.card{display:flex;flex-direction:column}
+.fill>.card .h3{margin-top:auto!important;font-size:28px}
+.fill>.card .p{font-size:18px}
+.fill>.card{overflow:hidden}
+.ghost{position:absolute;right:-28px;bottom:38%;font-size:190px;color:var(--green);opacity:.06;pointer-events:none;transition:opacity .4s,transform .6s var(--ease)}
+.ghost svg{stroke-width:1.1}
+.fill>.card:hover .ghost{opacity:.13;transform:rotate(-8deg) scale(1.06)}
+.fill.states .ghost{display:none}
+.fill.states{grid-auto-rows:1fr}
+.fill.states>.card{flex-direction:row;align-items:center}
+.fill.states>.card .h3{margin-top:0!important;font-size:26px}
+.fill.states .ic{width:64px;height:64px;font-size:28px;border-radius:18px}
+.notes{display:none}
+
+.kicker{font:600 14px/1 var(--mono);letter-spacing:.18em;color:var(--green);text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.kicker::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(62,224,127,.18),0 0 18px var(--green)}
+.title{font-size:46px;font-weight:700;letter-spacing:-.01em;line-height:1.25;margin-top:22px}
+.title em{font-style:normal;color:var(--green)}
+.sub{font-size:20px;color:var(--text-2);margin-top:12px;line-height:1.6;font-weight:400;max-width:1250px}
+.body{flex:1;min-height:0;margin-top:40px;display:flex;flex-direction:column}
+.foot{position:absolute;left:92px;right:92px;bottom:26px;display:flex;justify-content:space-between;font:500 11px/1 var(--mono);letter-spacing:.2em;color:rgba(185,212,196,.45)}
+
+.card{background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:22px;padding:30px;position:relative;
+  transition:transform .35s var(--ease),border-color .35s,box-shadow .35s,background .35s}
+.card:hover{transform:translateY(-6px);border-color:var(--line-2);box-shadow:0 22px 50px rgba(0,0,0,.35),0 0 0 1px rgba(62,224,127,.08) inset}
+.ic{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;font-size:24px;color:var(--green);
+  background:radial-gradient(circle at 30% 25%,rgba(62,224,127,.28),rgba(62,224,127,.06));border:1px solid rgba(62,224,127,.25)}
+.ic.amber{color:var(--amber);background:radial-gradient(circle at 30% 25%,rgba(242,193,78,.28),rgba(242,193,78,.05));border-color:rgba(242,193,78,.3)}
+.ic.red{color:var(--red);background:radial-gradient(circle at 30% 25%,rgba(255,107,107,.26),rgba(255,107,107,.05));border-color:rgba(255,107,107,.3)}
+.ic.violet{color:var(--violet);background:radial-gradient(circle at 30% 25%,rgba(143,128,255,.28),rgba(143,128,255,.05));border-color:rgba(143,128,255,.3)}
+.num{font:600 14px/1 var(--mono);color:var(--green);letter-spacing:.1em}
+.h3{font-size:24px;font-weight:700;line-height:1.35}
+.p{font-size:17px;line-height:1.75;color:var(--text-2)}
+.tag{display:inline-flex;align-items:center;gap:8px;font:600 12px/1 var(--mono);letter-spacing:.14em;padding:8px 12px;border-radius:999px;border:1px solid var(--line-2);color:var(--mint);background:rgba(62,224,127,.08)}
+.tag.muted{color:var(--text-2);border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.04)}
+.tag.red{color:#ffb4b4;border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.1)}
+.tag.amber{color:#ffe1a0;border-color:rgba(242,193,78,.35);background:rgba(242,193,78,.1)}
+
+.callout{margin-top:auto;display:flex;align-items:center;gap:18px;padding:22px 28px;border-radius:18px;
+  background:linear-gradient(90deg,rgba(62,224,127,.14),rgba(62,224,127,.03));border:1px solid rgba(62,224,127,.22);font-size:20px;font-weight:500;line-height:1.55}
+.callout .ic{width:44px;height:44px;font-size:20px;border-radius:12px}
+.callout b{color:var(--green);font-weight:700}
+.quote-line{margin-top:auto;font-size:22px;color:var(--mint);display:flex;gap:14px;align-items:center;font-weight:500}
+.quote-line i{color:var(--green);font-size:26px}
+
+.row{display:flex;gap:24px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+
+/* screenshot frames */
+.shot{position:relative;border-radius:16px;overflow:hidden;background:#fff;border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 30px 70px rgba(0,0,0,.45),0 0 0 6px rgba(255,255,255,.03);cursor:zoom-in;transition:transform .4s var(--ease),box-shadow .4s}
+.shot:hover{transform:translateY(-4px) scale(1.01);box-shadow:0 40px 90px rgba(0,0,0,.55),0 0 0 6px rgba(62,224,127,.12)}
+.shot img{display:block;width:100%;height:100%;object-fit:cover;object-position:top left}
+.shot .zoomhint{position:absolute;right:12px;bottom:12px;width:34px;height:34px;border-radius:10px;background:rgba(6,26,18,.78);color:var(--mint);display:grid;place-items:center;opacity:0;transition:.3s;font-size:16px}
+.shot:hover .zoomhint{opacity:1}
+.cap{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:17px;color:var(--text-2)}
+.cap b{font:600 13px/1 var(--mono);color:var(--green);letter-spacing:.1em;padding:6px 9px;border-radius:8px;background:rgba(62,224,127,.1)}
+
+/* chat window */
+.chat{border-radius:22px;border:1px solid var(--line-2);background:linear-gradient(180deg,rgba(8,34,24,.92),rgba(6,26,18,.92));
+  box-shadow:0 24px 60px rgba(0,0,0,.4);overflow:hidden;display:flex;flex-direction:column}
+.chat-hd{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);font:600 13px/1 var(--mono);letter-spacing:.12em;color:var(--text-2)}
+.chat-hd .dots{display:flex;gap:7px}.chat-hd .dots span{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.14)}
+.chat-hd .dots span:first-child{background:#ff6b6b99}.chat-hd .dots span:nth-child(2){background:#f2c14e99}.chat-hd .dots span:nth-child(3){background:#3ee07f99}
+.chat-hd .ttl{display:flex;gap:8px;align-items:center;margin-left:6px}
+.chat-hd .live{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--green)}
+.chat-hd .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.25}}
+.chat-bd{padding:24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0}
+.msg{display:flex;gap:14px;align-items:flex-start}
+.msg.me{flex-direction:row-reverse}
+.av{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;font:700 14px/1 var(--sans)}
+.msg.me .av{background:linear-gradient(135deg,#3ee07f,#1f7a4d);color:#05170f}
+.msg.ai .av{background:#0d2f21;border:1px solid var(--line-2);color:var(--green);font-size:18px}
+.bubble{padding:16px 20px;border-radius:18px;font-size:18px;line-height:1.75;max-width:100%}
+.msg.me .bubble{background:linear-gradient(135deg,rgba(62,224,127,.2),rgba(62,224,127,.1));border:1px solid rgba(62,224,127,.3);border-top-right-radius:6px}
+.msg.ai .bubble{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-top-left-radius:6px}
+.bubble .warn{color:#ffb4b4;background:rgba(255,107,107,.12);border-radius:6px;padding:1px 4px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.who{font:600 11px/1 var(--mono);letter-spacing:.16em;color:var(--muted);margin-bottom:6px}
+.msg.me .who{text-align:right}
+.typing{display:inline-flex;gap:5px;padding:4px 0}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--green);animation:bounce 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-6px);opacity:1}}
+
+/* stage stepper (HOW pages) */
+.stepper{position:absolute;top:58px;right:92px;display:flex;align-items:center;gap:0}
+.stepper .st{position:relative;display:flex;align-items:center}
+.stepper .dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(62,224,127,.35);background:var(--bg-1);transition:.3s}
+.stepper .bar{width:46px;height:2px;background:rgba(62,224,127,.2)}
+.stepper .st.done .dot{background:rgba(62,224,127,.5);border-color:rgba(62,224,127,.6)}
+.stepper .st.done .bar{background:rgba(62,224,127,.55)}
+.stepper .st.cur .dot{width:18px;height:18px;background:var(--green);border-color:var(--green);box-shadow:0 0 0 6px rgba(62,224,127,.15),0 0 20px var(--green)}
+.stepper .lbl{position:absolute;top:28px;left:50%;transform:translateX(-50%);white-space:nowrap;font:500 13px/1 var(--sans);color:var(--mint);display:none}
+.stepper .st.cur .lbl{display:block}
+.stepper .lbl small{font:600 11px/1 var(--mono);color:var(--green);margin-right:6px;letter-spacing:.1em}
+
+/* ---------- cover ---------- */
+.cover{padding:0}
+.cover .left{position:absolute;left:110px;top:0;bottom:0;width:640px;display:flex;flex-direction:column;justify-content:center}
+.cover h1{font-size:104px;font-weight:900;letter-spacing:-.02em;line-height:1.05;margin-top:34px}
+.cover h1 .g{background:linear-gradient(120deg,#7dffb0,#3ee07f 40%,#1fbf68);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 60px rgba(62,224,127,.25)}
+.cover .lead{font-size:24px;color:var(--text-2);margin-top:28px;line-height:1.7;max-width:620px}
+.cover .rule{width:72px;height:4px;border-radius:4px;background:var(--green);margin:44px 0 26px;box-shadow:0 0 18px var(--green)}
+.cover .meta{display:flex;gap:28px;align-items:center}
+.cover .meta .ev{font-size:22px;font-weight:700;color:var(--mint)}
+.cover .meta .by{font-size:18px;color:var(--text-2);display:flex;gap:10px;align-items:center}
+.cover .meta .by .av{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#3ee07f,#1f7a4d);color:#05170f;font-weight:800;display:grid;place-items:center;font-size:14px}
+.tools{display:flex;gap:10px;margin-top:40px;flex-wrap:wrap}
+.tools span{display:inline-flex;gap:8px;align-items:center;font-size:14px;color:var(--text-2);padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);transition:.3s}
+.tools span:hover{color:var(--text);border-color:var(--line-2);background:rgba(62,224,127,.08)}
+.tools span i{color:var(--green)}
+.hero{position:absolute;right:70px;top:50%;width:720px;height:720px;transform:translateY(-50%);perspective:1400px}
+.hero .rings{position:absolute;inset:-120px;pointer-events:none}
+.hero .rings circle{fill:none;stroke:rgba(150,255,200,.13)}
+.hero .rings .spin{transform-origin:50% 50%;animation:spin 60s linear infinite}
+.hero .rings .spin2{transform-origin:50% 50%;animation:spin 90s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hero .tilt{position:absolute;left:50%;top:50%;width:600px;transform:translate(-50%,-50%) rotateX(var(--rx,4deg)) rotateY(var(--ry,-8deg));transform-style:preserve-3d;transition:transform .25s ease-out}
+.hero .tilt img{width:100%;display:block;border-radius:24px;box-shadow:0 60px 120px rgba(0,0,0,.6),0 0 0 1px rgba(150,255,200,.15),0 0 120px rgba(62,224,127,.15)}
+.chip{position:absolute;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:14px;font-size:14px;background:rgba(8,34,24,.86);border:1px solid var(--line-2);backdrop-filter:blur(8px);box-shadow:0 18px 40px rgba(0,0,0,.4);animation:float 6s ease-in-out infinite;white-space:nowrap}
+.chip code{font-family:var(--mono);color:var(--mint);font-size:13px}
+.chip .ic{width:30px;height:30px;font-size:15px;border-radius:9px}
+.chip b{font-size:18px}
+@keyframes float{50%{transform:translateY(-12px)}}
+.ping{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--green)}
+.ping::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--green);animation:pingr 2.2s infinite}
+@keyframes pingr{from{transform:scale(.4);opacity:1}to{transform:scale(3);opacity:0}}
+
+/* ---------- section divider ---------- */
+.sec{justify-content:center}
+.sec .big{font-size:220px;font-weight:900;letter-spacing:-.04em;line-height:.9;margin-top:40px;color:transparent;-webkit-text-stroke:2px rgba(167,243,196,.75);transition:color .6s}
+.sec .big:hover{color:rgba(62,224,127,.15)}
+.sec .q{font-size:34px;font-weight:500;margin-top:34px;color:var(--text)}
+.sec .n{position:absolute;right:150px;top:50%;transform:translateY(-50%);width:420px;height:420px;display:grid;place-items:center}
+.sec .n svg{position:absolute;inset:0}
+.sec .n svg circle{fill:none}
+.sec .n .r1{stroke:rgba(150,255,200,.18);stroke-dasharray:4 10;transform-origin:center;animation:spin 40s linear infinite}
+.sec .n .r2{stroke:rgba(62,224,127,.45);stroke-width:2;stroke-dasharray:120 900;stroke-linecap:round;transform-origin:center;animation:spin 8s linear infinite}
+.sec .n .r3{stroke:rgba(150,255,200,.08)}
+.sec .n .digit{font:800 150px/1 var(--sans);background:linear-gradient(160deg,#ffffff,#7dffb0 60%,#1fbf68);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sec .n .orbit{position:absolute;inset:0;animation:spin 14s linear infinite}
+.sec .n .orbit span{position:absolute;top:-22px;left:50%;transform:translateX(-50%);width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:#0d2f21;border:1px solid var(--line-2);color:var(--green);font-size:20px;box-shadow:0 0 24px rgba(62,224,127,.35)}
+.sec .n .orbit span i{animation:spin 14s linear infinite reverse}
+.secnav{position:absolute;left:92px;bottom:84px;display:flex;gap:12px}
+.secnav button{display:flex;gap:10px;align-items:center;padding:10px 16px;border-radius:999px;border:1px solid var(--line);font:600 13px/1 var(--mono);letter-spacing:.12em;color:var(--muted);transition:.3s}
+.secnav button:hover{color:var(--text);border-color:var(--line-2)}
+.secnav button.on{color:#05170f;background:var(--green);border-color:var(--green)}
+
+/* ---------- specific ---------- */
+.ov-track{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:30px}
+.ov-track .line{position:absolute;left:30px;right:30px;top:-34px;height:2px;background:linear-gradient(90deg,rgba(62,224,127,.6),rgba(62,224,127,.1))}
+.ov-track .line::after{content:"";position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 16px var(--green);animation:travel 5s ease-in-out infinite}
+@keyframes travel{0%{left:0}100%{left:calc(100% - 10px)}}
+.ov{cursor:pointer;min-height:400px;display:flex;flex-direction:column;padding:34px}
+.ov .num{font-size:15px}
+.ov .en{font:800 46px/1 var(--sans);letter-spacing:-.02em;margin-top:56px}
+.ov .zh{font-size:24px;font-weight:700;margin-top:18px}
+.ov .p{margin-top:10px}
+.ov .go{margin-top:auto;display:flex;align-items:center;gap:8px;font:600 13px/1 var(--mono);letter-spacing:.12em;color:var(--muted);transition:.3s}
+.ov:hover .go{color:var(--green);gap:14px}
+.ov .ic{position:absolute;right:30px;top:30px}
+.ov::before{content:"";position:absolute;left:34px;top:-40px;width:12px;height:12px;border-radius:50%;background:var(--bg-1);border:2px solid var(--green)}
+
+.flow5{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;position:relative}
+.fstep{padding:28px 24px;display:flex;flex-direction:column;gap:14px}
+.fill>.fstep .h3{font-size:22px}
+.fill>.fstep .p{font-size:16.5px;min-height:84px}
+.fstep .h3{font-size:21px}
+.fstep .p{font-size:16px}
+.fstep.pain{border-color:rgba(242,193,78,.4);background:linear-gradient(180deg,rgba(242,193,78,.12),rgba(242,193,78,.02))}
+.fstep.pain .badge{position:absolute;right:18px;top:18px}
+.fstep .arrow{position:absolute;right:-17px;top:50%;width:16px;color:var(--green);font-size:16px;transform:translateY(-50%);z-index:2}
+
+.ba{display:grid;grid-template-columns:1fr 90px 1fr;align-items:stretch}
+.ba .mid{display:grid;place-items:center;color:var(--green);font-size:34px}
+.ba .mid span{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;background:rgba(62,224,127,.12);border:1px solid var(--line-2);animation:nudge 2s ease-in-out infinite}
+@keyframes nudge{50%{transform:translateX(8px)}}
+.ba .card{padding:34px 36px}
+.ba .before{opacity:.78}
+.ba .after{border-color:rgba(62,224,127,.4);background:linear-gradient(180deg,rgba(62,224,127,.14),rgba(62,224,127,.03));box-shadow:0 0 60px rgba(62,224,127,.08)}
+.pills{display:flex;flex-wrap:wrap;gap:8px 6px;align-items:center;margin-top:22px}
+.pills span{font-size:15px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.after .pills span{background:rgba(62,224,127,.1);border-color:rgba(62,224,127,.25)}
+.pills i{color:var(--muted);font-size:14px}
+
+.roles{display:flex;gap:14px;margin-left:auto}
+.roles span{display:flex;align-items:center;gap:8px;font-size:15px;padding:8px 14px;border-radius:999px;background:rgba(6,26,18,.6);border:1px solid var(--line)}
+.roles span i{color:var(--green)}
+
+.stage5{display:grid;grid-template-columns:repeat(5,1fr);gap:20px;position:relative;margin-top:26px}
+.stage5 .track{position:absolute;left:0;right:0;top:-26px;height:3px;border-radius:3px;background:rgba(62,224,127,.15);overflow:hidden}
+.stage5 .track::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,var(--green),transparent);width:30%;animation:sweep 3.5s ease-in-out infinite}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+.stg{padding:26px 22px;min-height:340px;display:flex;flex-direction:column;gap:12px}
+.stg .top{display:flex;justify-content:space-between;align-items:center}
+.stg .n2{font:800 40px/1 var(--sans);color:var(--green)}
+.stg .tool{font:600 11px/1.3 var(--mono);letter-spacing:.06em;color:var(--mint);padding:6px 9px;border-radius:8px;background:rgba(62,224,127,.1);border:1px solid rgba(62,224,127,.2);text-align:right;max-width:130px}
+.stg .ic{margin-top:12px}
+.stg .h3{font-size:21px;margin-top:4px}
+.stg .p{font-size:15.5px}
+
+.list{display:flex;flex-direction:column;gap:16px;margin-top:20px}
+.li{display:flex;gap:14px;align-items:flex-start;font-size:18px;line-height:1.6;color:var(--text-2)}
+.li i{color:var(--green);font-size:20px;margin-top:4px}
+.li b{color:var(--text);font-weight:600}
+.li.x i{color:#ff9a9a}
+
+.hl-box{position:absolute;left:31%;top:53.3%;width:68.5%;height:8.6%;border:3px solid #ff5c5c;border-radius:8px;box-shadow:0 0 0 4px rgba(255,92,92,.18),0 0 30px rgba(255,92,92,.5);animation:pulse 1.8s ease-in-out infinite}
+.hl-tag{position:absolute;left:31%;top:calc(53.3% - 40px);background:#ff5c5c;color:#fff;font-size:14px;font-weight:700;padding:7px 12px;border-radius:8px;display:flex;gap:6px;align-items:center}
+@keyframes pulse{50%{box-shadow:0 0 0 10px rgba(255,92,92,.06),0 0 40px rgba(255,92,92,.7)}}
+
+.stack{position:relative}
+.stack .shot{position:absolute;width:86%;transition:transform .6s var(--ease),z-index 0s .3s,opacity .6s,box-shadow .4s}
+.stack .shot.back{transform:translate(14%,22%) scale(.94);opacity:.6;z-index:1;filter:saturate(.6)}
+.stack .shot.front{transform:none;z-index:2}
+.stack .swap{position:absolute;right:0;bottom:-6px;z-index:5;display:flex;gap:8px;align-items:center;font:600 12px/1 var(--mono);letter-spacing:.12em;color:var(--mint);padding:10px 14px;border-radius:999px;border:1px solid var(--line-2);background:rgba(6,26,18,.8);transition:.3s}
+.stack .swap:hover{background:rgba(62,224,127,.15)}
+
+.vstep{display:flex;gap:18px;position:relative;padding-bottom:22px}
+.vstep:not(:last-child)::before{content:"";position:absolute;left:25px;top:56px;bottom:0;width:2px;background:linear-gradient(var(--line-2),transparent)}
+.vstep .ic{width:52px;height:52px}
+.vstep .h3{font-size:20px}
+.vstep .p{font-size:16px;margin-top:4px}
+.vstep .num{display:block;margin-bottom:6px;font-size:12px}
+
+.flowcol{display:flex;flex-direction:column;align-items:stretch;gap:0;margin-top:24px}
+.fnode{display:flex;gap:14px;align-items:center;padding:16px 18px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);font-size:18px}
+.fnode i{color:var(--green);font-size:20px}
+.fnode code{font-family:var(--mono);font-size:15px;color:var(--mint)}
+.fconn{height:36px;position:relative;margin-left:34px}
+.fconn::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:rgba(62,224,127,.3)}
+.fconn::after{content:"";position:absolute;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);animation:down 1.6s linear infinite}
+@keyframes down{from{top:-4px;opacity:0}20%{opacity:1}to{top:calc(100% - 6px);opacity:0}}
+
+.sim .fnode{transition:.25s}
+.sim .fnode.lit{background:rgba(62,224,127,.2);border-color:var(--green);box-shadow:0 0 24px rgba(62,224,127,.25)}
+.sim .fnode.hot.lit{background:rgba(255,107,107,.2);border-color:var(--red);box-shadow:0 0 24px rgba(255,107,107,.3)}
+.sim .fnode.hot i{color:#ff9a9a}
+.counter{display:flex;align-items:baseline;gap:10px;margin-top:18px;padding:14px 18px;border-radius:14px;background:rgba(0,0,0,.2);border:1px dashed rgba(255,255,255,.14)}
+.counter .v{font:800 40px/1 var(--sans);font-variant-numeric:tabular-nums}
+.counter .l{font-size:15px;color:var(--text-2)}
+.counter.bad .v{color:#ff8a8a}.counter.good .v{color:var(--green)}
+.simbtn{display:inline-flex;align-items:center;gap:10px;padding:12px 20px;border-radius:999px;background:var(--green);color:#05170f;font-weight:700;font-size:16px;box-shadow:0 10px 30px rgba(62,224,127,.3);transition:.25s}
+.simbtn:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(62,224,127,.45)}
+.simbtn.ghost{background:transparent;color:var(--text-2);border:1px solid var(--line-2);box-shadow:none}
+
+table.cmp{width:100%;border-collapse:separate;border-spacing:0;font-size:17px}
+table.cmp th{font:600 13px/1 var(--mono);letter-spacing:.14em;color:var(--muted);text-align:left;padding:0 18px 16px}
+table.cmp th .brand{display:flex;gap:10px;align-items:center;font:700 22px/1 var(--sans);letter-spacing:0;color:var(--text)}
+table.cmp td{padding:16px 18px;border-top:1px solid rgba(255,255,255,.08);color:var(--text-2);line-height:1.5;transition:background .25s}
+table.cmp td:first-child{font-weight:700;color:var(--text);white-space:nowrap;width:118px}
+table.cmp td.cf{color:var(--text)}
+table.cmp tr:hover td{background:rgba(62,224,127,.06)}
+table.cmp .colcf{background:rgba(62,224,127,.07)}
+table.cmp tr.pick td{border-top-color:rgba(62,224,127,.35)}
+table.cmp tr.pick td.cf{color:var(--mint);font-weight:600}
+
+.states .card{display:flex;gap:22px;align-items:flex-start;padding:30px 32px}
+.states .h3{display:flex;gap:12px;align-items:center}
+.howfix{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.howfix span{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;background:rgba(6,26,18,.6);border:1px solid var(--line-2);font-size:17px}
+.howfix span i{color:var(--green)}
+.howfix > i{color:var(--muted)}
+
+.take h2{font-size:76px;font-weight:900;line-height:1.3;letter-spacing:-.01em}
+.take h2 .g{background:linear-gradient(120deg,#7dffb0,#3ee07f 50%,#1fbf68);-webkit-background-clip:text;background-clip:text;color:transparent}
+.chain{display:flex;align-items:center;gap:14px;margin-top:60px;flex-wrap:wrap}
+.chain span{padding:14px 22px;border-radius:14px;border:1px solid var(--line);font-size:20px;color:var(--text-2);background:rgba(255,255,255,.03);transition:.4s}
+.chain span.on{color:#05170f;background:var(--green);border-color:var(--green);box-shadow:0 0 30px rgba(62,224,127,.4)}
+.chain i{color:var(--muted);font-size:20px}
+
+/* ---------- live slide ---------- */
+#live{position:fixed;inset:0;z-index:40;background:#f6f8f6;opacity:0;visibility:hidden;transition:opacity .45s,visibility .45s}
+body.live-on #live{opacity:1;visibility:visible}
+#live iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#f6f8f6}
+#live .loading{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(115deg,#05170f,#0f3d29);color:var(--text);transition:opacity .5s,visibility .5s;z-index:2}
+#live.loaded .loading{opacity:0;visibility:hidden}
+#live .loading .in{text-align:center}
+#live .loading .spin{width:56px;height:56px;margin:0 auto 26px;border-radius:50%;border:3px solid rgba(62,224,127,.2);border-top-color:var(--green);animation:spin 1s linear infinite}
+#live .loading h3{font-size:30px;font-weight:700}
+#live .loading p{color:var(--text-2);margin-top:12px;font-size:16px}
+#live .loading .fallback{margin-top:24px;opacity:0;transition:.4s}
+#live.slow .loading .fallback{opacity:1}
+#livebar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:45;display:flex;align-items:center;gap:4px;padding:6px;border-radius:999px;
+  background:rgba(6,26,18,.9);border:1px solid var(--line-2);box-shadow:0 18px 40px rgba(0,0,0,.35);backdrop-filter:blur(10px);opacity:0;visibility:hidden;transition:opacity .35s,visibility .35s}
+body.live-on #livebar{opacity:1;visibility:visible}
+body.live-on.idle #livebar{opacity:.28}
+#livebar:hover{opacity:1!important}
+#livebar button,#livebar a{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;font-size:14px;color:var(--text-2);text-decoration:none;transition:.2s;white-space:nowrap}
+#livebar button:hover,#livebar a:hover{background:rgba(62,224,127,.14);color:var(--text)}
+#livebar .lab{display:flex;align-items:center;gap:8px;padding:0 12px;font:600 12px/1 var(--mono);letter-spacing:.14em;color:var(--green)}
+#livebar .lab::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite}
+#livebar .sep{width:1px;height:22px;background:var(--line-2);margin:0 4px}
+.fbtn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:999px;background:var(--green);color:#05170f;font-weight:700;text-decoration:none}
+
+/* ---------- chrome (no header) ---------- */
+#progress{position:fixed;left:0;bottom:0;height:3px;background:linear-gradient(90deg,#1fbf68,#7dffb0);box-shadow:0 0 12px var(--green);z-index:30;transition:width .5s var(--ease)}
+#nav{position:fixed;right:18px;bottom:16px;z-index:30;display:flex;align-items:center;gap:4px;padding:5px;border-radius:999px;background:rgba(6,26,18,.6);border:1px solid var(--line);backdrop-filter:blur(8px);opacity:.35;transition:opacity .3s}
+#nav:hover{opacity:1}
+#nav button{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--text-2);font-size:17px}
+#nav button:hover{background:rgba(62,224,127,.15);color:var(--text)}
+#nav .count{font:600 12px/1 var(--mono);color:var(--text-2);padding:0 8px;letter-spacing:.08em;min-width:64px;text-align:center}
+body.live-on #nav,body.live-on #progress{display:none}
+
+#lightbox{position:fixed;inset:0;z-index:60;background:rgba(3,14,9,.92);display:grid;place-items:center;opacity:0;visibility:hidden;transition:.3s;cursor:zoom-out;padding:4vh 4vw}
+#lightbox.on{opacity:1;visibility:visible}
+#lightbox img{max-width:100%;max-height:100%;border-radius:12px;box-shadow:0 30px 100px rgba(0,0,0,.6);transform:scale(.96);transition:transform .35s var(--ease)}
+#lightbox.on img{transform:none}
+
+#notesPanel{position:fixed;left:50%;bottom:70px;transform:translate(-50%,20px);width:min(980px,92vw);max-height:34vh;overflow:auto;z-index:35;padding:22px 26px;border-radius:18px;
+  background:rgba(6,26,18,.95);border:1px solid var(--line-2);font-size:16px;line-height:1.8;color:var(--text-2);opacity:0;visibility:hidden;transition:.3s}
+#notesPanel.on{opacity:1;visibility:visible;transform:translate(-50%,0)}
+#notesPanel h4{font:600 12px/1 var(--mono);letter-spacing:.16em;color:var(--green);margin-bottom:10px}
+#help{position:fixed;left:18px;bottom:20px;z-index:30;font:500 11px/1 var(--mono);letter-spacing:.08em;color:rgba(185,212,196,.35)}
+body.live-on #help{display:none}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="viewport">
+<div id="stage">
+  <canvas id="bgfx"></canvas>
+  <div class="grid-bg"></div>
+  <div class="spot"></div>
+  <div class="orb o1"></div><div class="orb o2"></div>
+
+  <!-- 01 COVER -->
+  <section class="slide cover" data-notes="這次分享從實際工作中的埋點規劃需求出發，介紹如何透過 ChatGPT、Codex、Figma 與 Cloudflare，把想法實作成可以操作的工具，並分享設計師在產品與技術上的學習。">
+    <div class="left">
+      <div class="kicker" data-a>Product Analytics / Vibe Coding</div>
+      <h1 data-a><span class="g">埋點</span><br>規劃工具</h1>
+      <p class="lead" data-a>如何與 Codex 協作、部署並驗證一個埋點規劃平台。</p>
+      <div class="rule" data-a></div>
+      <div class="meta" data-a>
+        <span class="ev">10月設計分享</span>
+        <span class="by"><span class="av">J</span>彭子傑 Jay</span>
+      </div>
+      <div class="tools" data-a>
+        <span><i data-lucide="message-circle"></i>ChatGPT</span>
+        <span><i data-lucide="terminal"></i>Codex</span>
+        <span><i data-lucide="figma"></i>Figma</span>
+        <span><i data-lucide="github"></i>GitHub</span>
+        <span><i data-lucide="cloud"></i>Cloudflare</span>
+      </div>
+    </div>
+    <div class="hero" data-a>
+      <svg class="rings" viewBox="0 0 960 960">
+        <circle cx="480" cy="480" r="470"/>
+        <g class="spin"><circle cx="480" cy="480" r="400" stroke-dasharray="3 12"/><circle cx="880" cy="480" r="6" fill="#3ee07f" stroke="none"/></g>
+        <g class="spin2"><circle cx="480" cy="480" r="330"/><circle cx="480" cy="150" r="5" fill="#a7f3c4" stroke="none"/></g>
+      </svg>
+      <div class="tilt" id="heroTilt"><img src="assets/hero-dashboard.webp" alt="埋點規劃儀表板示意"></div>
+      <div class="chip" style="left:-40px;top:120px"><span class="ic"><i data-lucide="mouse-pointer-click"></i></span><code>track("cta_click")</code></div>
+      <div class="chip" style="right:-30px;top:70px;animation-delay:-2s"><span class="ic violet"><i data-lucide="sparkles"></i></span>AI 建議 <b>+12</b> 事件</div>
+      <div class="chip" style="right:-10px;bottom:90px;animation-delay:-4s"><span class="ic amber"><i data-lucide="file-spreadsheet"></i></span>匯出 Excel</div>
+      <div class="chip" style="left:-10px;bottom:150px;animation-delay:-1s"><span class="ic"><i data-lucide="figma"></i></span>Page 已同步</div>
+      <span class="ping" style="left:120px;top:40px"></span>
+      <span class="ping" style="right:120px;bottom:30px;animation-delay:-1s"></span>
+    </div>
+  </section>
+
+  <!-- 02 OVERVIEW -->
+  <section class="slide" data-notes="這次分享我會分成四個部分。第一個是 WHY，也就是為什麼在已經有 ChatGPT、Figma 和 Excel 的情況下，我還想自己開發工具。第二個是 WHAT，我實際做了哪些功能，以及它怎麼改變原本的工作流程。第三個 HOW 會是今天的重點，我會分享和 Codex 協作的過程，以及部署、Figma 授權和 API 額度等實際遇到的問題。最後再整理我在技術面和產品思考上的收穫。">
+    <div class="kicker" data-a>Overview</div>
+    <h2 class="title" data-a>產品從 0 到 1 歷程</h2>
+    <p class="sub" data-a>從實際工作問題出發，經歷需求、開發、驗證與反思。</p>
+    <div class="body" style="justify-content:center">
+      <div class="ov-track">
+        <div class="line"></div>
+        <div class="card ov" data-a data-goto="why"><span class="num">01</span><span class="ic"><i data-lucide="circle-help"></i></span><div class="en">WHY</div><div class="zh">為什麼要做</div><div class="p">原有埋點規劃的痛點</div><div class="go">EXPLORE <i data-lucide="arrow-right"></i></div></div>
+        <div class="card ov" data-a data-goto="what"><span class="num">02</span><span class="ic"><i data-lucide="box"></i></span><div class="en">WHAT</div><div class="zh">做出什麼</div><div class="p">產品定位與核心流程</div><div class="go">EXPLORE <i data-lucide="arrow-right"></i></div></div>
+        <div class="card ov" data-a data-goto="how"><span class="num">03</span><span class="ic"><i data-lucide="wrench"></i></span><div class="en">HOW</div><div class="zh">怎麼做出來</div><div class="p">AI 協作與技術挑戰</div><div class="go">EXPLORE <i data-lucide="arrow-right"></i></div></div>
+        <div class="card ov" data-a data-goto="learn"><span class="num">04</span><span class="ic"><i data-lucide="lightbulb"></i></span><div class="en">LEARN</div><div class="zh">學到了什麼</div><div class="p">技術理解與產品判斷</div><div class="go">EXPLORE <i data-lucide="arrow-right"></i></div></div>
+      </div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 03 SECTION WHY -->
+  <section class="slide sec" id="why" data-sec="0">
+    <div class="kicker" data-a>Design × AI × Product</div>
+    <div class="big" data-a>WHY</div>
+    <div class="q" data-a>為什麼要做這個產品？</div>
+    <div class="n" data-a><svg viewBox="0 0 420 420"><circle class="r3" cx="210" cy="210" r="205"/><circle class="r1" cx="210" cy="210" r="180"/><circle class="r2" cx="210" cy="210" r="150"/></svg><div class="orbit"><span><i data-lucide="circle-help"></i></span></div><span class="digit">01</span></div>
+    <div class="secnav"></div>
+  </section>
+
+  <!-- 04 AI 焦慮 -->
+  <section class="slide">
+    <div class="kicker" data-a>01 / Why</div>
+    <h2 class="title" data-a>AI 焦慮，讓我決定<em>親手開發</em>一個產品</h2>
+    <p class="sub" data-a>從好奇 AI 能做到什麼，到實際挑戰完整的產品開發流程。</p>
+    <div class="body">
+      <div class="grid3 fill">
+        <div class="card" data-a style="display:flex;flex-direction:column;gap:18px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="ic"><i data-lucide="database"></i></span><span class="num">01</span></div><div class="h3" style="margin-top:22px">想挑戰不同類型的產品</div><p class="p">不再只做重視視覺與互動的網站，而是挑戰有資料結構、欄位定義與實際工作流程的工具。</p></div>
+        <div class="card" data-a style="display:flex;flex-direction:column;gap:18px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="ic violet"><i data-lucide="plug-zap"></i></span><span class="num">02</span></div><div class="h3" style="margin-top:22px">想突破 AI 串接的障礙</div><p class="p">之前曾嘗試整合 AI 功能，卻沒有成功。這次想重新挑戰，了解問題出在哪裡。</p></div>
+        <div class="card" data-a style="display:flex;flex-direction:column;gap:18px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="ic amber"><i data-lucide="graduation-cap"></i></span><span class="num">03</span></div><div class="h3" style="margin-top:22px">受到設計師面試案例刺激</div><p class="p">教授分享設計師被要求現場使用 AI 做出產品，讓我開始思考設計師未來需要具備哪些能力。</p></div>
+      </div>
+      <div class="callout" data-a><span class="ic"><i data-lucide="arrow-right"></i></span><span>所以我決定從自己工作中的<b>「埋點規劃」</b>出發，實際用 AI 協作開發一個可以操作的工具。</span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 05 原本流程 -->
+  <section class="slide" data-notes="先看我原本怎麼做埋點規劃。第一步會先定義 Excel 的欄位和格式，接著把需要分析的 Figma 畫面交給 ChatGPT，請它依照模板提出埋點事件。產出後還要反覆確認哪些事件有價值、哪些不需要，必要時重新請 AI 產生。最後把不同畫面的結果合併到 Excel，再回到 Figma 標註給團隊討論。這個流程其實做得到，也不是完全沒有 AI；真正花時間的，是每一步之間都要自己銜接。">
+    <div class="kicker" data-a>01 / Why</div>
+    <h2 class="title" data-a>原本就能用 AI 完成埋點規劃，但<em>流程很繁瑣</em></h2>
+    <p class="sub" data-a>問題不在於做不到，而是工作散落在不同工具。</p>
+    <div class="body">
+      <div class="flow5 fill">
+        <div class="card fstep" data-a><span class="ic"><i data-lucide="file-spreadsheet"></i></span><span class="num">STEP 01</span><div class="h3">建立 Excel 範本</div><p class="p">先定義埋點事件、欄位與填寫規則。</p><i class="arrow" data-lucide="chevron-right"></i></div>
+        <div class="card fstep" data-a><span class="ic"><i data-lucide="figma"></i></span><span class="num">STEP 02</span><div class="h3">提供 Figma 畫面</div><p class="p">將設計稿與分析範圍提供給 ChatGPT。</p><i class="arrow" data-lucide="chevron-right"></i></div>
+        <div class="card fstep pain" data-a><span class="tag amber badge"><i data-lucide="clock"></i>耗時</span><span class="ic amber"><i data-lucide="refresh-cw"></i></span><span class="num" style="color:var(--amber)">STEP 03</span><div class="h3">反覆確認結果</div><p class="p">檢查 AI 分析是否正確，持續補充需求與修正。</p><i class="arrow" data-lucide="chevron-right"></i></div>
+        <div class="card fstep" data-a><span class="ic"><i data-lucide="download"></i></span><span class="num">STEP 04</span><div class="h3">匯出埋點文件</div><p class="p">將分析結果下載成 Excel 檔案。</p><i class="arrow" data-lucide="chevron-right"></i></div>
+        <div class="card fstep pain" data-a><span class="tag amber badge"><i data-lucide="clock"></i>耗時</span><span class="ic amber"><i data-lucide="git-merge"></i></span><span class="num" style="color:var(--amber)">STEP 05</span><div class="h3">手動整併版本</div><p class="p">合併不同批次的分析結果，整理成最終版本。</p></div>
+      </div>
+      <div class="callout" data-a><span class="ic amber"><i data-lucide="hourglass"></i></span><span>真正耗時的不是 AI 分析，而是<b>反覆確認、跨工具切換與人工整併結果</b>。</span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 06 三個重複成本 -->
+  <section class="slide" data-notes="整理下來，我覺得痛點可以分成三類。第一個是需求表達門檻，使用者要知道怎麼描述 Figma、怎麼下提示詞，才能讓 AI 產出符合期待的欄位。第二個是結果管理，對話拉長之後，前面討論過什麼、不同 Page 分析過哪些事件，都不容易持續維護。第三個是交付成本，分析結果還需要人工整理到 Excel，甚至回填到 Figma。也就是說，我想改善的不是 AI 的回答能力，而是 AI 回答之後，這些成果能不能被好好使用。">
+    <div class="kicker" data-a>01 / Why</div>
+    <h2 class="title" data-a>我想解決的，是<em>三個重複成本</em></h2>
+    <p class="sub" data-a>不是再做一個 ChatGPT，而是讓規劃工作更有系統性且能夠成為跨部門的溝通工具。</p>
+    <div class="body">
+      <div class="grid3 fill">
+        <div class="card" data-a><div style="display:flex;justify-content:space-between"><span class="ic"><i data-lucide="message-square-warning"></i></span><span style="font:800 54px/1 var(--sans);color:rgba(62,224,127,.18)">01</span></div><div class="h3" style="margin-top:26px">需求表達門檻</div><p class="p" style="margin-top:12px">認知門檻高，需要懂得描述畫面、埋點條件和輸出格式，才容易得到可用結果。</p></div>
+        <div class="card" data-a><div style="display:flex;justify-content:space-between"><span class="ic"><i data-lucide="search"></i></span><span style="font:800 54px/1 var(--sans);color:rgba(62,224,127,.18)">02</span></div><div class="h3" style="margin-top:26px">反覆查找與修改</div><p class="p" style="margin-top:12px">在 ChatGPT 中迭代，對話越長越難回頭查找；不同 Page 和專案的結果不容易整理。</p></div>
+        <div class="card" data-a><div style="display:flex;justify-content:space-between"><span class="ic"><i data-lucide="files"></i></span><span style="font:800 54px/1 var(--sans);color:rgba(62,224,127,.18)">03</span></div><div class="h3" style="margin-top:26px">反覆整併 Excel 耗時</div><p class="p" style="margin-top:12px">不同頁面產出的埋點資料，需要人工合併、檢查與修正，也不容易管理最新版本。</p></div>
+      </div>
+      <div class="callout" data-a style="gap:20px"><span class="ic"><i data-lucide="target"></i></span><span>核心機會：把</span>
+        <span class="tag muted" style="font:500 17px/1 var(--sans);letter-spacing:0;padding:10px 14px"><i data-lucide="message-circle"></i>一次性的 AI 回答</span>
+        <i data-lucide="arrow-right" style="color:var(--green);font-size:24px"></i>
+        <span class="tag" style="font:600 17px/1 var(--sans);letter-spacing:0;padding:10px 14px"><i data-lucide="file-check-2"></i>可編輯、可管理、可交付的文件</span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 07 SECTION WHAT -->
+  <section class="slide sec" id="what" data-sec="1">
+    <div class="kicker" data-a>Design × AI × Product</div>
+    <div class="big" data-a>WHAT</div>
+    <div class="q" data-a>我做出什麼了？</div>
+    <div class="n" data-a><svg viewBox="0 0 420 420"><circle class="r3" cx="210" cy="210" r="205"/><circle class="r1" cx="210" cy="210" r="180"/><circle class="r2" cx="210" cy="210" r="150"/></svg><div class="orbit"><span><i data-lucide="box"></i></span></div><span class="digit">02</span></div>
+    <div class="secnav"></div>
+  </section>
+
+  <!-- 08 BEFORE / AFTER -->
+  <section class="slide" data-notes="所以我對這個產品的定位很明確：不是取代 ChatGPT，而是把原本以對話為中心的埋點規劃，轉成以專案、Page 和事件為中心的工作流程。以前是我一直向 AI 提問，再把答案下載下來整理；現在我希望使用者可以直接選擇 Figma Page，讓 AI 先提出候選事件，再在平台裡審核、編輯、保存，最後匯出成 Excel。這樣 AI 仍然負責加速初稿，但工作成果不會只留在聊天紀錄裡。">
+    <div class="kicker" data-a>02 / What</div>
+    <h2 class="title" data-a>從 AI 對話，變成<em>完整的埋點規劃流程</em></h2>
+    <p class="sub" data-a>以專案、頁面與事件為核心，將 AI 分析、事件編輯與文件匯出整合在同一個平台。</p>
+    <div class="body">
+      <div class="ba fill">
+        <div class="card before" data-a>
+          <div style="display:flex;justify-content:space-between;align-items:center"><span class="tag muted">BEFORE</span><span class="ic" style="color:var(--text-2);background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)"><i data-lucide="message-circle"></i></span></div>
+          <div class="h3" style="font-size:30px;margin-top:22px">以 AI 對話為中心</div>
+          <p class="p" style="margin-top:6px">每次分析都是獨立的對話任務</p>
+          <div class="pills"><span>建立範本</span><i data-lucide="arrow-right"></i><span>提供 Figma</span><i data-lucide="arrow-right"></i><span>AI 分析</span><i data-lucide="arrow-right"></i><span>反覆修正</span><i data-lucide="arrow-right"></i><span>下載 Excel</span><i data-lucide="arrow-right"></i><span>手動整併</span></div>
+        </div>
+        <div class="mid" data-a><span><i data-lucide="arrow-right"></i></span></div>
+        <div class="card after" data-a>
+          <div style="display:flex;justify-content:space-between;align-items:center"><span class="tag">AFTER</span><span class="ic"><i data-lucide="folder-kanban"></i></span></div>
+          <div class="h3" style="font-size:30px;margin-top:22px">以專案與事件為中心</div>
+          <p class="p" style="margin-top:6px;color:var(--mint)">讓埋點規劃成為可持續管理的工作流程</p>
+          <div class="pills"><span>建立專案</span><i data-lucide="arrow-right"></i><span>連結 Figma</span><i data-lucide="arrow-right"></i><span>AI 建議埋點</span><i data-lucide="arrow-right"></i><span>審核與編輯事件</span><i data-lucide="arrow-right"></i><span>統一匯出 Excel</span></div>
+        </div>
+      </div>
+      <div class="callout" data-a><span class="ic"><i data-lucide="gem"></i></span><span>核心價值：AI 負責協助分析，設計師負責判斷，平台負責整理與管理。</span>
+        <div class="roles"><span><i data-lucide="bot"></i>AI</span><span><i data-lucide="pen-tool"></i>設計師</span><span><i data-lucide="layout-grid"></i>平台</span></div></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 09 LIVE PRODUCT (full screen) -->
+  <section class="slide" data-live data-notes="這張是目前平台的實際操作介面。左側可以選擇 Figma 來源、分析的 Page，以及要使用的 AI 模型；右側則是埋點事件的清單，可以依照優先順序、事件類型等資訊來整理。上方也有專案切換與 Excel 匯出的入口。這邊我希望做到的，是讓設計師不用每次都從一段新的 ChatGPT 對話開始，而是能回到同一個專案，延續上一次已經整理好的埋點規劃。">
+    <div class="kicker">02 / What · Live</div>
+    <h2 class="title">實際操作：埋點規劃工具</h2>
+  </section>
+
+  <!-- 10 SECTION HOW -->
+  <section class="slide sec" id="how" data-sec="2">
+    <div class="kicker" data-a>Design × AI × Product</div>
+    <div class="big" data-a>HOW</div>
+    <div class="q" data-a>這個產品我如何做出來的？</div>
+    <div class="n" data-a><svg viewBox="0 0 420 420"><circle class="r3" cx="210" cy="210" r="205"/><circle class="r1" cx="210" cy="210" r="180"/><circle class="r2" cx="210" cy="210" r="150"/></svg><div class="orbit"><span><i data-lucide="wrench"></i></span></div><span class="digit">03</span></div>
+    <div class="secnav"></div>
+  </section>
+
+  <!-- 11 五個階段 -->
+  <section class="slide" data-notes="這個產品不是一次下指令就完成的，我把實作過程整理成五個階段。先用 ChatGPT 協助整理 PRD，再請 Codex 建立可以操作的初版。接著把網站部署到正式環境，之後加入真正的 Figma 與 AI 分析能力，最後再進行第二輪的操作驗證和修正。過程中最有收穫的，反而不是畫面順利產出的時候，而是遇到問題、需要理解系統為什麼沒有照預期運作的時候。接下來我會用幾個案例來分享。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>從需求到上線：我與 AI 協作開發的<em>五個階段</em></h2>
+    <p class="sub" data-a>不是一次就把產品做出來，而是透過需求定義、功能驗證與反覆修正，逐步完成開發。</p>
+    <div class="body">
+      <div class="stage5">
+        <div class="track"></div>
+        <div class="card stg" data-a><div class="top"><span class="n2">01</span><span class="tool">ChatGPT</span></div><span class="ic"><i data-lucide="file-text"></i></span><div class="h3">定義需求與規格</div><p class="p">透過 ChatGPT 釐清產品需求、使用流程與功能規格，建立開發依據。</p></div>
+        <div class="card stg" data-a><div class="top"><span class="n2">02</span><span class="tool">Codex</span></div><span class="ic"><i data-lucide="code-xml"></i></span><div class="h3">建立產品初版</div><p class="p">利用 Codex 開發核心功能，實際操作並檢查流程是否符合預期。</p></div>
+        <div class="card stg" data-a><div class="top"><span class="n2">03</span><span class="tool">Figma / OpenAI / Gemini</span></div><span class="ic violet"><i data-lucide="link"></i></span><div class="h3">串接 Figma 與 AI</div><p class="p">取得 Figma 設計資料，讓 AI 分析畫面並產生埋點建議。</p></div>
+        <div class="card stg" data-a><div class="top"><span class="n2">04</span><span class="tool">GitHub × Cloudflare</span></div><span class="ic amber"><i data-lucide="rocket"></i></span><div class="h3">部署網站</div><p class="p">將程式碼推送至 GitHub，透過 Cloudflare 部署成可實際操作的網站。</p></div>
+        <div class="card stg" data-a><div class="top"><span class="n2">05</span><span class="tool">Codex</span></div><span class="ic"><i data-lucide="flask-conical"></i></span><div class="h3">測試與持續優化</div><p class="p">測試功能完整性，處理授權、API 額度限制與操作過程中的異常狀況。</p></div>
+      </div>
+      <div class="callout" data-a><span class="ic"><i data-lucide="list-video"></i></span><span>接下來透過五個實際案例，分享 PRD 撰寫、功能驗證、網站部署、Figma 授權及 API 額度處理。</span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 12 第一個教訓 -->
+  <section class="slide" data-stage="1" data-notes="第一個問題發生在需求階段。我一開始把工作上的埋點 Excel、Figma 連結，以及醫療專案的例子，一起丟給 ChatGPT 和 Codex，希望它們照著建立平台。這樣很快就有初版，但後來發現，因為需求描述太依賴單一專案，AI 產出的內容也會預設帶入醫療相關的字眼，讓工具不夠通用。所以我後來調整做法，先定義這個產品共通的資料欄位、操作流程和驗收條件，再把特定專案當成測試資料，而不是直接寫進產品規則裡。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>第一個教訓：指令寫得太具體，<em>也可能變成限制</em></h2>
+    <p class="sub" data-a>一開始把醫療專案的情境帶進需求，導致平台不夠通用。</p>
+    <div class="body" style="flex-direction:row;gap:32px">
+      <div class="chat" data-a style="flex:1.2">
+        <div class="chat-hd"><span class="dots"><span></span><span></span><span></span></span><span class="ttl"><i data-lucide="message-circle"></i>PROMPT · 給 ChatGPT / Codex</span></div>
+        <div class="chat-bd">
+          <div class="msg me"><span class="av">J</span><div><div class="who">JAY</div><div class="bubble">「我想做一個埋點分析網站，讓使用者提供 Figma 連結，選擇需要分析的 Page，由 AI 判斷哪些行為需要追蹤，最後要可以匯出 Excel。」</div></div></div>
+          <div class="msg me"><span class="av">J</span><div><div class="bubble">「請參考我提供的 Excel 範例，並新增『追蹤目的』欄位。」</div></div></div>
+          <div class="msg me"><span class="av">J</span><div><div class="bubble">另外這是我的 Figma 設計檔：台灣_慢病_醫療人員_UX_V7.9.0。<span class="warn">這個平台主要提供給醫療人員追蹤病患數據使用</span>，第一階段想追蹤功能使用率、點擊率等事件。</div></div></div>
+        </div>
+      </div>
+      <div class="card" data-a style="flex:1;padding:36px;border-color:rgba(255,107,107,.3);background:linear-gradient(180deg,rgba(255,107,107,.09),rgba(255,255,255,.02))">
+        <span class="tag red"><i data-lucide="triangle-alert"></i>問題</span>
+        <div class="h3" style="font-size:28px;margin-top:22px;line-height:1.4">AI 難以區分<br>「產品規則」與「專案範例」</div>
+        <div class="list" style="margin-top:30px;gap:22px">
+          <div class="li x"><i data-lucide="shuffle"></i><span><b>需求混淆：</b>將醫療專案的使用情境與通用功能混在一起。</span></div>
+          <div class="li x"><i data-lucide="crosshair"></i><span><b>分析偏向：</b>AI 容易沿用醫療專案的術語與追蹤邏輯。</span></div>
+          <div class="li x"><i data-lucide="lock"></i><span><b>擴充受限：</b>未來套用其他類型專案時，需要重新調整設定。</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 13 換了專案 -->
+  <section class="slide" data-stage="1">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>換了專案，AI 卻還在<em>分析醫療情境</em></h2>
+    <p class="sub" data-a>實際測試電商專案時，發現埋點建議混入醫療相關事件。</p>
+    <div class="body" style="flex-direction:row;gap:36px;margin-top:34px">
+      <div style="width:400px;display:flex;flex-direction:column;gap:22px">
+        <div class="chat" data-a>
+          <div class="chat-hd"><span class="dots"><span></span><span></span><span></span></span><span class="ttl"><i data-lucide="terminal"></i>PROMPT · 給 Codex</span></div>
+          <div class="chat-bd"><div class="msg me"><span class="av">J</span><div class="bubble">請你告訴我現在 AI 分析時，我的模型會有哪些條件去限縮或是引導他，我需要看一下現在的指令</div></div>
+          <div class="msg ai"><span class="av"><i data-lucide="terminal"></i></span><div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div></div></div>
+        </div>
+        <div class="card" data-a style="margin-top:auto;padding:26px;border-color:rgba(62,224,127,.35);background:linear-gradient(180deg,rgba(62,224,127,.13),rgba(62,224,127,.02))">
+          <span class="tag"><i data-lucide="wrench"></i>後續改善</span>
+          <div class="h3" style="font-size:21px;margin-top:16px;line-height:1.55">定義通用欄位、流程與驗收條件，專案去識別化</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;align-items:center" data-a>
+        <div class="shot" style="width:100%;aspect-ratio:2400/1305" data-zoom="assets/app-event-plan.webp">
+          <img src="assets/app-event-plan.webp" alt="電商專案埋點建議畫面">
+          <div class="hl-box"></div>
+          <div class="hl-tag"><i data-lucide="triangle-alert"></i>電商專案卻出現「病患資訊」事件</div>
+          <span class="zoomhint"><i data-lucide="maximize-2"></i></span>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 14 初版假的 -->
+  <section class="slide" data-stage="2" data-notes="進入 P1 驗證時，我開始逐一操作網站，而不是只看畫面像不像設計稿。很快就發現幾個問題：例如沒有輸入 Figma 連結時，應該要有空狀態；更換設計來源後，Page 和分析結果也要跟著更新。更重要的是，我曾發現網站雖然顯示了埋點建議，但當時其實還沒有真正串接 AI，只是先產生示意資料。這讓我學到，不能因為介面有結果，就當作功能已經完成；需要追問資料從哪裡來，以及整個流程是不是真的有執行。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>初版生成看起來功能可運作，但<em>什麼都是假的</em></h2>
+    <p class="sub" data-a>第一版網站看起來已經成形，但實際操作後，才發現許多功能仍停留在展示階段。</p>
+    <div class="body" style="margin-top:34px">
+      <div class="grid2" style="gap:32px;align-items:start;margin:auto 0">
+        <div data-a><div class="shot" style="aspect-ratio:795/393" data-zoom="assets/v1-landing.webp"><img src="assets/v1-landing.webp" alt="初版首頁"><span class="zoomhint"><i data-lucide="maximize-2"></i></span></div><div class="cap"><b>V1</b>初版首頁</div></div>
+        <div data-a><div class="shot" style="aspect-ratio:811/376" data-zoom="assets/v1-empty.webp"><img src="assets/v1-empty.webp" alt="初版工作區"><span class="zoomhint"><i data-lucide="maximize-2"></i></span></div><div class="cap"><b>V1</b>初版工作區</div></div>
+      </div>
+      <div class="callout" data-a style="background:linear-gradient(90deg,rgba(255,107,107,.14),rgba(255,107,107,.02));border-color:rgba(255,107,107,.3)"><span class="tag red" style="font-size:13px"><i data-lucide="bug"></i>發現問題</span><span>沒有實際串 AI、分析結果為假資料；Page 選擇與空狀態也不完整。</span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 15 若要真數據 -->
+  <section class="slide" data-stage="3">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>若要真數據，<em>需要提供 API</em></h2>
+    <p class="sub" data-a>從假資料改成真實分析，才發現還需要處理 API 與存取權限。</p>
+    <div class="body" style="margin-top:30px">
+      <div class="chat" data-a style="flex:1">
+        <div class="chat-hd"><span class="dots"><span></span><span></span><span></span></span><span class="ttl"><i data-lucide="terminal"></i>CODEX · 對話紀錄</span><span class="live">CONVERSATION</span></div>
+        <div class="chat-bd" style="gap:30px;padding:30px 34px;justify-content:center">
+          <div class="msg me"><span class="av">J</span><div style="max-width:980px"><div class="who">JAY · PROMPT</div><div class="bubble" style="font-size:20px">「你現在分析的內容是假的對不對？沒有串 AI 也沒有分析過程，請幫我在分析實務必要串 AI，最好是串 ChatGPT 的模型。」</div></div></div>
+          <div class="msg ai"><span class="av"><i data-lucide="terminal"></i></span><div style="flex:1"><div class="who">CODEX · 回覆</div>
+            <div class="bubble" style="display:flex;gap:28px;align-items:center;padding:20px 24px">
+              <div style="width:270px"><div class="h3" style="font-size:22px;line-height:1.5">讓 AI 分析真正運作，需要哪些授權？</div><p class="p" style="margin-top:10px;font-size:15px">需要在部署環境設定對應模型的 API Key。</p></div>
+              <div class="shot" style="width:360px;aspect-ratio:484/264" data-zoom="assets/key-openai.webp"><img src="assets/key-openai.webp" alt="OpenAI API Key"></div>
+              <div class="shot" style="width:360px;aspect-ratio:489/260" data-zoom="assets/key-gemini.webp"><img src="assets/key-gemini.webp" alt="Gemini API Key"></div>
+            </div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 16 原本以為只要丟一句 -->
+  <section class="slide" data-stage="3">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>原本以為只要丟一句<em>「幫我串 AI」</em></h2>
+    <div class="body" style="margin-top:36px">
+      <div class="grid2" style="gap:34px">
+        <div data-a><div class="shot" style="aspect-ratio:2200/1004" data-zoom="assets/openai-keys.webp"><img src="assets/openai-keys.webp" alt="OpenAI API Keys"><span class="zoomhint"><i data-lucide="maximize-2"></i></span></div><div class="cap"><b>01</b>申請 OpenAI API Key</div></div>
+        <div data-a><div class="shot" style="aspect-ratio:2200/1014" data-zoom="assets/gemini-keys.webp"><img src="assets/gemini-keys.webp" alt="Gemini API Keys"><span class="zoomhint"><i data-lucide="maximize-2"></i></span></div><div class="cap"><b>02</b>申請 Gemini API Key</div></div>
+      </div>
+      <div class="callout" data-a><span class="ic"><i data-lucide="key-round"></i></span><span>核心價值：AI 能幫我完成程式串接，但<b>外部服務的授權、設定與實際驗證</b>，仍是開發過程中必須處理的工作。</span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 17 PAT → OAuth -->
+  <section class="slide" data-stage="3" data-notes="再來是 Figma 授權。一開始開發時，我直接使用自己的 Figma Personal Access Token，也就是 PAT，讓平台可以讀取我有權限的檔案。個人測試時很方便，但如果要開放給其他設計師使用，就不應該讓所有人共用我的 Token。所以後來改成 OAuth，讓每個使用者透過 Figma 官方授權流程，同意平台讀取他自己有權限的檔案。這裡有個容易誤會的地方：我的網站本身沒有會員登入，不代表所有 Figma 請求都吃我的 PAT；OAuth 授權和網站會員系統是兩件不同的事。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>從個人 PAT 到 OAuth：讓每位使用者<em>授權自己的 Figma</em></h2>
+    <p class="sub" data-a>一開始平台使用我的個人 Token 讀取設計稿，但當工具要開放給其他人使用時，就必須重新思考授權方式。</p>
+    <div class="body" style="flex-direction:row;gap:26px;margin-top:34px;max-height:450px">
+      <div class="card" data-a style="flex:1;opacity:.85"><div style="display:flex;justify-content:space-between"><span class="tag muted">BEFORE</span><span class="ic" style="color:var(--text-2);background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)"><i data-lucide="key-round"></i></span></div>
+        <div class="h3" style="font-size:27px;margin-top:20px">開發者個人 PAT</div><p class="p">所有人共用我的 Figma 存取權限</p>
+        <div class="list"><div class="li x"><i data-lucide="x"></i>只能存取我的 Figma 權限範圍</div><div class="li x"><i data-lucide="x"></i>所有人依賴同一組 PAT</div><div class="li x"><i data-lucide="x"></i>共用金鑰有安全與維護風險</div></div></div>
+      <div class="card" data-a style="flex:1;border-color:rgba(62,224,127,.4);background:linear-gradient(180deg,rgba(62,224,127,.14),rgba(62,224,127,.03))"><div style="display:flex;justify-content:space-between"><span class="tag">AFTER</span><span class="ic"><i data-lucide="shield-check"></i></span></div>
+        <div class="h3" style="font-size:27px;margin-top:20px">使用者各自 OAuth</div><p class="p" style="color:var(--mint)">每位使用者授權自己的 Figma 帳號</p>
+        <div class="list"><div class="li"><i data-lucide="check"></i>依各使用者的授權範圍存取</div><div class="li"><i data-lucide="check"></i>每位使用者獨立授權</div><div class="li"><i data-lucide="check"></i>降低共用金鑰造成的安全與管理問題</div></div></div>
+      <div data-a style="width:360px;display:flex;flex-direction:column;justify-content:center"><div class="shot" style="aspect-ratio:340/344" data-zoom="assets/figma-consent.webp"><img src="assets/figma-consent.webp" alt="Figma OAuth 授權畫面"><span class="zoomhint"><i data-lucide="maximize-2"></i></span></div><div class="cap"><b>OAUTH</b>Figma 授權同意畫面</div></div>
+    </div>
+    <div class="quote-line" data-a><i data-lucide="quote"></i>「從自己能用的工具，變成其他設計師也能使用的產品。」</div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 18 OAuth App 審核 -->
+  <section class="slide" data-stage="3">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>OAuth 不只是串接 API，還需要<em>建立 App 與申請審核</em></h2>
+    <p class="sub" data-a>原本以為請 Codex 改成 OAuth 就能完成授權，實際操作才發現，還需要到 Figma Developers 完成一系列設定。</p>
+    <div class="body" style="flex-direction:row;gap:46px;margin-top:30px">
+      <div class="stack" data-a style="flex:1.35">
+        <div class="shot back" style="aspect-ratio:2200/1107" data-zoom="assets/figma-apps.webp"><img src="assets/figma-apps.webp" alt="Figma Developers Apps"></div>
+        <div class="shot front" style="aspect-ratio:2200/1107" data-zoom="assets/figma-scopes.webp"><img src="assets/figma-scopes.webp" alt="Figma OAuth scopes"></div>
+        <button class="swap"><i data-lucide="layers"></i>切換畫面</button>
+      </div>
+      <div data-a style="flex:1">
+        <span class="tag"><i data-lucide="list-checks"></i>申請流程</span>
+        <div style="margin-top:22px">
+          <div class="vstep"><span class="ic"><i data-lucide="app-window"></i></span><div><span class="num">01</span><div class="h3">建立 Developer App</div><p class="p">在 Figma Developers 建立應用程式，取得串接所需的應用程式資訊。</p></div></div>
+          <div class="vstep"><span class="ic"><i data-lucide="shield-check"></i></span><div><span class="num">02</span><div class="h3">設定 OAuth 權限</div><p class="p">選擇平台需要的存取範圍（Scopes），避免要求不必要的權限。</p></div></div>
+          <div class="vstep"><span class="ic"><i data-lucide="corner-down-left"></i></span><div><span class="num">03</span><div class="h3">設定授權回呼網址</div><p class="p">設定 Redirect URI，讓使用者完成 Figma 授權後能返回平台。</p></div></div>
+          <div class="vstep"><span class="ic amber"><i data-lucide="send"></i></span><div><span class="num">04</span><div class="h3">提交審核</div><p class="p">依 Figma 的要求提供應用程式資訊，提交審核並等待結果。</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="quote-line" data-a style="font-size:19px;margin-top:6px"><i data-lucide="info"></i>Codex 能協助完成 OAuth 串接程式，但第三方平台的設定、權限與審核流程，仍需要實際處理。</div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 19 API 額度 -->
+  <section class="slide" data-stage="3" data-notes="後來我遇到一個新的問題：明明 OAuth 已經成功，Figma 也曾經可以正常匯入，但使用一段時間後，卻突然無法取得新資料。排查後才知道，Figma API 本身有額度限制。這個限制和使用者的席次、檔案所屬方案，以及呼叫的是哪一類 API 都有關係。也就是說，OAuth 只代表使用者同意平台以他的權限讀取檔案，不代表能無限制呼叫 Figma。這個發現讓我開始思考，平台是否真的需要在每次操作時，都重新向 Figma 取得同樣的資料。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>OAuth 成功後，但還是遇到 <em>API 額度限制</em>？</h2>
+    <p class="sub" data-a>雖然已經可以正常讀取設計稿，但不同使用者能呼叫 API 的次數，可能有很大的差異。</p>
+    <div class="body">
+      <div class="grid3 fill">
+        <div class="card" data-a><div style="display:flex;justify-content:space-between"><span class="ic"><i data-lucide="users"></i></span><span class="num">01</span></div><div class="h3" style="margin-top:28px">帳號權限</div><p class="p" style="margin-top:10px">Viewer、Collab、Dev、Full 等不同席次，會影響 API 使用額度。</p></div>
+        <div class="card" data-a><div style="display:flex;justify-content:space-between"><span class="ic violet"><i data-lucide="credit-card"></i></span><span class="num">02</span></div><div class="h3" style="margin-top:28px">Figma 帳號方案</div><p class="p" style="margin-top:10px">Starter、Professional、Organization、Enterprise 等方案，適用的額度可能不同。</p></div>
+        <div class="card" data-a><div style="display:flex;justify-content:space-between"><span class="ic amber"><i data-lucide="code-xml"></i></span><span class="num">03</span></div><div class="h3" style="margin-top:28px">API 類型</div><p class="p" style="margin-top:10px">讀取完整設計稿、圖片或檔案資訊，不同 API 的請求限制也不同。</p></div>
+      </div>
+      <div class="callout" data-a style="justify-content:center;gap:26px;padding:26px">
+        <span style="font:800 34px/1 var(--sans)">OAuth</span><span style="font:800 40px/1 var(--sans);color:var(--red)">≠</span><span style="font:800 34px/1 var(--sans);color:var(--green)">無限額度</span>
+        <span style="width:1px;height:34px;background:var(--line-2)"></span><span style="font-size:20px;color:var(--text-2)">除了授權成功，也要考慮請求量。</span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 20 ChatGPT vs 平台 -->
+  <section class="slide" data-stage="3" data-notes="這裡我也有一個疑問：既然 ChatGPT 讀 Figma 也需要授權，為什麼我平常使用時，好像沒有這麼明顯遇到額度限制？我目前能確認的是，我自己的網站使用 Figma OAuth，再呼叫 files 和 nodes 這類 REST API。至於 ChatGPT 的 Figma 整合，可能透過不同的工具介面或 MCP 取得資料，不一定和我的網站走完全相同的路徑，也不一定受到同一組配額機制影響。不過這不代表 ChatGPT 完全沒有限制。這個案例提醒我，看到兩個產品都有授權按鈕，不能就認為它們背後的資料存取方式相同。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>同樣讀取 Figma，為什麼 <em>ChatGPT 沒遇到額度問題</em>？</h2>
+    <p class="sub" data-a>我發現 ChatGPT 似乎較少遇到額度問題，但兩者實際使用的整合方式與限制不同。</p>
+    <div class="body" style="margin-top:34px">
+      <div class="grid2" style="gap:32px">
+        <div class="card" data-a style="padding:30px 34px"><div style="display:flex;gap:14px;align-items:center"><span class="ic"><i data-lucide="layout-dashboard"></i></span><div class="h3">我的埋點規劃平台</div></div>
+          <div class="flowcol"><div class="fnode"><i data-lucide="shield-check"></i>使用者授權 Figma OAuth</div><div class="fconn"></div><div class="fnode"><i data-lucide="server"></i>呼叫 REST API <code>files / nodes</code></div><div class="fconn"></div><div class="fnode"><i data-lucide="sparkles"></i>取得設計資料並分析</div></div></div>
+        <div class="card" data-a style="padding:30px 34px"><div style="display:flex;gap:14px;align-items:center"><span class="ic violet"><i data-lucide="message-circle"></i></span><div class="h3">ChatGPT 的 Figma 整合</div></div>
+          <div class="flowcol"><div class="fnode"><i data-lucide="link" style="color:var(--violet)"></i>使用者連接 Figma</div><div class="fconn"></div><div class="fnode"><i data-lucide="plug" style="color:var(--violet)"></i>透過 <code>MCP</code> 取得設計資料</div><div class="fconn"></div><div class="fnode"><i data-lucide="bot" style="color:var(--violet)"></i>ChatGPT 讀取並分析</div></div></div>
+      </div>
+      <div class="quote-line" data-a><i data-lucide="quote"></i>「兩者都能讀取 Figma，但整合方式可能不同，不能直接比較 API 額度。」</div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 21 快取 -->
+  <section class="slide" data-stage="3" data-notes="這是我覺得整個開發過程中最值得分享的發現。我請 Codex 檢查實際程式邏輯後，才知道原本每次點擊 AI 分析，網站都會重新呼叫 Figma API，取得同一個 Page 的資料。即使設計稿完全沒有改，只是調整埋點需求重新分析，還是會消耗一次請求。所以我現在的優化方向，是把取得設計資料和執行 AI 分析分開。第一次匯入後，如果快取仍有效，就直接用已經取得的資料重新執行 AI。舉例來說，同一個 Page 分析五次，原本分析階段會有五次 Figma 請求；在快取有效、沒有手動同步的前提下，這五次分析可以不再額外讀取 Figma。這裡我把它標成優化方向，而不是已完成的成果。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>為什麼我的平台會這麼快<em>用完 Figma API 額度</em>？</h2>
+    <p class="sub" data-a>原本每次點擊「AI 分析」，都會重新向 Figma 取得設計資料，即使設計稿完全沒有改變，也會消耗 API 額度。</p>
+    <div class="body sim" style="margin-top:28px">
+      <div class="grid2" style="gap:28px">
+        <div class="card" data-a style="padding:26px 30px"><span class="tag muted">BEFORE / 原本流程</span>
+          <div class="flowcol" style="margin-top:18px" data-flow="before"><div class="fnode"><i data-lucide="mouse-pointer-click"></i>點擊「AI 分析」</div><div class="fconn"></div><div class="fnode hot"><i data-lucide="refresh-cw"></i>重新呼叫 Figma API</div><div class="fconn"></div><div class="fnode"><i data-lucide="sparkles"></i>AI 產生埋點建議</div></div>
+          <div class="counter bad"><span class="v" id="cBefore">0</span><span class="l">次 Figma 請求（分析階段）</span></div><p class="p" style="margin-top:12px;font-size:16px;color:#ffb4b4">問題：同一份設計稿重複分析，會產生不必要的 API 請求。</p></div>
+        <div class="card" data-a style="padding:26px 30px;border-color:rgba(62,224,127,.4);background:linear-gradient(180deg,rgba(62,224,127,.12),rgba(62,224,127,.02))"><span class="tag">AFTER / 優化方向 · 使用有效快取</span>
+          <div class="flowcol" style="margin-top:18px" data-flow="after"><div class="fnode"><i data-lucide="mouse-pointer-click"></i>點擊「AI 分析」</div><div class="fconn"></div><div class="fnode"><i data-lucide="database"></i>優先使用已取得的設計資料</div><div class="fconn"></div><div class="fnode"><i data-lucide="sparkles"></i>AI 重新產生埋點建議</div></div>
+          <div class="counter good"><span class="v" id="cAfter">0</span><span class="l">次 Figma 請求（分析階段）</span></div><p class="p" style="margin-top:12px;font-size:16px;color:var(--mint)">改善：減少重複請求，把 API 額度留給真正需要更新的資料。</p></div>
+      </div>
+      <div class="callout" data-a style="margin-top:22px;padding:16px 22px"><span class="ic"><i data-lucide="database-zap"></i></span><span>AI 可以重新分析，但 <b>Figma 資料不一定需要重新讀取</b>。</span>
+        <span style="margin-left:auto;display:flex;gap:10px"><button class="simbtn" id="simRun"><i data-lucide="play"></i>模擬：同一 Page 分析 5 次</button><button class="simbtn ghost" id="simReset"><i data-lucide="rotate-ccw"></i></button></span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 22 帳號管理 -->
+  <section class="slide" data-stage="4" data-notes="當網站的基本功能開始成立後，我想讓同事可以直接打開網址使用，所以把程式碼放到 GitHub，再透過 Cloudflare 部署。這個階段讓我第一次明顯感受到，開發環境能跑，不代表正式環境就一定能跑。曾經遇到 Build 已經成功，但 Deploying 階段還是失敗的情況。後來就需要回頭看部署日誌，檢查執行指令、環境設定和 Runtime 相容性。這也讓我理解，部署完成的標準不是看到綠色的 Build 訊息，而是正式網站的功能真的能操作。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>網站要給同事使用，才發現還有<em>帳號管理的問題</em></h2>
+    <p class="sub" data-a>原本使用 ChatGPT Sites 測試網站，但我希望未來切換 Codex 帳號，也不會影響網站的使用與維護。</p>
+    <div class="body" style="margin-top:34px">
+      <div class="chat" data-a style="flex:1;max-height:470px">
+        <div class="chat-hd"><span class="dots"><span></span><span></span><span></span></span><span class="ttl"><i data-lucide="terminal"></i>CODEX · 對話紀錄</span><span class="live">CONVERSATION</span></div>
+        <div class="chat-bd" style="flex-direction:row;gap:30px;padding:30px 32px">
+          <div class="msg me" style="flex:1;align-self:flex-start"><span class="av">J</span><div><div class="who">JAY · PROMPT</div><div class="bubble" style="font-size:20px">「能不能讓網站不要綁定目前的帳號？因為我之後可能會切換 Codex 帳號，而且這個網站最終要提供給同事使用。」</div></div></div>
+          <div class="msg ai" style="flex:1.1;align-self:flex-end"><span class="av"><i data-lucide="terminal"></i></span><div style="flex:1"><div class="who">與 CODEX 討論後的部署方向</div>
+            <div class="bubble" style="display:flex;flex-direction:column;gap:12px;padding:18px">
+              <div class="fnode"><i data-lucide="flask-conical"></i><b style="font-weight:600">Sites</b><span style="color:var(--text-2)">保留測試版</span></div>
+              <div class="fnode"><i data-lucide="github"></i><b style="font-weight:600">GitHub</b><span style="color:var(--text-2)">管理程式碼</span></div>
+              <div class="fnode" style="border-color:rgba(62,224,127,.4);background:rgba(62,224,127,.1)"><i data-lucide="cloud"></i><b style="font-weight:600">Cloudflare／Vercel</b><span style="color:var(--text-2)">部署正式網站</span></div>
+            </div></div></div>
+        </div>
+      </div>
+      <div class="callout" data-a style="margin-top:24px"><span class="ic amber"><i data-lucide="users-round"></i></span><span>網站能公開使用，<b>不代表未來就方便管理與維護</b>。</span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 23 Vercel vs Cloudflare -->
+  <section class="slide" data-stage="4" data-notes="我之前比較熟悉 Vercel，所以這次也順便研究它和 Cloudflare 有什麼不同。其實兩者都可以部署網站、執行後端程式，也都能串接 Figma 和 AI。Vercel 在前端開發、預覽與部署流程上很方便；Cloudflare 則把 Workers、網路、安全和資料服務整合在同一個生態系。但我這個專案不是因為 Cloudflare 在所有方面都比較好才選它，而是 Codex 當時已經建立了和 Cloudflare Workers 相容的架構，沿用它可以減少重新修改和測試的成本。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>Vercel vs. Cloudflare 部署，<em>Codex 的建議是…</em></h2>
+    <p class="sub" data-a>兩者都能部署網站與執行後端；差異在工作流程和服務整合。</p>
+    <div class="body" style="flex-direction:row;gap:34px;margin-top:30px">
+      <div class="card" data-a style="flex:1.25;padding:26px 14px 10px">
+        <table class="cmp">
+          <thead><tr><th>比較面向</th><th><span class="brand"><i data-lucide="triangle"></i>Vercel</span></th><th class="colcf" style="border-radius:12px 12px 0 0;padding-top:14px"><span class="brand"><i data-lucide="cloud" style="color:#f6821f"></i>Cloudflare</span></th></tr></thead>
+          <tbody>
+            <tr><td>主要特色</td><td>適合快速部署前端網站，開發預覽流程方便</td><td class="cf colcf">以全球網路與邊緣運算服務為特色</td></tr>
+            <tr><td>網站部署</td><td>連接 GitHub 後，可自動建置與部署</td><td class="cf colcf">連接 GitHub 後，也能自動建置與部署</td></tr>
+            <tr><td>後端功能</td><td>可透過 Functions 處理 API 請求</td><td class="cf colcf">可透過 Workers 處理 API 請求</td></tr>
+            <tr><td>後續擴充</td><td>可搭配資料庫、儲存與監控服務</td><td class="cf colcf">可搭配 D1、R2、KV 等服務</td></tr>
+            <tr class="pick"><td>我的考量</td><td>若改用 Vercel，需要確認專案相容性</td><td class="cf colcf" style="border-radius:0 0 12px 12px">Codex 已建立 Cloudflare 相容架構，可延續使用 <i data-lucide="check-circle-2" style="vertical-align:-3px;color:var(--green)"></i></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div data-a style="flex:1;display:flex;flex-direction:column;justify-content:center"><div class="shot" style="aspect-ratio:2200/1015" data-zoom="assets/cf-build.webp"><img src="assets/cf-build.webp" alt="Cloudflare Workers 建置畫面"><span class="zoomhint"><i data-lucide="maximize-2"></i></span></div><div class="cap"><b>DEPLOY</b>Cloudflare Workers 自動建置與部署</div></div>
+    </div>
+    <div class="callout" data-a style="margin-top:24px"><span class="ic"><i data-lucide="circle-check-big"></i></span><span>我的選擇：沿用 Codex 已建立的 <b>Cloudflare 相容架構</b>，降低重新調整成本。</span></div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 24 內容偏水 -->
+  <section class="slide" data-stage="5" data-notes="串接完成後又遇到另一個問題。有一次 Figma Page 明明包含很多畫面和流程，AI 卻只回傳八筆埋點事件。第一直覺可能會覺得模型能力不夠，但實際上也可能是前面的 Figma 節點沒有讀完整、輸入內容被截斷，或模型只集中分析了部分模組。因此我開始用更完整的方式排查：先確認取得了哪些節點，再確認送進模型的內容，最後檢查候選事件是否涵蓋主要流程。這裡的重點是，AI 有產出不等於分析有完整。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>部署後 AI 產得出來，但<em>內容偏水</em></h2>
+    <p class="sub" data-a>分析大型、複雜的流程時，AI 只產出 8 筆埋點事件，讓我開始檢查整個資料處理流程。</p>
+    <div class="body" style="flex-direction:row;gap:36px;margin-top:28px">
+      <div data-a style="width:560px;position:relative">
+        <div class="shot" style="aspect-ratio:760/545" data-zoom="assets/ai-thin-result.webp"><img src="assets/ai-thin-result.webp" alt="AI 產出的埋點建議清單"><span class="zoomhint"><i data-lucide="maximize-2"></i></span></div>
+        <div class="chip" style="right:14px;top:14px;animation-duration:5s"><span class="ic amber"><i data-lucide="triangle-alert"></i></span>大型流程只產出 <b style="color:var(--amber)">8</b> 筆</div>
+        <div class="quote-line" style="margin-top:22px;font-size:19px"><i data-lucide="lightbulb"></i><span>核心收穫：先確認分析規則，而不是直接要求 AI 增加埋點數量。</span></div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:14px">
+        <div class="card" data-a style="padding:18px 22px;display:flex;gap:18px;align-items:center"><span class="ic"><i data-lucide="layers"></i></span><div><div class="h3" style="font-size:19px">01｜Figma 資料有沒有讀完整？</div><p class="p" style="font-size:15.5px">確認平台實際取得哪些 Page、Frame 與畫面內容。</p></div></div>
+        <div class="card" data-a style="padding:18px 22px;display:flex;gap:18px;align-items:center"><span class="ic"><i data-lucide="file-warning"></i></span><div><div class="h3" style="font-size:19px">02｜資料送給 AI 時有沒有遺漏？</div><p class="p" style="font-size:15.5px">檢查是否因資料量太大，導致部分內容被省略或截短。</p></div></div>
+        <div class="card" data-a style="padding:18px 22px;display:flex;gap:18px;align-items:center"><span class="ic"><i data-lucide="clipboard-check"></i></span><div><div class="h3" style="font-size:19px">03｜AI 的建議有沒有涵蓋主要流程？</div><p class="p" style="font-size:15.5px">比對設計稿中的主要功能，確認是否有重要操作未被分析。</p></div></div>
+        <div class="chat" data-a style="margin-top:auto">
+          <div class="chat-hd" style="padding:11px 18px"><span class="dots"><span></span><span></span><span></span></span><span class="ttl"><i data-lucide="terminal"></i>PROMPT · 給 Codex</span></div>
+          <div class="chat-bd" style="padding:16px 18px"><div class="msg me"><span class="av">J</span><div class="bubble" style="font-size:16.5px;padding:12px 16px">「請告訴我目前 AI 分析時，有哪些規則會限制或引導產出結果？我想確認現在使用的分析指令。」</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 25 使用流程 -->
+  <section class="slide" data-stage="5" data-notes="最後的 P2 驗證，重點就從功能能不能執行，變成使用起來是否合理。我會特別檢查幾種狀態：還沒有 Figma 連結時怎麼引導、切換不同 Page 後資料有沒有混在一起、AI 分析或授權失敗時是否有清楚提示，以及編輯後的結果能不能保存和匯出。和 Codex 溝通時，我也發現單純說這裡不好用，通常很難一次修好。比較有效的方式是明確描述操作步驟、實際發生什麼事，以及我預期應該看到什麼，這樣才能逐項修正再驗收。">
+    <div class="kicker" data-a>03 / How</div>
+    <h2 class="title" data-a>最後，不只讓功能會動，還要<em>確認使用流程</em></h2>
+    <p class="sub" data-a>透過實際操作與異常情境，找出 AI 開發時沒有考慮完整的細節。</p>
+    <div class="body">
+      <div class="grid2 states fill" style="gap:22px">
+        <div class="card" data-a><span class="ic"><i data-lucide="inbox"></i></span><div><div class="h3"><span class="num">01</span>空狀態</div><p class="p" style="margin-top:8px">沒有建立專案、沒有連結 Figma 時，使用者知道下一步要做什麼嗎？</p></div></div>
+        <div class="card" data-a><span class="ic violet"><i data-lucide="repeat"></i></span><div><div class="h3"><span class="num">02</span>切換狀態</div><p class="p" style="margin-top:8px">更換 Figma Page 後，舊的分析結果是否正確清除或更新？</p></div></div>
+        <div class="card" data-a><span class="ic red"><i data-lucide="triangle-alert"></i></span><div><div class="h3"><span class="num">03</span>失敗狀態</div><p class="p" style="margin-top:8px">Figma 授權失敗、AI 分析失敗時，是否提供明確的原因與操作方式？</p></div></div>
+        <div class="card" data-a><span class="ic amber"><i data-lucide="save"></i></span><div><div class="h3"><span class="num">04</span>資料保存</div><p class="p" style="margin-top:8px">修改埋點內容後，是否能正確保留並匯出 Excel？</p></div></div>
+      </div>
+      <div class="callout" data-a style="gap:16px"><span style="white-space:nowrap">修改方式：</span>
+        <div class="howfix"><span><i data-lucide="list-ordered"></i>描述操作步驟</span><i data-lucide="arrow-right"></i><span><i data-lucide="eye"></i>實際結果</span><i data-lucide="arrow-right"></i><span><i data-lucide="target"></i>預期結果</span><i data-lucide="arrow-right"></i><span style="background:var(--green);color:#05170f;border-color:var(--green)"><i data-lucide="terminal" style="color:#05170f"></i>再請 Codex 修正</span></div></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 26 SECTION LEARN -->
+  <section class="slide sec" id="learn" data-sec="3">
+    <div class="kicker" data-a>Design × AI × Product</div>
+    <div class="big" data-a>LEARN</div>
+    <div class="q" data-a>這個產品開發過程我學到什麼？</div>
+    <div class="n" data-a><svg viewBox="0 0 420 420"><circle class="r3" cx="210" cy="210" r="205"/><circle class="r1" cx="210" cy="210" r="180"/><circle class="r2" cx="210" cy="210" r="150"/></svg><div class="orbit"><span><i data-lucide="lightbulb"></i></span></div><span class="digit">04</span></div>
+    <div class="secnav"></div>
+  </section>
+
+  <!-- 27 理解代碼 -->
+  <section class="slide" data-notes="這次在技術面最大的收穫，是我開始理解畫面背後的運作方式。以前做 UI 設計時，我主要關心流程、資訊和交互是否合理；但自己做產品之後，會需要知道 Figma 的資料怎麼透過 API 取得，又怎麼被整理成 AI 的輸入。我也第一次更具體理解 PAT、OAuth、Scopes、部署環境和快取這些概念。雖然我沒有因此變成工程師，但現在遇到問題時，我比較能判斷它是介面狀態、資料讀取、授權，還是部署環境造成的。">
+    <div class="kicker" data-a>04 / Learnings</div>
+    <h2 class="title" data-a>開始理解<em>代碼背後的運作邏輯</em></h2>
+    <p class="sub" data-a>從只關注介面與操作流程，到開始理解資料、授權、部署與系統限制。</p>
+    <div class="body">
+      <div class="grid2 states fill" style="gap:22px">
+        <div class="card" data-a><span class="ic"><i data-lucide="network"></i></span><div><div class="h3"><span class="num">01</span> API 與資料流</div><p class="p" style="margin-top:8px">理解 Figma 資料如何被讀取、整理，再交給 AI 分析，而不只是看到最後的埋點結果。</p></div></div>
+        <div class="card" data-a><span class="ic violet"><i data-lucide="shield-check"></i></span><div><div class="h3"><span class="num">02</span> OAuth 與權限</div><p class="p" style="margin-top:8px">理解 PAT 與 OAuth 的差異，以及授權成功不代表 API 就能無限制使用。</p></div></div>
+        <div class="card" data-a><span class="ic amber"><i data-lucide="rocket"></i></span><div><div class="h3"><span class="num">03</span> 部署與環境</div><p class="p" style="margin-top:8px">理解 GitHub、Cloudflare 各自的角色，以及程式完成和網站正式上線是兩件事。</p></div></div>
+        <div class="card" data-a><span class="ic"><i data-lucide="database"></i></span><div><div class="h3"><span class="num">04</span> 快取與狀態</div><p class="p" style="margin-top:8px">理解重複讀取資料會消耗額度，也開始考慮資料更新、保存與失效的問題。</p></div></div>
+      </div>
+      <div class="callout" data-a style="gap:22px"><span class="tag muted" style="font-size:12px">以前</span><span style="color:var(--text-2)">關心「畫面怎麼操作」</span><i data-lucide="arrow-right" style="color:var(--green);font-size:22px"></i><span class="tag" style="font-size:12px">現在</span><span>開始追問<b>「資料從哪裡來、為什麼會失敗」</b></span></div>
+    </div>
+    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
+  </section>
+
+  <!-- 28 Takeaway -->
+  <section class="slide take" style="justify-content:center" data-notes="如果要用一句話總結，就是 AI 的確讓我比較容易把一個設計想法做成可操作的網站，但產品是否解決問題，仍需要設計師定義與驗證。這次我真正學會的，不是只要會提示詞就能完成所有工作，而是可以更完整地參與需求、開發、排查與驗收。">
+    <div class="kicker" data-a>04 / Learnings · My Takeaway</div>
+    <h2 data-a style="margin-top:40px">AI 降低了開發門檻，<br><span class="g">但沒有降低產品判斷的重要性。</span></h2>
+    <div class="rule" data-a style="width:90px;height:4px;border-radius:4px;background:var(--green);margin-top:46px;box-shadow:0 0 18px var(--green)"></div>
+    <div class="chain" data-a id="chain"><span>從設計想法</span><i data-lucide="arrow-right"></i><span>可操作的產品</span><i data-lucide="arrow-right"></i><span>發現問題</span><i data-lucide="arrow-right"></i><span>提出修正</span><i data-lucide="arrow-right"></i><span>驗證成果</span></div>
+    <div class="n" style="position:absolute;right:-120px;bottom:-160px;width:620px;height:620px;opacity:.6;pointer-events:none"><svg viewBox="0 0 420 420" style="width:100%;height:100%"><circle cx="210" cy="210" r="205" fill="none" stroke="rgba(150,255,200,.1)"/><circle cx="210" cy="210" r="160" fill="none" stroke="rgba(150,255,200,.14)" stroke-dasharray="3 10" style="transform-origin:center;animation:spin 50s linear infinite"/><circle cx="210" cy="210" r="110" fill="none" stroke="rgba(62,224,127,.35)" stroke-dasharray="80 600" stroke-width="2" style="transform-origin:center;animation:spin 9s linear infinite"/></svg></div>
+  </section>
+
+  <!-- 29 Q&A -->
+  <section class="slide sec" data-notes="以上就是我這次用 AI 協作開發埋點規劃工具的分享。很謝謝大家聽到這裡。如果大家對這個工具的使用方式、Codex 的協作流程，或是 Figma 授權、API 額度和部署的問題有興趣，都很歡迎一起討論。">
+    <div class="kicker" data-a>Design × AI × Product</div>
+    <div class="big" data-a style="color:var(--text);-webkit-text-stroke:0">Q&amp;A</div>
+    <div class="q" data-a style="color:var(--text-2)">Questions &amp; Discussion</div>
+    <div class="n" data-a><svg viewBox="0 0 420 420"><circle class="r3" cx="210" cy="210" r="205"/><circle class="r1" cx="210" cy="210" r="180"/><circle class="r2" cx="210" cy="210" r="150"/></svg><div class="orbit"><span><i data-lucide="message-circle"></i></span></div><span style="font-size:150px;color:var(--green);display:grid;filter:drop-shadow(0 0 30px rgba(62,224,127,.45))"><i data-lucide="messages-square" style="stroke-width:1.1"></i></span></div>
+    <div class="foot" style="bottom:60px;border-top:1px solid var(--line);padding-top:18px;font-size:12px"><span>埋點規劃工具 / DESIGN SHARE</span><span>THANK YOU</span></div>
+  </section>
+</div>
+</div>
+
+<!-- live product layer (full viewport, native resolution) -->
+<div id="live">
+  <div class="loading"><div class="in"><div class="spin"></div><h3>實際操作：埋點規劃工具</h3><p>正在載入線上網站…</p>
+    <div class="fallback"><p style="margin-bottom:16px">載入較久？也可以直接在新分頁開啟。</p><a class="fbtn" href="https://tracking-plan-builder-jay.peng19990213.chatgpt.site/" target="_blank" rel="noopener"><i data-lucide="external-link"></i>在新分頁開啟</a></div></div></div>
+  <iframe id="liveFrame" title="埋點規劃工具 — 線上網站" allow="clipboard-read; clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+</div>
+<div id="livebar">
+  <button data-act="prev" title="上一頁"><i data-lucide="chevron-left"></i></button>
+  <span class="lab">LIVE · 埋點規劃工具</span>
+  <span class="sep"></span>
+  <button data-act="reload" title="重新整理網站"><i data-lucide="rotate-cw"></i>重新整理</button>
+  <a href="https://tracking-plan-builder-jay.peng19990213.chatgpt.site/" target="_blank" rel="noopener" title="Figma 授權登入請在新分頁進行"><i data-lucide="external-link"></i>新分頁開啟</a>
+  <span class="sep"></span>
+  <button data-act="next" title="下一頁">下一頁<i data-lucide="chevron-right"></i></button>
+</div>
+
+<div id="progress"></div>
+<div id="nav"><button data-act="prev" title="上一頁 (←)"><i data-lucide="chevron-left"></i></button><span class="count" id="count">01 / 29</span><button data-act="next" title="下一頁 (→)"><i data-lucide="chevron-right"></i></button><button data-act="notes" title="講者備註 (N)"><i data-lucide="notebook-pen"></i></button><button data-act="fs" title="全螢幕 (F)"><i data-lucide="maximize"></i></button></div>
+<div id="notesPanel"><h4>SPEAKER NOTES</h4><div id="notesText"></div></div>
+<div id="lightbox"><img alt=""></div>
+
+<script>
+(() => {
+  const SITE = "https://tracking-plan-builder-jay.peng19990213.chatgpt.site/";
+  const stage = document.getElementById("stage");
+  const slides = [...stage.querySelectorAll(".slide")];
+  const N = slides.length;
+  const liveIdx = slides.findIndex(s => s.hasAttribute("data-live"));
+  const STAGES = ["定義需求與規格","建立產品初版","串接 Figma 與 AI","部署網站","測試與持續優化"];
+  const SECS = [["why","01 WHY"],["what","02 WHAT"],["how","03 HOW"],["learn","04 LEARN"]];
+  let cur = 0;
+
+  if (window.lucide) lucide.createIcons();
+
+  // stage-stepper on HOW case pages (stage only, no case numbers)
+  slides.forEach(s => {
+    const k = +s.dataset.stage; if (!k) return;
+    const el = document.createElement("div"); el.className = "stepper";
+    el.innerHTML = STAGES.map((t,i) => `<div class="st ${i+1<k?"done":""} ${i+1===k?"cur":""}"><span class="dot"></span>${i<4?'<span class="bar"></span>':""}<span class="lbl"><small>0${i+1}</small>${t}</span></div>`).join("");
+    s.appendChild(el);
+  });
+  // section nav on divider slides
+  slides.forEach(s => {
+    const nav = s.querySelector(".secnav"); if (!nav) return;
+    nav.innerHTML = SECS.map(([id,l],i) => `<button data-goto="${id}" class="${+s.dataset.sec===i?"on":""}">${l}</button>`).join("");
+  });
+  document.querySelectorAll('.fill>.card').forEach(c => { const ic = c.querySelector('.ic svg'); if (!ic) return; const g = document.createElement('span'); g.className = 'ghost'; g.appendChild(ic.cloneNode(true)); c.appendChild(g); });
+  // stagger index for entry animations
+  slides.forEach(s => s.querySelectorAll("[data-a]").forEach((el,i) => el.style.setProperty("--i", i)));
+
+  // ----- scaling -----
+  function fit(){ const sc = Math.min(innerWidth/1600, innerHeight/900); stage.style.transform = `translate(-50%,-50%) scale(${sc})`; }
+  addEventListener("resize", fit); fit();
+
+  // ----- navigation -----
+  const count = document.getElementById("count"), prog = document.getElementById("progress");
+  const notesText = document.getElementById("notesText");
+  function go(i){
+    i = Math.max(0, Math.min(N-1, i));
+    slides[cur].classList.remove("active"); cur = i; slides[cur].classList.add("active");
+    count.textContent = String(cur+1).padStart(2,"0")+" / "+N;
+    prog.style.width = ((cur+1)/N*100)+"%";
+    notesText.textContent = slides[cur].dataset.notes || "（本頁無備註）";
+    history.replaceState(null,"","#"+(cur+1));
+    // live product layer
+    if (Math.abs(cur - liveIdx) <= 1) loadLive();
+    document.body.classList.toggle("live-on", cur === liveIdx);
+    if (cur === 27) runChain();
+  }
+  const next = () => go(cur+1), prev = () => go(cur-1);
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input,textarea,select")) return;
+    if (document.getElementById("lightbox").classList.contains("on")) { if (e.key==="Escape") closeLB(); return; }
+    if (["ArrowRight","PageDown"," ","Enter"].includes(e.key)) { e.preventDefault(); next(); }
+    else if (["ArrowLeft","PageUp","Backspace"].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key==="Home") go(0); else if (e.key==="End") go(N-1);
+    else if (e.key==="f"||e.key==="F") toggleFS();
+    else if (e.key==="n"||e.key==="N") document.getElementById("notesPanel").classList.toggle("on");
+  });
+  document.addEventListener("click", e => {
+    const a = e.target.closest("[data-act]");
+    if (a){ const t=a.dataset.act; if(t==="next")next(); else if(t==="prev")prev(); else if(t==="fs")toggleFS(); else if(t==="notes")document.getElementById("notesPanel").classList.toggle("on"); else if(t==="reload")reloadLive(); return; }
+    const g = e.target.closest("[data-goto]");
+    if (g){ go(slides.indexOf(document.getElementById(g.dataset.goto))); return; }
+    const z = e.target.closest("[data-zoom]");
+    if (z && !z.classList.contains("back")){ openLB(z.dataset.zoom); return; }
+  });
+  let tx=null; addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{passive:true});
+  addEventListener("touchend",e=>{ if(tx===null)return; const d=e.changedTouches[0].clientX-tx; if(Math.abs(d)>50) (d<0?next:prev)(); tx=null; });
+  function toggleFS(){ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); }
+
+  // ----- live iframe -----
+  const live = document.getElementById("live"), frame = document.getElementById("liveFrame");
+  let liveLoaded = false, slowT;
+  function loadLive(){
+    if (frame.src) return;
+    frame.addEventListener("load", () => { live.classList.add("loaded"); liveLoaded = true; clearTimeout(slowT); });
+    slowT = setTimeout(() => live.classList.add("slow"), 9000);
+    frame.src = SITE;
+  }
+  function reloadLive(){ live.classList.remove("loaded"); frame.src = SITE; }
+  let idleT; addEventListener("mousemove", () => { document.body.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(()=>document.body.classList.add("idle"), 2500); });
+
+  // ----- lightbox -----
+  const lb = document.getElementById("lightbox");
+  function openLB(src){ lb.querySelector("img").src = src; lb.classList.add("on"); }
+  function closeLB(){ lb.classList.remove("on"); }
+  lb.addEventListener("click", closeLB);
+
+  // ----- stacked screenshots swap -----
+  document.querySelectorAll(".stack").forEach(st => {
+    const swap = () => st.querySelectorAll(".shot").forEach(s => { s.classList.toggle("front"); s.classList.toggle("back"); });
+    st.querySelector(".swap").addEventListener("click", e => { e.stopPropagation(); swap(); });
+    st.addEventListener("click", e => { if (e.target.closest(".shot.back")) swap(); });
+  });
+
+  // ----- cache simulator -----
+  const cB = document.getElementById("cBefore"), cA = document.getElementById("cAfter");
+  const fb = [...document.querySelectorAll('[data-flow="before"] .fnode')], fa = [...document.querySelectorAll('[data-flow="after"] .fnode')];
+  let simBusy = false;
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  document.getElementById("simReset").addEventListener("click", () => { if(!simBusy){ cB.textContent = 0; cA.textContent = 0; } });
+  document.getElementById("simRun").addEventListener("click", async () => {
+    if (simBusy) return; simBusy = true; cB.textContent = 0; cA.textContent = 0;
+    for (let r=0; r<5; r++){
+      for (let k=0; k<3; k++){
+        fb[k].classList.add("lit"); fa[k].classList.add("lit");
+        if (k===1){ cB.textContent = +cB.textContent + 1; }
+        await wait(260); fb[k].classList.remove("lit"); fa[k].classList.remove("lit");
+      }
+      await wait(120);
+    }
+    simBusy = false;
+  });
+
+  // ----- takeaway chain -----
+  let chainT;
+  function runChain(){
+    clearInterval(chainT); const items = [...document.querySelectorAll("#chain span")]; let k = 0;
+    items.forEach(s=>s.classList.remove("on"));
+    chainT = setInterval(() => { if (cur!==27){clearInterval(chainT);return;} items.forEach((s,i)=>s.classList.toggle("on", i===k)); k=(k+1)%items.length; }, 1100);
+  }
+
+  // ----- cover tilt + spotlight -----
+  const tilt = document.getElementById("heroTilt");
+  stage.addEventListener("mousemove", e => {
+    const r = stage.getBoundingClientRect(); const x = (e.clientX-r.left)/r.width, y = (e.clientY-r.top)/r.height;
+    stage.style.setProperty("--sx", (x*100)+"%"); stage.style.setProperty("--sy", (y*100)+"%");
+    mouse.x = x*1600; mouse.y = y*900;
+    if (cur===0){ tilt.style.setProperty("--ry", ((x-.5)*16-6)+"deg"); tilt.style.setProperty("--rx", ((.5-y)*12+3)+"deg"); }
+  });
+  stage.addEventListener("mouseleave", () => { mouse.x = -999; });
+
+  // ----- background particles: "tracking events" network -----
+  const cv = document.getElementById("bgfx"), ctx = cv.getContext("2d");
+  const DPR = Math.min(2, devicePixelRatio||1); cv.width = 1600*DPR; cv.height = 900*DPR; ctx.scale(DPR,DPR);
+  const mouse = {x:-999,y:-999};
+  const P = Array.from({length:58}, () => ({x:Math.random()*1600,y:Math.random()*900,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,r:Math.random()*1.6+.6}));
+  const pings = [];
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function tick(){
+    ctx.clearRect(0,0,1600,900);
+    for (const p of P){
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0||p.x>1600)p.vx*=-1; if(p.y<0||p.y>900)p.vy*=-1;
+      const dx=p.x-mouse.x, dy=p.y-mouse.y, d=Math.hypot(dx,dy);
+      if(d<140){ p.x+=dx/d*.8; p.y+=dy/d*.8; }
+    }
+    for (let i=0;i<P.length;i++) for (let j=i+1;j<P.length;j++){
+      const a=P[i],b=P[j],d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(d<150){ ctx.strokeStyle=`rgba(120,240,170,${(1-d/150)*.13})`; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+    }
+    for (const p of P){
+      const d=Math.hypot(p.x-mouse.x,p.y-mouse.y);
+      if(d<200){ ctx.strokeStyle=`rgba(62,224,127,${(1-d/200)*.35})`; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(mouse.x,mouse.y); ctx.stroke(); }
+      ctx.fillStyle="rgba(167,243,196,.55)"; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+    }
+    if (Math.random()<.02){ const p=P[Math.random()*P.length|0]; pings.push({x:p.x,y:p.y,t:0}); }
+    for (let k=pings.length-1;k>=0;k--){ const g=pings[k]; g.t+=.012; if(g.t>=1){pings.splice(k,1);continue;}
+      ctx.strokeStyle=`rgba(62,224,127,${(1-g.t)*.6})`; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(g.x,g.y,4+g.t*30,0,7); ctx.stroke();
+      ctx.fillStyle=`rgba(62,224,127,${1-g.t})`; ctx.beginPath(); ctx.arc(g.x,g.y,2.5,0,7); ctx.fill(); }
+    if (!document.body.classList.contains("live-on")) {}
+    requestAnimationFrame(tick);
+  }
+  if (!reduce) tick();
+
+  const start = parseInt(location.hash.slice(1),10);
+  slides[0].classList.add("active");
+  go(Number.isFinite(start) ? start-1 : 0);
+})();
+</script>
+</body>
+</html>
