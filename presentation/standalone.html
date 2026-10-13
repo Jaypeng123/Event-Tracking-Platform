@@ -57,7 +57,9 @@ i[data-lucide],svg.lucide{width:1em;height:1em;stroke-width:1.8;flex:none}
 .fill>.card:hover .ghost{opacity:.13;transform:rotate(-8deg) scale(1.06)}
 .fill.states .ghost{display:none}
 .fill.states{grid-auto-rows:1fr}
-.why4>.card .h3{font-size:23px!important}
+.why4>.card .h3{font-size:24px!important;white-space:nowrap}
+.why4>.card .p{min-height:calc(1.75em * 4)}
+.p,.h3,.sub,.callout span,.bubble,.li span{text-wrap:pretty}
 .fill.states>.card{flex-direction:row;align-items:center}
 .fill.states>.card .h3{margin-top:0!important;font-size:26px}
 .fill.states .ic{width:64px;height:64px;font-size:28px;border-radius:18px}
@@ -185,15 +187,15 @@ i[data-lucide],svg.lucide{width:1em;height:1em;stroke-width:1.8;flex:none}
 .sec .big:hover{color:rgba(62,224,127,.15)}
 .sec .q{font-size:34px;font-weight:500;margin-top:34px;color:var(--text)}
 .sec .n{position:absolute;right:150px;top:50%;transform:translateY(-50%);width:420px;height:420px;display:grid;place-items:center}
-.sec .n svg{position:absolute;inset:0}
-.sec .n svg circle{fill:none}
+.sec .n > svg{position:absolute;inset:0}
+.sec .n > svg circle{fill:none}
 .sec .n .r1{stroke:rgba(150,255,200,.18);stroke-dasharray:4 10;transform-origin:center;animation:spin 40s linear infinite}
 .sec .n .r2{stroke:rgba(62,224,127,.45);stroke-width:2;stroke-dasharray:120 900;stroke-linecap:round;transform-origin:center;animation:spin 8s linear infinite}
 .sec .n .r3{stroke:rgba(150,255,200,.08)}
 .sec .n .digit{font:800 150px/1 var(--sans);background:linear-gradient(160deg,#ffffff,#7dffb0 60%,#1fbf68);-webkit-background-clip:text;background-clip:text;color:transparent}
 .sec .n .orbit{position:absolute;inset:0;animation:spin 14s linear infinite}
 .sec .n .orbit span{position:absolute;top:-22px;left:50%;transform:translateX(-50%);width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:#0d2f21;border:1px solid var(--line-2);color:var(--green);font-size:20px;box-shadow:0 0 24px rgba(62,224,127,.35)}
-.sec .n .orbit span i{animation:spin 14s linear infinite reverse}
+.sec .n .orbit span svg{width:22px;height:22px;animation:spin 14s linear infinite reverse}
 .secnav{position:absolute;left:92px;bottom:84px;display:flex;gap:12px}
 .secnav button{display:flex;gap:10px;align-items:center;padding:10px 16px;border-radius:999px;border:1px solid var(--line);font:600 13px/1 var(--mono);letter-spacing:.12em;color:var(--muted);transition:.3s}
 .secnav button:hover{color:var(--text);border-color:var(--line-2)}
@@ -544,13 +546,13 @@ body.live-on #help{display:none}
   </section>
 
   <!-- 04 為什麼想做 -->
-  <section class="slide" data-notes="會想做這個產品，最直接的原因是部門當時正在討論埋點，但大家都沒有實際經驗。所以我先嘗試和 AI 協作撰寫埋點追蹤項目，過程中才發現，要寫出真正有價值的埋點，其實非常需要經驗。這讓我想到，與其每次都從零開始，不如把這些經驗整理成一個專門規劃埋點的產品。另外，我也想挑戰不同類型的產品、突破之前 AI 串接失敗的障礙，再加上教授分享的面試案例，讓我更確定要親手做做看。">
+  <section class="slide" data-notes="會想做這個產品，最直接的原因是專案當時正在討論埋點，但大家都沒有實際經驗。所以我先嘗試和 AI 協作撰寫埋點 PRD，過程中才發現，要寫出真正有價值的埋點，其實非常需要經驗。這讓我想到，與其每次都從零開始，不如把這些經驗整理成一個專門規劃埋點的產品。另外，我也想挑戰不同類型的產品、突破之前 AI 串接失敗的障礙，再加上教授分享的面試案例，讓我更確定要親手做做看。">
     <div class="kicker" data-a>01 / Why</div>
     <h2 class="title" data-a>為什麼<em>想做這個產品</em></h2>
     <p class="sub" data-a>從工作上的實際需求出發，也想親身驗證 AI 能帶設計師走多遠。</p>
     <div class="body">
       <div class="grid3 fill why4" style="grid-template-columns:repeat(4,1fr);gap:20px">
-        <div class="card" data-a style="display:flex;flex-direction:column;gap:18px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="ic amber"><i data-lucide="clipboard-list"></i></span><span class="num">01</span></div><div class="h3" style="margin-top:22px">部門需要規劃埋點，卻沒有經驗</div><p class="p">部門正在討論埋點，於是嘗試和 AI 協作撰寫追蹤項目；過程中才發現，寫出有價值的埋點非常仰賴經驗。</p></div>
+        <div class="card" data-a style="display:flex;flex-direction:column;gap:18px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="ic amber"><i data-lucide="clipboard-list"></i></span><span class="num">01</span></div><div class="h3" style="margin-top:22px">專案需要規劃埋點</div><p class="p">專案正在討論埋點，嘗試與 AI 協作撰寫埋點 PRD 才發現寫出有價值的埋點非常仰賴經驗。</p></div>
         <div class="card" data-a style="display:flex;flex-direction:column;gap:18px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="ic"><i data-lucide="database"></i></span><span class="num">02</span></div><div class="h3" style="margin-top:22px">想挑戰不同類型的產品</div><p class="p">不再只做重視視覺與互動的網站，而是挑戰有資料結構、欄位定義與實際工作流程的工具。</p></div>
         <div class="card" data-a style="display:flex;flex-direction:column;gap:18px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="ic violet"><i data-lucide="plug-zap"></i></span><span class="num">03</span></div><div class="h3" style="margin-top:22px">想突破 AI 串接的障礙</div><p class="p">之前曾嘗試整合 AI 功能卻沒有成功，這次想重新挑戰，弄清楚問題出在哪裡。</p></div>
         <div class="card" data-a style="display:flex;flex-direction:column;gap:18px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="ic"><i data-lucide="graduation-cap"></i></span><span class="num">04</span></div><div class="h3" style="margin-top:22px">受到設計師面試案例刺激</div><p class="p">教授分享設計師被要求現場用 AI 做出產品，讓我開始思考設計師未來需要的能力。</p></div>
