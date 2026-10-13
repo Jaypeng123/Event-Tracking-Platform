@@ -6,5 +6,14 @@
 ## 操作
 - `←` / `→`、空白鍵、滑動：換頁　`F`：全螢幕　`N`：講者備註（取自原 PPT）
 - 點擊截圖可放大檢視
-- 第 9 頁為線上網站（iframe）全螢幕實際操作；下方浮動列可換頁、重新整理或在新分頁開啟
-  - Figma OAuth 登入頁不允許被嵌入 iframe，需要授權時請用「新分頁開啟」
+- 第 9 頁是產品 Demo（全螢幕）：使用真實的 `app/page.tsx` 介面，但所有 API 都換成假資料，離線也能操作
+  - 流程：前往埋點規劃 → 輸入專案名稱 → Figma 連結已預先帶入 → 匯入 → 選擇 Page → 分析頁面內容（約 3 秒後出現結果）
+  - 下方浮動列可換頁、「重新開始 Demo」（清空資料回到首頁）或開啟正式網站
+
+## Demo 重新產生
+App 介面或假資料（`demo-src/mock-data.js`）改動後：
+
+```bash
+cd demo-src && npm install && npm run build   # 產生 ../demo/index.html
+cd .. && python3 build_standalone.py          # 更新 standalone.html
+```

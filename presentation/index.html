@@ -1068,16 +1068,16 @@ body.live-on #help{display:none}
 
 <!-- live product layer (full viewport, native resolution) -->
 <div id="live">
-  <div class="loading"><div class="in"><div class="spin"></div><h3>實際操作：埋點規劃工具</h3><p>正在載入線上網站…</p>
-    <div class="fallback"><p style="margin-bottom:16px">載入較久？也可以直接在新分頁開啟。</p><a class="fbtn" href="https://tracking-plan-builder-jay.peng19990213.chatgpt.site/" target="_blank" rel="noopener"><i data-lucide="external-link"></i>在新分頁開啟</a></div></div></div>
-  <iframe id="liveFrame" title="埋點規劃工具 — 線上網站" allow="clipboard-read; clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  <div class="loading"><div class="in"><div class="spin"></div><h3>實際操作：埋點規劃工具</h3><p>正在載入 Demo…</p>
+    <div class="fallback"><p style="margin-bottom:16px">載入較久？也可以開啟線上正式網站。</p><a class="fbtn" href="https://tracking-plan-builder-jay.peng19990213.chatgpt.site/" target="_blank" rel="noopener"><i data-lucide="external-link"></i>在新分頁開啟</a></div></div></div>
+  <iframe id="liveFrame" title="埋點規劃工具 — Demo" allow="clipboard-read; clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 </div>
 <div id="livebar">
   <button data-act="prev" title="上一頁"><i data-lucide="chevron-left"></i></button>
-  <span class="lab">LIVE · 埋點規劃工具</span>
+  <span class="lab">DEMO · 埋點規劃工具</span>
   <span class="sep"></span>
-  <button data-act="reload" title="重新整理網站"><i data-lucide="rotate-cw"></i>重新整理</button>
-  <a href="https://tracking-plan-builder-jay.peng19990213.chatgpt.site/" target="_blank" rel="noopener" title="Figma 授權登入請在新分頁進行"><i data-lucide="external-link"></i>新分頁開啟</a>
+  <button data-act="reload" title="清空資料，從首頁重新開始"><i data-lucide="rotate-cw"></i>重新開始 Demo</button>
+  <a href="https://tracking-plan-builder-jay.peng19990213.chatgpt.site/" target="_blank" rel="noopener" title="開啟線上正式網站"><i data-lucide="external-link"></i>正式網站</a>
   <span class="sep"></span>
   <button data-act="next" title="下一頁">下一頁<i data-lucide="chevron-right"></i></button>
 </div>
@@ -1089,7 +1089,8 @@ body.live-on #help{display:none}
 
 <script>
 (() => {
-  const SITE = "https://tracking-plan-builder-jay.peng19990213.chatgpt.site/";
+  // Slide 9 runs a local demo build of the app (demo/index.html, mock data); standalone.html inlines it.
+  const DEMO_SRC = "demo/index.html";
   const stage = document.getElementById("stage");
   const slides = [...stage.querySelectorAll(".slide")];
   const N = slides.length;
@@ -1164,9 +1165,10 @@ body.live-on #help{display:none}
     if (frame.src) return;
     frame.addEventListener("load", () => { live.classList.add("loaded"); liveLoaded = true; clearTimeout(slowT); });
     slowT = setTimeout(() => live.classList.add("slow"), 9000);
-    frame.src = SITE;
+    openDemo();
   }
-  function reloadLive(){ live.classList.remove("loaded"); frame.src = SITE; }
+  function openDemo(){ if (window.__DEMO_HTML__) frame.srcdoc = window.__DEMO_HTML__; else frame.src = DEMO_SRC + "?t=" + Date.now(); }
+  function reloadLive(){ live.classList.remove("loaded"); openDemo(); }
   let idleT; addEventListener("mousemove", () => { document.body.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(()=>document.body.classList.add("idle"), 2500); });
 
   // ----- lightbox -----
