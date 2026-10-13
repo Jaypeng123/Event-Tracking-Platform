@@ -1,102 +1,115 @@
-// Demo-only data: a fictional food-ordering app ("iOrder") used to walk through the tool.
-export const DEMO_FIGMA_URL = "https://www.figma.com/design/kQ8dDemoIOrder2026/iOrder-Mobile-App-Redesign";
-export const DEMO_FILE_NAME = "iOrder Mobile App Redesign";
+// Demo data for the presentation. Page list mirrors the real Figma file
+// 「台灣_護理協作APP_UI_V1.3.0」; the 派工詳情 events were planned from its screens.
+export const DEMO_FIGMA_URL =
+  "https://www.figma.com/design/eQqCYglrY0rs6PNRXyLsU7/%E5%8F%B0%E7%81%A3_%E8%AD%B7%E7%90%86%E5%8D%94%E4%BD%9CAPP_UI_V1.3.0?node-id=3001-46132&t=2W8tZE5ycaBeNMdX-1";
+export const DEMO_FILE_NAME = "台灣_護理協作APP_UI_V1.3.0";
+
+// Same cleanup the real /api/figma-pages applies to page names.
+const cleanPageName = (value) =>
+  value
+    .replace(/[（(]\s*\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*[）)]/g, "")
+    .replace(/\s+\d+(?:\.\d+)?(?:\s*[~～\-–—]\s*\d+(?:\.\d+)?)?\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim() || "Untitled page";
 
 export const DEMO_PAGES = [
-  { id: "1:2", name: "首頁 Home", childCount: 18 },
-  { id: "1:3", name: "菜單與商品 Menu", childCount: 24 },
-  { id: "1:4", name: "購物車與結帳 Checkout", childCount: 21 },
-  { id: "1:5", name: "會員獎勵 Rewards", childCount: 12 },
-  { id: "1:6", name: "帳戶設定 Account", childCount: 9 },
-  { id: "1:7", name: "Archive 舊版設計", childCount: 6 },
+  ["14:1010", "Cover"],
+  ["10967:11647", "🌈  v1.3.0 優化列點記錄匯總"],
+  ["11355:67072", "---"],
+  ["14916:138895", "✅ v1.3.0 童綜合16A場域試用後優化"],
+  ["15717:33327", "✅ | 走查後優化項目"],
+  ["11164:136172", "-----------------"],
+  ["5122:46707", "V1.3.0---------------------"],
+  ["15426:33123", "------"],
+  ["3001:46128", "✅ ｜APP 全局定義"],
+  ["3001:46129", "✅ ｜0 登入"],
+  ["14:1077", "✅ ｜1 首頁"],
+  ["7133:68376", "✅ ｜2 派工列表"],
+  ["14:1078", "✅ ｜3 派工詳情"],
+  ["3001:46130", "✅ ｜4 建立派工"],
+  ["14:1079", "✅ ｜5 我的"],
+  ["3001:46132", "✅ ｜6 通知"],
+  ["14:1082", "---"],
+  ["12692:81531", "❌｜各醫院客製化差異示意"],
+  ["12692:81532", "---------------"],
+  ["5931:2744", "❌｜Panding 待確認功能"],
+  ["13273:65663", "英文翻譯用"],
+  ["3001:46133", "👀 App UI component"],
+  ["5794:128973", "優化列點"],
+  ["10615:104591", "App操作說明書"],
+  ["23:306", "🗒️ Draft"],
+  ["8399:57707", "🗑️ Bin"],
+].map(([id, name]) => ({ id, name: cleanPageName(name) }));
+
+const PAGE = "派工詳情";
+const DT = "dispatch_type";
+const DT_DEF = "派工類型";
+const DT_SAMPLE = "medicine, specimen, education, environment";
+
+// [priority, area, metricName, eventName, eventType, trigger, purpose, analysisValue, metricCalculation, properties, propertyDefinitions, dataTypes, sampleValues]
+const dispatchDetail = [
+  // 全局：所有派工類型共用
+  ["P0", "派工詳情 / 頁面載入", "派工詳情到達率", "view_dispatch_detail", "PageView", "進入派工詳情頁，且派工狀態卡片載入完成時", "了解護理師查看派工進度的頻率與入口來源", "作為派工詳情所有指標的分母，並比較從首頁、派工列表、通知進入的比例", "派工詳情瀏覽不重複使用者數 ÷ 當日有派工的不重複使用者數", `${DT}; dispatch_status; entry_source`, `${DT_DEF}; 派工狀態; 進入來源`, "string; string; string", `${DT_SAMPLE}; pending, in_progress, ended; home, dispatch_list, notification`],
+  ["P1", "派工詳情 / 切換頁籤", "詳情頁籤切換率", "switch_detail_tab", "Click", "點擊「執行進度」與「區域藥品清單／區域檢體清單／衛教詳情／病患詳情」頁籤時", "了解護理師在派工中最常查看進度還是清單內容", "比較各派工類型的頁籤使用比例，判斷預設頁籤是否符合使用習慣", "切換到清單類頁籤的次數 ÷ 派工詳情瀏覽次數", `${DT}; from_tab; to_tab; dispatch_status`, `${DT_DEF}; 原頁籤; 目標頁籤; 派工狀態`, "string; string; string; string", `${DT_SAMPLE}; execution_progress; area_list; in_progress`],
+  ["P1", "派工詳情 / 刪除派工", "刪除派工意圖率", "click_delete_dispatch", "Click", "在待執行狀態點擊右上角刪除派工按鈕時", "了解派工建立後被取消的比例與時間點", "若刪除意圖偏高，代表建立派工流程可能容易誤建或資訊不足", "點擊刪除派工的派工數 ÷ 待執行派工數", `${DT}; minutes_before_start`, `${DT_DEF}; 距離開始執行分鐘數`, "string; number", `${DT_SAMPLE}; 15`],
+  ["P0", "派工詳情 / 刪除派工彈窗", "刪除派工完成率", "delete_dispatch_confirm", "FlowComplete", "在「刪除派工？」彈窗點擊「刪除派工」並成功刪除時", "衡量實際取消的派工量，避免機器人資源被無效派工佔用", "與建立派工數對照，計算派工取消率並追蹤取消原因", "成功刪除的派工數 ÷ 已建立派工數", `${DT}; minutes_before_start; created_by_role`, `${DT_DEF}; 距離開始執行分鐘數; 建立者角色`, "string; number; string", `${DT_SAMPLE}; 15; head_nurse`],
+  ["P1", "派工詳情 / 刪除失敗提示", "派工刪除失敗率", "delete_dispatch_failed", "ErrorDropoff", "顯示「派工已開始執行，刪除失敗」提示時", "找出護理師在派工已開始後才想取消的情境", "若失敗次數高，代表需要在派工開始前提供更明確的提醒或確認", "刪除失敗次數 ÷ 點擊刪除派工次數", `${DT}; dispatch_status`, `${DT_DEF}; 派工狀態`, "string; string", `${DT_SAMPLE}; in_progress`],
+  ["P1", "派工詳情 / 病患資訊", "病患資訊確認率", "view_patient_info", "Click", "點擊病患床號旁的資訊圖示，開啟病患資訊（姓名、病歷號）時", "了解護理師交接物品時是否需要再次核對病患身分", "確認率高代表清單上的病患資訊不足以辨識，可評估是否直接顯示病歷號", "開啟病患資訊次數 ÷ 清單頁籤瀏覽次數", `${DT}; source_tab; dispatch_status`, `${DT_DEF}; 來源頁籤; 派工狀態`, "string; string; string", `${DT_SAMPLE}; area_list; in_progress`],
+  ["P0", "派工詳情 / 任務異常終止", "任務異常終止率", "view_task_aborted", "ErrorDropoff", "派工狀態卡片顯示「任務終止執行」時", "掌握機器人執行任務時發生異常的頻率與發生階段", "依派工類型與發生階段（抵達定點後／移動中）分析，作為機器人穩定性改善依據", "異常終止的派工數 ÷ 開始執行的派工數", `${DT}; abort_stage; robot_id; stop_index`, `${DT_DEF}; 終止階段; 機器人編號; 終止時所在站點`, "string; string; string; number", `${DT_SAMPLE}; moving_between_points; ROBOT-A; 3`],
+  ["P0", "派工詳情 / 異常後取物提示", "異常取物提示點擊率", "click_abort_retrieve_notice", "Click", "任務終止後點擊「請從機器人身上取出藥品／檢體」提示的「查看」時", "確認護理師是否看見提示並處理機器人上的物品", "物品未被取出可能造成用藥或檢體延誤，屬於高風險流程", "點擊取物提示的派工數 ÷ 異常終止且機器人上有物品的派工數", `${DT}; item_count; minutes_after_abort`, `${DT_DEF}; 待取出物品數; 異常後經過分鐘數`, "string; number; number", `${DT_SAMPLE}; 2; 3`],
+  ["P1", "派工詳情 / 無法執行派工", "派工無法執行率", "view_dispatch_unavailable", "ErrorDropoff", "派工詳情顯示「無法執行此派工」或「機器人目前無法派工」狀態時", "了解派工因機器人不可用而無法執行的比例", "作為機器人數量與排程容量規劃的依據", "無法執行的派工數 ÷ 已建立派工數", `${DT}; unavailable_reason`, `${DT_DEF}; 無法執行原因`, "string; string", `${DT_SAMPLE}; robot_busy`],
+  ["P1", "派工詳情 / 抵達提示", "機器人抵達提示曝光", "view_robot_arrived", "PageView", "狀態卡片顯示「請前往 X 區交付／領取」時", "記錄機器人抵達區域的時間點，作為護理師回應時間的起點", "與交付／領取完成事件相減，計算護理師平均回應時間", "交付或領取完成時間 − 抵達提示曝光時間（平均分鐘數）", `${DT}; area; scheduled_time`, `${DT_DEF}; 區域; 預計抵達時間`, "string; string; string", "specimen; A-2; 10:08"],
+
+  // 藥品配送
+  ["P0", "藥品配送 / 領藥完成", "藥品領取完成率", "medicine_pickup_complete", "FlowComplete", "護理師刷卡領藥後，區域藥品清單狀態變為「已領取」時", "衡量藥品配送是否準時送到負責的護理師手上", "藥品配送的核心成效指標，可依區域比較領取完成率", "已領取藥品項數 ÷ 配送藥品總項數", "area; item_count; is_proxy_pickup", "區域; 領取項數; 是否由他人代領", "string; number; boolean", "A-3; 3; false"],
+  ["P0", "藥品配送 / 超時未領取", "藥品超時未領取率", "medicine_pickup_timeout", "ErrorDropoff", "區域藥品清單出現「超時未領取」狀態時", "找出藥品無人領取、機器人被迫離開的區域與時段", "超時代表給藥可能延誤，需追蹤是否集中在特定區域或時段", "超時未領取藥品項數 ÷ 配送藥品總項數", "area; item_count; wait_minutes", "區域; 未領取項數; 等待分鐘數", "string; number; number", "B-1; 2; 5"],
+  ["P0", "藥品配送 / 他區領取提示", "藥品被他區領取率", "view_medicine_taken_by_other", "ErrorDropoff", "顯示「你的藥品被他區的人取走，請聯繫領取人」彈窗時", "掌握藥品被錯誤領取的頻率，屬於用藥安全風險", "可依區域與領取人分析誤領原因，評估是否需要加強身分驗證", "被他區領取的藥品項數 ÷ 已領取藥品項數", "taken_count; owner_area; taker_area", "被取走項數; 原本所屬區域; 領取人區域", "number; string; string", "2; A-2; B-1"],
+  ["P1", "藥品配送 / 配送結束", "配送結果摘要查看率", "view_delivery_summary", "PageView", "藥品配送結束，顯示配送結果與異常彙整時", "了解護理師是否會回顧配送結果與異常", "多種異常並存時的處理情況，可作為異常彙整版面的優化依據", "查看配送結果的派工數 ÷ 配送結束的派工數", "exception_types; exception_count", "異常類型; 異常數量", "string; number", "timeout, taken_by_other; 2"],
+
+  // 檢體取送
+  ["P0", "檢體取送 / 交付完成", "檢體交付完成率", "specimen_handover_complete", "FlowComplete", "護理師將檢體交付給機器人，清單狀態變為「已交付」時", "衡量檢體是否在機器人停留時間內順利交付", "檢體取送的核心成效指標，可依區域與是否為急件分析", "已交付檢體項數 ÷ 預約交付檢體項數", "area; specimen_count; urgent_count; handover_round", "區域; 交付項數; 急件數; 第幾次交付", "string; number; number; number", "A-2; 3; 1; 1"],
+  ["P0", "檢體取送 / 超時未交付", "檢體超時未交付率", "specimen_handover_timeout", "ErrorDropoff", "清單出現「超時未交付」或狀態卡顯示「超時未交付，機器人已離去」時", "找出檢體未能及時交付的區域與原因", "超時會延誤檢驗時間，需追蹤發生區域與時段以調整排程", "超時未交付檢體項數 ÷ 預約交付檢體項數", "area; specimen_count; urgent_count", "區域; 未交付項數; 急件數", "string; number; number", "A-2; 2; 0"],
+  ["P0", "檢體取送 / 再次預約", "檢體再次預約點擊率", "click_rebook_specimen", "Click", "檢體超時未交付後，點擊「再次預約」按鈕時", "了解超時後護理師是否會立即補救", "補救比例可評估再次預約功能的價值與入口明顯度", "點擊再次預約的派工數 ÷ 超時未交付且可再次預約的派工數", "area; specimen_count; minutes_after_timeout", "區域; 待交付項數; 超時後經過分鐘數", "string; number; number", "A-2; 2; 4"],
+  ["P1", "檢體取送 / 新派工建立", "檢體重新派工成功率", "rebook_specimen_success", "CreateEdit", "再次預約後顯示「已建立一個新的檢體派工」時", "確認補救流程能成功建立新派工", "與再次預約點擊數比較，找出補救流程中的失敗點", "重新派工成功數 ÷ 點擊再次預約次數", "new_dispatch_id; specimen_count", "新派工編號; 檢體項數", "string; number", "D-20260313-018; 2"],
+  ["P1", "檢體取送 / 無法重新派工", "無法再次預約率", "view_rebook_unavailable", "ErrorDropoff", "顯示「無法重新派工」或再次預約按鈕失效時", "了解超時後無法補救的情況有多常發生", "若比例偏高，需評估重新預約的時效與規則是否過於嚴格", "無法再次預約的派工數 ÷ 超時未交付的派工數", "unavailable_reason", "無法重新派工原因", "string", "rebook_window_expired"],
+  ["P1", "檢體取送 / 取送結束", "取送結果查看率", "view_specimen_summary", "PageView", "檢體取送結束，顯示取送紀錄與放置結果時", "了解護理師是否確認檢體已送達檢體站", "可依是否有急件、機器人是否收回檢體分析結束情境", "查看取送結果的派工數 ÷ 取送結束的派工數", "has_normal; has_urgent; robot_collected", "是否有一般件; 是否有急件; 機器人是否收回檢體", "boolean; boolean; boolean", "true; false; true"],
+
+  // 護理衛教
+  ["P0", "護理衛教 / 開始衛教", "衛教開始率", "education_started", "FlowComplete", "護理師接洽機器人後，狀態卡片進入「衛教中」時", "衡量排定的衛教是否真正開始執行", "與待執行衛教數比較，可找出排定後未執行的衛教", "開始衛教的派工數 ÷ 已排定的衛教派工數", "item_total; target_count", "衛教項目數; 衛教對象數", "number; number", "3; 2"],
+  ["P0", "護理衛教 / 衛教完成", "衛教完成率", "education_complete", "FlowComplete", "狀態卡片顯示「完成衛教，指導完成」時", "衡量衛教從開始到完成的成效", "護理衛教的核心成效指標，可依衛教項目數分析完成情況", "完成衛教的派工數 ÷ 開始衛教的派工數", "completed_items; item_total; duration_minutes", "完成項目數; 衛教項目數; 衛教總時長", "number; number; number", "3; 3; 18"],
+  ["P1", "護理衛教 / 結束方式", "衛教結束方式分布", "education_ended", "FlowComplete", "衛教任務結束時（護理師協助結束或機器人自動結束）", "了解衛教多半是正常完成，還是需要護理師介入結束", "若需護理師協助結束的比例高，代表衛教流程或機器人引導需要調整", "各結束方式的派工數 ÷ 結束的衛教派工數", "end_type; completed_items; item_total", "結束方式; 完成項目數; 衛教項目數", "string; number; number", "nurse_assisted; 2; 3"],
+  ["P1", "護理衛教 / 作答詳情", "測驗結果查看率", "view_quiz_detail", "Click", "在衛教詳情點擊衛教項目，開啟「答題詳情」時", "了解護理師是否會確認病患與家屬的測驗結果", "可依測驗合格與否分析查看行為，判斷是否需要後續追蹤衛教", "開啟答題詳情次數 ÷ 衛教詳情瀏覽次數", "item_index; quiz_result; wrong_count", "衛教項目序號; 測驗結果; 答錯題數", "number; string; number", "1; failed; 2"],
+  ["P1", "護理衛教 / 測驗不合格", "衛教測驗不合格率", "quiz_failed", "ErrorDropoff", "衛教項目測驗結果為「測驗不合格」時", "找出病患與家屬最容易誤解的衛教主題", "依衛教項目與題目統計不合格比例，作為衛教內容改善依據", "測驗不合格的項目數 ÷ 含測驗的衛教項目數", "item_name; wrong_questions", "衛教項目名稱; 答錯題號", "string; string", "如何預防高齡長者譫妄; 2,3"],
+  ["P0", "護理衛教 / 新增衛教對象", "衛教對象新增率", "add_education_target", "CreateEdit", "在「新增衛教對象」填寫姓名、選擇關係並儲存成功時", "了解衛教是否擴及家屬與照顧者", "家屬參與衛教是照護品質的重要指標，可依關係類型分析", "新增衛教對象的派工數 ÷ 衛教派工數", "relationship; target_count", "與病患關係; 衛教對象總數", "string; number", "parent; 2"],
+  ["P2", "護理衛教 / 編輯衛教對象", "衛教對象編輯率", "edit_education_target", "CreateEdit", "編輯既有衛教對象的姓名或關係並儲存時", "觀察衛教對象資料是否常需要修正", "若編輯比例高，代表新增時的欄位或預設值可能容易出錯", "編輯衛教對象次數 ÷ 新增衛教對象次數", "edited_field", "修改欄位", "string", "relationship"],
+  ["P2", "護理衛教 / 刪除衛教對象", "衛教對象刪除率", "delete_education_target", "CreateEdit", "確認刪除衛教對象時", "觀察衛教對象被移除的情況", "搭配新增與編輯數據，了解衛教對象管理是否順暢", "刪除衛教對象次數 ÷ 新增衛教對象次數", "relationship", "與病患關係", "string", "spouse"],
+  ["P1", "護理衛教 / 衛教對象不存在", "衛教對象失效提示率", "view_target_not_found", "ErrorDropoff", "顯示「此衛教對象不存在」提示時", "找出衛教對象資料與機器人端不同步的情況", "若頻繁出現，需檢查資料同步或提示「請至機器人刷新列表」的時機", "出現對象不存在提示的次數 ÷ 開啟衛教對象清單次數", "target_source", "對象來源", "string", "system_import"],
+  ["P1", "護理衛教 / QR Code 掃碼", "機器人配對掃碼成功率", "scan_robot_qr_code", "Click", "掃描機器人顯示的 QR Code 完成配對，或出現「掃描錯誤，請重新確認」時", "了解護理師與機器人配對是否順利，這是衛教開始前的關鍵步驟", "掃碼失敗會延後衛教開始，可依失敗原因與重試次數排查", "掃碼配對成功次數 ÷ 開始掃碼次數", "scan_result; retry_count; fail_reason", "掃碼結果; 重試次數; 失敗原因", "string; number; string", "failed; 1; invalid_code"],
+  ["P0", "護理衛教 / 超時未引導", "衛教超時未引導率", "education_guide_timeout", "ErrorDropoff", "狀態卡片顯示「超時未引導，機器人已離去」時", "掌握機器人到場後無人接洽的比例", "超時代表衛教未能進行，需追蹤是否集中在特定時段或病房", "超時未引導的衛教派工數 ÷ 已排定的衛教派工數", "ward; can_rebook", "病房; 是否可再次預約", "string; boolean", "W106-17; true"],
+  ["P0", "護理衛教 / 重新預約", "衛教重新預約率", "click_rebook_education", "Click", "超時未引導後，在 24 小時內點擊「預約護理衛教」時", "了解錯過衛教後是否會重新安排", "可評估 24 小時重新預約機制是否有效挽回衛教", "點擊重新預約的派工數 ÷ 超時未引導且可再次預約的派工數", "hours_left; item_total", "剩餘可預約小時數; 衛教項目數", "number; number", "20; 3"],
+
+  // 環境介紹
+  ["P1", "環境介紹 / 前往會合", "會合等待提示曝光", "view_meet_patient", "PageView", "狀態卡片顯示「前往與病患會合」時", "記錄機器人前往會合的時間點，作為等待時間的起點", "與環境介紹開始時間相減，計算病患與機器人的會合等待時間", "環境介紹開始時間 − 會合提示曝光時間（平均分鐘數）", "intro_type; ward", "介紹類型; 病房", "string; string", "full_tour; 18"],
+  ["P1", "環境介紹 / 區域介紹進度", "區域介紹到達率", "environment_area_reached", "PageView", "機器人抵達並開始介紹每一個區域（如 A 區、B 區）時", "了解環境介紹在哪個區域最常中斷", "依區域統計到達比例，找出介紹路線中容易流失的站點", "到達各區域的派工數 ÷ 開始環境介紹的派工數", "area_name; stop_index; stop_total", "區域名稱; 第幾站; 總站數", "string; number; number", "A區; 4; 6"],
+  ["P0", "環境介紹 / 介紹完成", "環境介紹完成率", "environment_intro_complete", "FlowComplete", "狀態卡片顯示「環境介紹結束」時", "衡量新入院病患是否完整完成環境介紹", "環境介紹的核心成效指標，可比較完整介紹與帶入病室兩種類型", "完成環境介紹的派工數 ÷ 開始環境介紹的派工數", "intro_type; duration_minutes; stop_total", "介紹類型; 介紹總時長; 介紹站數", "string; number; number", "full_tour; 15; 6"],
+  ["P1", "環境介紹 / 帶入病室", "帶入病室完成率", "bring_to_room_complete", "FlowComplete", "機器人將病患帶入病室，流程完成時", "了解「帶入病室」型派工是否順利完成", "與完整介紹的完成率比較，判斷哪種介紹方式較適合新入院病患", "完成帶入病室的派工數 ÷ 開始帶入病室的派工數", "room_no; duration_minutes", "病室號碼; 所需時間", "string; number", "18; 6"],
 ];
 
-const row = (prefix, i, priority, page, area, metricName, eventName, eventType, trigger, purpose, analysisValue, metricCalculation, properties, propertyDefinitions, dataTypes, sampleValues) => ({
-  id: `${prefix}_${String(i).padStart(3, "0")}`,
-  priority, page, area, metricName, eventName, eventType, trigger, purpose, analysisValue, metricCalculation,
-  properties, propertyDefinitions, dataTypes, sampleValues, status: "AI 產生",
-});
+const toEvents = (rows) =>
+  rows.map((r, i) => {
+    const [priority, area, metricName, eventName, eventType, trigger, purpose, analysisValue, metricCalculation, properties, propertyDefinitions, dataTypes, sampleValues] = r;
+    return {
+      id: `AI_${String(i + 1).padStart(3, "0")}`,
+      page: PAGE, area, metricName, eventName, eventType, trigger, purpose, analysisValue, metricCalculation,
+      properties, propertyDefinitions, dataTypes, sampleValues, priority, status: "AI 產生",
+    };
+  });
 
-const HOME = "首頁";
-const home = [
-  ["P0", "首頁 / 頁面載入", "首頁到達率", "view_home", "PageView", "使用者進入首頁且主要內容載入完成時", "了解首頁作為商品探索與購買入口的實際到達量", "判斷首頁是否仍是主要的商品入口，並比較不同流量來源的使用規模", "首頁瀏覽不重複使用者數 ÷ App 開啟不重複使用者數", "entry_source; user_type", "進入來源; 使用者類型", "string; string", "push, organic; new, returning"],
-  ["P0", "首頁 / 主打飲品", "主打飲品加購率", "click_featured_add", "Click", "點擊主打飲品卡片上的「加入購物車」時", "衡量首頁主打商品是否能直接促成購買意圖", "判斷主打飲品是否值得維持在首頁主要版位", "點擊主打加購的不重複使用者數 ÷ 首頁瀏覽不重複使用者數", "product_id; product_name; position", "商品編號; 商品名稱; 版位順序", "string; string; number", "DRK-021; 海鹽焦糖拿鐵; 1"],
-  ["P0", "首頁 / 搜尋列", "首頁搜尋使用率", "submit_home_search", "SearchFilter", "在首頁搜尋列輸入關鍵字並送出時", "了解使用者是否偏好直接搜尋而非瀏覽分類", "若搜尋使用率高，代表分類結構可能不夠直覺", "送出搜尋的不重複使用者數 ÷ 首頁瀏覽不重複使用者數", "keyword; result_count", "搜尋關鍵字; 結果數量", "string; number", "燕麥奶; 12"],
-  ["P0", "首頁 / 購物車按鈕", "購物車開啟率", "click_open_cart", "Click", "點擊首頁右上角購物車圖示時", "了解使用者從首頁進入結帳流程的比例", "購物車開啟是轉換漏斗的關鍵節點，缺少此資料無法計算轉換", "開啟購物車的不重複使用者數 ÷ 首頁瀏覽不重複使用者數", "cart_item_count; cart_value", "購物車品項數; 購物車金額", "number; number", "3; 285"],
-  ["P1", "首頁 / 商品分類", "商品分類使用率", "click_category", "Click", "點擊「咖啡」「茶飲」「輕食」等分類入口時", "了解使用者是否透過分類入口探索不同商品群組", "比較各分類入口的使用量，找出可整併的低使用分類", "點擊各分類的次數 ÷ 首頁瀏覽次數", "category_name; position", "分類名稱; 版位順序", "string; number", "咖啡; 1"],
-  ["P1", "首頁 / 推薦商品", "推薦商品加購率", "click_recommend_add", "Click", "點擊「為你推薦」區塊商品的加入購物車時", "衡量推薦商品對實際加購行為的貢獻", "比較推薦商品與主打商品的加購表現，判斷推薦區是否值得保留", "推薦區加購次數 ÷ 推薦區曝光次數", "product_id; recommend_reason", "商品編號; 推薦原因", "string; string", "FD-104; 常一起購買"],
-  ["P1", "首頁 / 活動 Banner", "活動 Banner 點擊率", "click_promo_banner", "Click", "點擊首頁輪播活動 Banner 時", "了解活動曝光是否帶來實際點擊", "評估 Banner 輪播順序與活動素材的成效", "Banner 點擊次數 ÷ Banner 曝光次數", "campaign_id; slide_index", "活動編號; 輪播序號", "string; number", "OCT-BOGO; 2"],
-  ["P1", "首頁 / 取餐方式", "取餐方式切換率", "switch_pickup_mode", "Click", "在首頁切換「外帶自取」與「外送」時", "了解使用者偏好的取餐方式", "作為門市備餐與外送合作的資源配置參考", "切換為外送的使用者數 ÷ 首頁瀏覽使用者數", "from_mode; to_mode", "原取餐方式; 新取餐方式", "string; string", "pickup; delivery"],
-  ["P1", "首頁 / 門市選擇", "門市切換率", "change_store", "CreateEdit", "使用者在首頁更換預設門市時", "了解使用者是否常需要更換取餐門市", "若切換率高，代表預設門市推薦不夠準確", "更換門市的使用者數 ÷ 首頁瀏覽使用者數", "from_store; to_store; distance_km", "原門市; 新門市; 距離（公里）", "string; string; number", "信義店; 市府店; 0.8"],
-  ["P1", "首頁 / 會員點數", "點數入口點擊率", "click_points_entry", "Click", "點擊首頁上方會員點數卡片時", "了解會員是否關注點數與兌換資訊", "評估點數卡片是否需要更明顯的兌換引導", "點擊點數卡片的使用者數 ÷ 會員首頁瀏覽使用者數", "points_balance; member_tier", "點數餘額; 會員等級", "number; string", "320; gold"],
-  ["P2", "首頁 / 再買一次", "再買一次使用率", "click_reorder", "Click", "點擊「再買一次」快速下單時", "觀察回購使用者是否使用快速下單功能", "作為是否擴充常買清單功能的參考", "點擊再買一次的使用者數 ÷ 回購使用者數", "order_id; item_count", "原訂單編號; 品項數", "string; number", "OD-88231; 2"],
-  ["P2", "首頁 / 通知中心", "通知中心開啟率", "open_notification", "Click", "點擊首頁鈴鐺圖示開啟通知中心時", "觀察使用者是否會主動查看活動與訂單通知", "評估通知中心的使用價值與訊息數量", "開啟通知中心的使用者數 ÷ 首頁瀏覽使用者數", "unread_count", "未讀數量", "number", "4"],
-];
+const EVENTS = { 派工詳情: toEvents(dispatchDetail) };
 
-const MENU = "菜單與商品";
-const menu = [
-  ["P0", "菜單 / 頁面載入", "菜單頁瀏覽率", "view_menu", "PageView", "進入菜單頁且商品列表載入完成時", "了解有多少使用者進入商品瀏覽階段", "作為商品轉換漏斗的分母", "菜單頁瀏覽使用者數 ÷ App 開啟使用者數", "entry_source; category_name", "進入來源; 預設分類", "string; string", "home_category; 咖啡"],
-  ["P0", "商品詳情 / 加入購物車", "商品加購率", "add_to_cart", "Click", "在商品詳情頁點擊「加入購物車」時", "衡量商品詳情頁是否能促成購買", "核心轉換指標，用來比較不同商品的吸引力", "加入購物車次數 ÷ 商品詳情瀏覽次數", "product_id; quantity; price", "商品編號; 數量; 單價", "string; number; number", "DRK-021; 1; 95"],
-  ["P0", "商品詳情 / 客製化選項", "客製化完成率", "complete_customize", "FlowComplete", "選完甜度、冰塊、加料並確認時", "了解客製化流程是否造成放棄", "若完成率偏低，代表選項太多或排列不直覺", "完成客製化次數 ÷ 開啟客製化次數", "sugar_level; ice_level; topping_count", "甜度; 冰塊; 加料數", "string; string; number", "half; less; 1"],
-  ["P1", "菜單 / 分類標籤", "分類標籤切換率", "switch_menu_tab", "Click", "點擊菜單頁上方分類標籤時", "了解使用者在不同分類間的瀏覽路徑", "找出熱門與冷門分類，作為菜單排序依據", "各分類標籤點擊次數 ÷ 菜單頁瀏覽次數", "tab_name; previous_tab", "點擊分類; 前一個分類", "string; string", "茶飲; 咖啡"],
-  ["P1", "菜單 / 篩選", "篩選功能使用率", "apply_menu_filter", "SearchFilter", "套用「無咖啡因」「低卡」等篩選條件時", "了解使用者是否需要依需求篩選商品", "判斷篩選條件是否符合使用者實際需求", "套用篩選的使用者數 ÷ 菜單頁瀏覽使用者數", "filter_type; result_count", "篩選條件; 結果數量", "string; number", "decaf; 8"],
-  ["P1", "商品詳情 / 頁面載入", "商品詳情瀏覽率", "view_product_detail", "PageView", "進入商品詳情頁時", "了解哪些商品最常被查看", "與加購率搭配，找出「看很多但買很少」的商品", "商品詳情瀏覽次數 ÷ 菜單頁瀏覽次數", "product_id; source_list", "商品編號; 來源列表", "string; string", "DRK-021; menu_grid"],
-  ["P1", "商品詳情 / 加價購", "加價購接受率", "accept_upsell", "Click", "在加價購推薦中點擊「一起買」時", "衡量加價購推薦對客單價的貢獻", "評估加價購組合是否需要調整", "接受加價購次數 ÷ 加價購曝光次數", "upsell_product_id; discount", "加價購商品; 折扣金額", "string; number", "FD-104; 20"],
-  ["P2", "商品詳情 / 收藏", "商品收藏率", "favorite_product", "CreateEdit", "點擊商品詳情的愛心收藏時", "觀察使用者是否會收藏常買商品", "作為個人化推薦的訊號來源", "收藏次數 ÷ 商品詳情瀏覽次數", "product_id", "商品編號", "string", "DRK-021"],
-  ["P2", "商品詳情 / 售完提示", "售完商品曝光率", "view_sold_out", "ErrorDropoff", "使用者查看到「今日售完」商品時", "了解售完商品對購買流程的影響", "作為門市備貨量調整的參考", "看到售完提示的使用者數 ÷ 菜單頁瀏覽使用者數", "product_id; store_id", "商品編號; 門市編號", "string; string", "DRK-033; S-012"],
-];
-
-const CHECKOUT = "購物車與結帳";
-const checkout = [
-  ["P0", "購物車 / 頁面載入", "購物車瀏覽率", "view_cart", "PageView", "進入購物車頁且品項載入完成時", "作為結帳漏斗的起點", "缺少此資料無法計算購物車到下單的轉換", "購物車瀏覽使用者數 ÷ 加入購物車使用者數", "cart_item_count; cart_value", "品項數; 購物車金額", "number; number", "3; 285"],
-  ["P0", "結帳 / 前往結帳", "結帳開始率", "begin_checkout", "Click", "在購物車點擊「前往結帳」時", "了解使用者從購物車進入結帳的比例", "判斷購物車頁是否有阻礙結帳的因素", "前往結帳使用者數 ÷ 購物車瀏覽使用者數", "cart_value; coupon_applied", "購物車金額; 是否使用優惠券", "number; boolean", "285; true"],
-  ["P0", "結帳 / 付款完成", "下單完成率", "purchase_complete", "FlowComplete", "付款成功並顯示訂單完成頁時", "衡量整個購買流程的最終轉換", "核心營收指標，用來評估所有改版成效", "完成付款使用者數 ÷ 前往結帳使用者數", "order_id; payment_method; order_value", "訂單編號; 付款方式; 訂單金額", "string; string; number", "OD-90412; line_pay; 285"],
-  ["P0", "結帳 / 付款失敗", "付款失敗率", "payment_failed", "ErrorDropoff", "付款失敗或被拒絕時", "找出付款環節造成的流失", "依付款方式比較失敗率，判斷是否需要調整金流", "付款失敗次數 ÷ 付款嘗試次數", "payment_method; error_code", "付款方式; 錯誤代碼", "string; string", "credit_card; 3DS_TIMEOUT"],
-  ["P1", "結帳 / 優惠券", "優惠券使用率", "apply_coupon", "CreateEdit", "在結帳頁套用優惠券時", "了解優惠活動對下單的影響", "評估優惠券是否真的提升轉換", "套用優惠券的訂單數 ÷ 完成訂單數", "coupon_id; discount_amount", "優惠券編號; 折抵金額", "string; number", "OCT20; 20"],
-  ["P1", "結帳 / 取餐時間", "預約取餐使用率", "select_pickup_time", "CreateEdit", "選擇「預約時間」而非「立即取餐」時", "了解使用者是否需要預約取餐", "作為門市尖峰備餐排程的參考", "選擇預約取餐的訂單數 ÷ 完成訂單數", "pickup_time; lead_minutes", "預約時間; 提前分鐘數", "string; number", "12:30; 45"],
-  ["P1", "購物車 / 修改品項", "購物車品項修改率", "edit_cart_item", "CreateEdit", "在購物車修改數量或客製化選項時", "了解使用者是否常在購物車調整訂單", "若修改率高，代表商品頁的選項設定不夠清楚", "修改品項的使用者數 ÷ 購物車瀏覽使用者數", "product_id; change_type", "商品編號; 修改類型", "string; string", "DRK-021; quantity"],
-  ["P1", "購物車 / 移除品項", "品項移除率", "remove_cart_item", "ErrorDropoff", "在購物車刪除品項時", "觀察哪些商品最常被放棄", "找出價格或選項設定可能有問題的商品", "移除品項次數 ÷ 加入購物車次數", "product_id; price", "商品編號; 單價", "string; number", "FD-118; 120"],
-  ["P2", "結帳 / 付款方式", "付款方式切換率", "change_payment_method", "Click", "在結帳頁切換付款方式時", "觀察使用者偏好的付款方式", "作為付款選項排序的參考", "切換付款方式的使用者數 ÷ 前往結帳使用者數", "from_method; to_method", "原付款方式; 新付款方式", "string; string", "credit_card; line_pay"],
-  ["P2", "訂單完成 / 分享", "訂單分享率", "share_order", "ExportDownload", "在訂單完成頁點擊分享時", "觀察使用者是否會分享訂單給朋友", "作為揪團與分享功能的需求參考", "分享次數 ÷ 完成訂單數", "share_channel", "分享管道", "string", "line"],
-];
-
-const REWARDS = "會員獎勵";
-const rewards = [
-  ["P0", "會員獎勵 / 頁面載入", "獎勵頁瀏覽率", "view_rewards", "PageView", "進入會員獎勵頁時", "了解會員是否主動查看點數與獎勵", "作為會員經營成效的基礎指標", "獎勵頁瀏覽會員數 ÷ 活躍會員數", "member_tier; points_balance", "會員等級; 點數餘額", "string; number", "gold; 320"],
-  ["P0", "會員獎勵 / 兌換", "點數兌換完成率", "redeem_reward", "FlowComplete", "完成點數兌換並取得兌換券時", "衡量點數制度是否能帶動回訪", "核心會員指標，判斷獎勵品項是否有吸引力", "完成兌換次數 ÷ 點擊兌換次數", "reward_id; points_used", "獎勵編號; 使用點數", "string; number", "RW-07; 150"],
-  ["P1", "會員獎勵 / 任務", "會員任務參與率", "start_member_mission", "Click", "點擊「參加任務」時", "了解會員任務是否吸引使用者參與", "評估任務設計與獎勵是否需要調整", "參加任務會員數 ÷ 獎勵頁瀏覽會員數", "mission_id; mission_type", "任務編號; 任務類型", "string; string", "MS-03; weekly_visit"],
-  ["P1", "會員獎勵 / 等級說明", "等級說明查看率", "view_tier_info", "Click", "點擊會員等級說明時", "了解會員是否理解升等規則", "若查看率高但升等率低，代表規則不夠清楚", "查看等級說明會員數 ÷ 獎勵頁瀏覽會員數", "member_tier", "會員等級", "string", "silver"],
-  ["P1", "會員獎勵 / 禮品卡", "禮品卡入口點擊率", "click_gift_card", "Click", "點擊禮品卡入口時", "了解禮品卡是否有需求", "判斷禮品卡入口是否值得維持在獎勵頁", "點擊禮品卡會員數 ÷ 獎勵頁瀏覽會員數", "entry_position", "入口位置", "string", "rewards_top"],
-  ["P2", "會員獎勵 / 點數紀錄", "點數紀錄查看率", "view_points_history", "Click", "點擊點數明細時", "觀察會員是否關注點數變動", "作為點數明細頁優化的參考", "查看點數紀錄會員數 ÷ 獎勵頁瀏覽會員數", "date_range", "查詢區間", "string", "last_30_days"],
-  ["P2", "會員獎勵 / 兌換失敗", "兌換失敗率", "redeem_failed", "ErrorDropoff", "點數不足或兌換失敗時", "找出兌換流程中的阻礙", "若失敗率高，需要在兌換前提示點數需求", "兌換失敗次數 ÷ 點擊兌換次數", "reward_id; error_reason", "獎勵編號; 失敗原因", "string; string", "RW-07; insufficient_points"],
-];
-
-const ACCOUNT = "帳戶設定";
-const account = [
-  ["P0", "帳戶 / 登入", "登入完成率", "login_complete", "FlowComplete", "完成登入並回到原頁面時", "了解登入流程是否造成流失", "登入是下單前的必經步驟，缺少此資料無法判斷流失原因", "登入成功次數 ÷ 開始登入次數", "login_method", "登入方式", "string", "line"],
-  ["P1", "帳戶 / 常用門市", "常用門市設定率", "set_favorite_store", "CreateEdit", "設定或變更常用門市時", "了解使用者是否需要固定的取餐門市", "作為首頁預設門市推薦的依據", "設定常用門市使用者數 ÷ 帳戶頁瀏覽使用者數", "store_id", "門市編號", "string", "S-012"],
-  ["P1", "帳戶 / 推播設定", "推播關閉率", "disable_push", "CreateEdit", "關閉推播通知時", "觀察推播是否造成打擾", "若關閉率上升，需要調整推播頻率", "關閉推播使用者數 ÷ 帳戶頁瀏覽使用者數", "push_type", "推播類型", "string", "promotion"],
-  ["P1", "帳戶 / 訂單紀錄", "訂單紀錄查看率", "view_order_history", "Click", "點擊歷史訂單時", "了解使用者是否常回顧訂單", "作為再買一次功能的需求參考", "查看訂單紀錄使用者數 ÷ 帳戶頁瀏覽使用者數", "order_count", "訂單數量", "number", "12"],
-  ["P2", "帳戶 / 發票設定", "載具設定率", "set_invoice_carrier", "CreateEdit", "設定手機條碼載具時", "觀察使用者是否需要電子發票功能", "作為結帳流程簡化的參考", "設定載具使用者數 ÷ 帳戶頁瀏覽使用者數", "carrier_type", "載具類型", "string", "mobile_barcode"],
-  ["P2", "帳戶 / 刪除帳號", "帳號刪除率", "delete_account", "ErrorDropoff", "完成刪除帳號流程時", "觀察使用者流失的極端狀況", "搭配刪除原因，找出產品問題", "刪除帳號使用者數 ÷ 活躍使用者數", "delete_reason", "刪除原因", "string", "too_many_notifications"],
-];
-
-const archive = [
-  ["P2", "舊版設計 / 首頁", "舊版首頁瀏覽率", "view_legacy_home", "PageView", "進入舊版首頁時", "保留舊版設計的基準數據，作為改版前後比較", "改版後可用來比較新舊首頁的使用差異", "舊版首頁瀏覽使用者數 ÷ App 開啟使用者數", "app_version", "App 版本", "string", "3.2.1"],
-  ["P2", "舊版設計 / 菜單", "舊版菜單點擊率", "click_legacy_menu", "Click", "點擊舊版菜單入口時", "保留改版前的菜單使用基準", "與新版菜單頁的使用率做比較", "舊版菜單點擊次數 ÷ 舊版首頁瀏覽次數", "app_version", "App 版本", "string", "3.2.1"],
-];
-
-const build = (prefix, pageLabel, rows) => rows.map((r, i) => row(prefix, i + 1, r[0], pageLabel, ...r.slice(1)));
-
-const EVENTS = {
-  "首頁 Home": build("HOME", HOME, home),
-  "菜單與商品 Menu": build("MENU", MENU, menu),
-  "購物車與結帳 Checkout": build("CHK", CHECKOUT, checkout),
-  "會員獎勵 Rewards": build("RWD", REWARDS, rewards),
-  "帳戶設定 Account": build("ACC", ACCOUNT, account),
-  "Archive 舊版設計": build("ARC", "舊版設計", archive),
-};
-
+// Pages without planned demo data return no events; the app then falls back to
+// its own Figma-structure rows, exactly as the real tool does.
 export function eventsForPage(pageName) {
-  return EVENTS[pageName] ?? EVENTS["首頁 Home"];
+  const key = Object.keys(EVENTS).find((k) => pageName.includes(k));
+  return key ? EVENTS[key] : [];
 }
