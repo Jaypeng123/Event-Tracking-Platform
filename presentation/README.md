@@ -1,7 +1,14 @@
-# 埋點規劃工具 · 設計分享簡報（HTML）
+# 埋點規劃工具 · 簡報與作品集（HTML）
+
+## 作品集（案例研究長頁）
+- `portfolio.html`：作品集版本，長頁捲動的案例研究（摘要 → 背景 → 定位 → 解決方案＋互動 Demo → 五個關鍵決策 → 開發過程 → 成果 → 反思）
+- `portfolio-standalone.html`：單一檔案版，圖片與 Demo 都已內嵌
+
+## 設計分享簡報
 
 - `index.html`：簡報本體（圖片在 `assets/`）
-- `standalone.html`：單一檔案版（圖片已內嵌），方便直接分享；修改 `index.html` 後執行 `python3 build_standalone.py` 重新產生
+- `standalone.html`：單一檔案版（圖片已內嵌），方便直接分享
+- 修改 `index.html` 或 `portfolio.html` 後，執行 `python3 build_standalone.py` 會重新產生兩個單一檔案版
 
 ## 操作
 - `←` / `→`、空白鍵、滑動：換頁　`F`：全螢幕　`N`：講者備註（取自原 PPT）

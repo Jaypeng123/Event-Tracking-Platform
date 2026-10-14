@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>埋點規劃工具 · Case Study</title>
+<meta name="description" content="彭子傑 Jay 的作品集案例：從工作中的埋點規劃需求出發，與 AI 協作設計並開發一個埋點規劃平台。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<script id="icons">window.lucide={icons:{"app-window":"<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"M10 4v4\"/><path d=\"M2 8h20\"/><path d=\"M6 4v4\"/>","arrow-right":"<path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/>","arrow-up":"<path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/>","badge-check":"<path d=\"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z\"/><path d=\"m9 12 2 2 4-4\"/>","bot":"<path d=\"M12 8V4H8\"/><rect width=\"16\" height=\"12\" x=\"4\" y=\"8\" rx=\"2\"/><path d=\"M2 14h2\"/><path d=\"M20 14h2\"/><path d=\"M15 13v2\"/><path d=\"M9 13v2\"/>","brain-circuit":"<path d=\"M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z\"/><path d=\"M9 13a4.5 4.5 0 0 0 3-4\"/><path d=\"M6.003 5.125A3 3 0 0 0 6.401 6.5\"/><path d=\"M3.477 10.896a4 4 0 0 1 .585-.396\"/><path d=\"M6 18a4 4 0 0 1-1.967-.516\"/><path d=\"M12 13h4\"/><path d=\"M12 18h6a2 2 0 0 1 2 2v1\"/><path d=\"M12 8h8\"/><path d=\"M16 8V5a2 2 0 0 1 2-2\"/><circle cx=\"16\" cy=\"13\" r=\".5\"/><circle cx=\"18\" cy=\"3\" r=\".5\"/><circle cx=\"20\" cy=\"21\" r=\".5\"/><circle cx=\"20\" cy=\"8\" r=\".5\"/>","chart-line":"<path d=\"M3 3v16a2 2 0 0 0 2 2h16\"/><path d=\"m19 9-5 5-4-4-3 3\"/>","check":"<path d=\"M20 6 9 17l-5-5\"/>","chevron-right":"<path d=\"m9 18 6-6-6-6\"/>","circle-alert":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\"/><line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\"/>","circle-check":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m9 12 2 2 4-4\"/>","circle-help":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"/><path d=\"M12 17h.01\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","corner-down-left":"<polyline points=\"9 10 4 15 9 20\"/><path d=\"M20 4v7a4 4 0 0 1-4 4H4\"/>","crosshair":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"22\" x2=\"18\" y1=\"12\" y2=\"12\"/><line x1=\"6\" x2=\"2\" y1=\"12\" y2=\"12\"/><line x1=\"12\" x2=\"12\" y1=\"6\" y2=\"2\"/><line x1=\"12\" x2=\"12\" y1=\"22\" y2=\"18\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5V19A9 3 0 0 0 21 19V5\"/><path d=\"M3 12A9 3 0 0 0 21 12\"/>","database-zap":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5V19A9 3 0 0 0 15 21.84\"/><path d=\"M21 5V8\"/><path d=\"M21 12L18 17H22L19 22\"/><path d=\"M3 12A9 3 0 0 0 14.59 14.87\"/>","download":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>","external-link":"<path d=\"M15 3h6v6\"/><path d=\"M10 14 21 3\"/><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"/>","eye":"<path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","eye-off":"<path d=\"M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49\"/><path d=\"M14.084 14.158a3 3 0 0 1-4.242-4.242\"/><path d=\"M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143\"/><path d=\"m2 2 20 20\"/>","figma":"<path d=\"M5 5.5A3.5 3.5 0 0 1 8.5 2H12v7H8.5A3.5 3.5 0 0 1 5 5.5z\"/><path d=\"M12 2h3.5a3.5 3.5 0 1 1 0 7H12V2z\"/><path d=\"M12 12.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 1 1-7 0z\"/><path d=\"M5 19.5A3.5 3.5 0 0 1 8.5 16H12v3.5a3.5 3.5 0 1 1-7 0z\"/><path d=\"M5 12.5A3.5 3.5 0 0 1 8.5 9H12v7H8.5A3.5 3.5 0 0 1 5 12.5z\"/>","file-check-2":"<path d=\"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"m3 15 2 2 4-4\"/>","file-spreadsheet":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>","files":"<path d=\"M20 7h-3a2 2 0 0 1-2-2V2\"/><path d=\"M9 18a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h7l4 4v10a2 2 0 0 1-2 2Z\"/><path d=\"M3 7.6v12.8A1.6 1.6 0 0 0 4.6 22h9.8\"/>","filter":"<polygon points=\"22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3\"/>","folder-plus":"<path d=\"M12 10v6\"/><path d=\"M9 13h6\"/><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/>","gem":"<path d=\"M6 3h12l4 6-10 13L2 9Z\"/><path d=\"M11 3 8 9l4 13 4-13-3-6\"/><path d=\"M2 9h20\"/>","git-branch":"<line x1=\"6\" x2=\"6\" y1=\"3\" y2=\"15\"/><circle cx=\"18\" cy=\"6\" r=\"3\"/><circle cx=\"6\" cy=\"18\" r=\"3\"/><path d=\"M18 9a9 9 0 0 1-9 9\"/>","git-merge":"<circle cx=\"18\" cy=\"18\" r=\"3\"/><circle cx=\"6\" cy=\"6\" r=\"3\"/><path d=\"M6 21V9a9 9 0 0 0 9 9\"/>","handshake":"<path d=\"m11 17 2 2a1 1 0 1 0 3-3\"/><path d=\"m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4\"/><path d=\"m21 3 1 11h-2\"/><path d=\"M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3\"/><path d=\"M3 4h8\"/>","hourglass":"<path d=\"M5 22h14\"/><path d=\"M5 2h14\"/><path d=\"M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22\"/><path d=\"M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2\"/>","layers-3":"<path d=\"m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z\"/><path d=\"m6.08 9.5-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83l-3.5-1.59\"/><path d=\"m6.08 14.5-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83l-3.5-1.59\"/>","layout-template":"<rect width=\"18\" height=\"7\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"9\" height=\"7\" x=\"3\" y=\"14\" rx=\"1\"/><rect width=\"5\" height=\"7\" x=\"16\" y=\"14\" rx=\"1\"/>","library":"<path d=\"m16 6 4 14\"/><path d=\"M12 6v14\"/><path d=\"M8 8v12\"/><path d=\"M4 4v16\"/>","lightbulb":"<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>","list-checks":"<path d=\"m3 17 2 2 4-4\"/><path d=\"m3 7 2 2 4-4\"/><path d=\"M13 6h8\"/><path d=\"M13 12h8\"/><path d=\"M13 18h8\"/>","list-filter":"<path d=\"M3 6h18\"/><path d=\"M7 12h10\"/><path d=\"M10 18h4\"/>","list-ordered":"<path d=\"M10 12h11\"/><path d=\"M10 18h11\"/><path d=\"M10 6h11\"/><path d=\"M4 10h2\"/><path d=\"M4 6h1v4\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","maximize-2":"<polyline points=\"15 3 21 3 21 9\"/><polyline points=\"9 21 3 21 3 15\"/><line x1=\"21\" x2=\"14\" y1=\"3\" y2=\"10\"/><line x1=\"3\" x2=\"10\" y1=\"21\" y2=\"14\"/>","message-square-warning":"<path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/><path d=\"M12 7v2\"/><path d=\"M12 13h.01\"/>","mouse-pointer-click":"<path d=\"M14 4.1 12 6\"/><path d=\"m5.1 8-2.9-.8\"/><path d=\"m6 12-1.9 2\"/><path d=\"M7.2 2.2 8 5.1\"/><path d=\"M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z\"/>","network":"<rect x=\"16\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"/><rect x=\"2\" y=\"16\" width=\"6\" height=\"6\" rx=\"1\"/><rect x=\"9\" y=\"2\" width=\"6\" height=\"6\" rx=\"1\"/><path d=\"M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3\"/><path d=\"M12 12V8\"/>","pen-tool":"<path d=\"M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z\"/><path d=\"m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18\"/><path d=\"m2.3 2.3 7.286 7.286\"/><circle cx=\"11\" cy=\"11\" r=\"2\"/>","play":"<polygon points=\"6 3 20 12 6 21 6 3\"/>","refresh-cw":"<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"/><path d=\"M21 3v5h-5\"/><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"/><path d=\"M8 16H3v5\"/>","rocket":"<path d=\"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z\"/><path d=\"m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z\"/><path d=\"M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0\"/><path d=\"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5\"/>","rotate-ccw":"<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/>","rotate-cw":"<path d=\"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8\"/><path d=\"M21 3v5h-5\"/>","scan-search":"<path d=\"M3 7V5a2 2 0 0 1 2-2h2\"/><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"/><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"/><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"m16 16-1.9-1.9\"/>","scissors":"<circle cx=\"6\" cy=\"6\" r=\"3\"/><path d=\"M8.12 8.12 12 12\"/><path d=\"M20 4 8.12 15.88\"/><circle cx=\"6\" cy=\"18\" r=\"3\"/><path d=\"M14.8 14.8 20 20\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","send":"<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\"/><path d=\"m21.854 2.147-10.94 10.939\"/>","shield-check":"<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"/><path d=\"m9 12 2 2 4-4\"/>","signal":"<path d=\"M2 20h.01\"/><path d=\"M7 20v-4\"/><path d=\"M12 20v-8\"/><path d=\"M17 20V8\"/><path d=\"M22 4v16\"/>","sparkles":"<path d=\"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z\"/><path d=\"M20 3v4\"/><path d=\"M22 5h-4\"/><path d=\"M4 17v2\"/><path d=\"M5 18H3\"/>","split":"<path d=\"M16 3h5v5\"/><path d=\"M8 3H3v5\"/><path d=\"M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3\"/><path d=\"m15 9 6-6\"/>","table-2":"<path d=\"M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18\"/>","target":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/>","terminal":"<polyline points=\"4 17 10 11 4 5\"/><line x1=\"12\" x2=\"20\" y1=\"19\" y2=\"19\"/>","triangle":"<path d=\"M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"/>","trophy":"<path d=\"M6 9H4.5a2.5 2.5 0 0 1 0-5H6\"/><path d=\"M18 9h1.5a2.5 2.5 0 0 0 0-5H18\"/><path d=\"M4 22h16\"/><path d=\"M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22\"/><path d=\"M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22\"/><path d=\"M18 2H6v7a6 6 0 0 0 12 0V2Z\"/>","user-round":"<circle cx=\"12\" cy=\"8\" r=\"5\"/><path d=\"M20 21a8 8 0 0 0-16 0\"/>","users-round":"<path d=\"M18 21a8 8 0 0 0-16 0\"/><circle cx=\"10\" cy=\"8\" r=\"5\"/><path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\"/>"},createIcons(){document.querySelectorAll("i[data-lucide]").forEach(el=>{const d=this.icons[el.dataset.lucide];if(!d)return;const s=document.createElementNS("http://www.w3.org/2000/svg","svg");["width","height"].forEach(a=>s.setAttribute(a,"24"));s.setAttribute("viewBox","0 0 24 24");s.setAttribute("fill","none");s.setAttribute("stroke","currentColor");s.setAttribute("stroke-width","2");s.setAttribute("stroke-linecap","round");s.setAttribute("stroke-linejoin","round");s.setAttribute("class","lucide "+(el.getAttribute("class")||""));if(el.getAttribute("style"))s.setAttribute("style",el.getAttribute("style"));s.innerHTML=d;el.replaceWith(s);});}};</script>
+<style>
+:root{
+  --bg-0:#061a12; --bg-1:#0a2a1d; --bg-2:#0f3a28;
+  --line:rgba(150,255,200,.12); --line-2:rgba(150,255,200,.22);
+  --green:#3ee07f; --mint:#a7f3c4; --amber:#f2c14e; --violet:#8f80ff; --red:#ff6b6b;
+  --text:#ecf7f0; --text-2:#b9d4c4; --muted:#7f9f8e;
+  --sans:"Inter","Noto Sans TC",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --w:1120px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:32px}
+html,body{overflow-x:clip}
+body{background:linear-gradient(160deg,#05170f 0%,#0a2a1d 45%,#0c3323 100%) fixed;background-color:var(--bg-0);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.6}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit}
+svg.lucide{width:1em;height:1em;flex:none;stroke-width:1.8}
+.p,.h3,.lead,.callout span,.bubble,.li span,p{text-wrap:pretty}
+
+/* background */
+#bgfx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.grid-bg{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(150,255,200,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(150,255,200,.04) 1px,transparent 1px);background-size:56px 56px;
+  mask-image:radial-gradient(900px 600px at var(--sx,70%) var(--sy,20%),#000,transparent 75%);-webkit-mask-image:radial-gradient(900px 600px at var(--sx,70%) var(--sy,20%),#000,transparent 75%)}
+.orb{position:fixed;border-radius:50%;filter:blur(70px);pointer-events:none;opacity:.45;z-index:0;animation:drift 20s ease-in-out infinite alternate}
+.orb.o1{width:460px;height:460px;background:#1c7a4a;right:-160px;top:-160px}
+.orb.o2{width:380px;height:380px;background:#0d5a3a;left:-160px;bottom:-180px;animation-duration:24s}
+@keyframes drift{to{transform:translate(-60px,50px) scale(1.15)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes float{50%{transform:translateY(-10px)}}
+@keyframes blink{50%{opacity:.25}}
+
+/* layout */
+main{position:relative;z-index:1}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 32px}
+section.sec{padding:120px 0 40px}
+.reveal{opacity:0;translate:0 26px;transition:opacity .8s var(--ease),translate .8s var(--ease)}
+.reveal.in{opacity:1;translate:0 0}
+#progress{position:fixed;left:0;top:0;height:3px;width:0;background:linear-gradient(90deg,#1fbf68,#7dffb0);box-shadow:0 0 12px var(--green);z-index:50}
+
+/* side nav */
+#toc{position:fixed;left:28px;top:50%;transform:translateY(-50%);z-index:40;display:flex;flex-direction:column;gap:4px}
+#toc a{display:flex;align-items:center;gap:12px;text-decoration:none;font:500 13px/1 var(--sans);color:var(--muted);padding:7px 0;transition:color .3s}
+#toc a::before{content:"";width:18px;height:2px;border-radius:2px;background:var(--line-2);transition:width .3s,background .3s}
+#toc a span{opacity:0;transform:translateX(-6px);transition:.3s}
+#toc:hover a span,#toc a.on span{opacity:1;transform:none}
+#toc a.on{color:var(--green)}#toc a.on::before{width:32px;background:var(--green);box-shadow:0 0 10px var(--green)}
+@media (max-width:1320px){#toc{display:none}}
+
+/* type */
+.kicker{font:600 13px/1 var(--mono);letter-spacing:.18em;color:var(--green);text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.kicker::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(62,224,127,.18),0 0 18px var(--green)}
+.h2{font-size:44px;font-weight:800;letter-spacing:-.01em;line-height:1.25;margin-top:18px}
+.h2 em,.h3 em{font-style:normal;color:var(--green)}
+.lead{font-size:20px;color:var(--text-2);margin-top:16px;max-width:820px;line-height:1.75}
+.h3{font-size:22px;font-weight:700;line-height:1.4}
+.p{font-size:16.5px;line-height:1.8;color:var(--text-2)}
+.num{font:600 13px/1 var(--mono);color:var(--green);letter-spacing:.1em}
+.sub-h{font:600 13px/1 var(--mono);letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin:64px 0 20px;display:flex;align-items:center;gap:14px}
+.sub-h::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* components */
+.card{background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:22px;padding:28px;position:relative;transition:transform .35s var(--ease),border-color .35s,box-shadow .35s}
+.card:hover{transform:translateY(-5px);border-color:var(--line-2);box-shadow:0 22px 50px rgba(0,0,0,.35)}
+.ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;font-size:22px;color:var(--green);background:radial-gradient(circle at 30% 25%,rgba(62,224,127,.28),rgba(62,224,127,.06));border:1px solid rgba(62,224,127,.25);flex:none}
+.ic.amber{color:var(--amber);background:radial-gradient(circle at 30% 25%,rgba(242,193,78,.28),rgba(242,193,78,.05));border-color:rgba(242,193,78,.3)}
+.ic.red{color:var(--red);background:radial-gradient(circle at 30% 25%,rgba(255,107,107,.26),rgba(255,107,107,.05));border-color:rgba(255,107,107,.3)}
+.ic.violet{color:var(--violet);background:radial-gradient(circle at 30% 25%,rgba(143,128,255,.28),rgba(143,128,255,.05));border-color:rgba(143,128,255,.3)}
+.tag{display:inline-flex;align-items:center;gap:8px;font:600 12px/1 var(--mono);letter-spacing:.12em;padding:8px 12px;border-radius:999px;border:1px solid var(--line-2);color:var(--mint);background:rgba(62,224,127,.08)}
+.tag.muted{color:var(--text-2);border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.04)}
+.tag.red{color:#ffb4b4;border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.1)}
+.tag.amber{color:#ffe1a0;border-color:rgba(242,193,78,.35);background:rgba(242,193,78,.1)}
+.callout{display:flex;align-items:center;gap:18px;padding:22px 26px;border-radius:18px;margin-top:28px;background:linear-gradient(90deg,rgba(62,224,127,.14),rgba(62,224,127,.03));border:1px solid rgba(62,224,127,.22);font-size:18px;font-weight:500;line-height:1.6}
+.callout .ic{width:42px;height:42px;font-size:19px;border-radius:12px}
+.callout b{color:var(--green)}
+.callout.red{background:linear-gradient(90deg,rgba(255,107,107,.14),rgba(255,107,107,.02));border-color:rgba(255,107,107,.3)}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+@media (max-width:960px){.grid3,.grid4{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){.grid2,.grid3,.grid4{grid-template-columns:1fr}.h2{font-size:32px}.lead{font-size:17px}.wrap{padding:0 18px}}
+
+.shot{position:relative;border-radius:14px;overflow:hidden;background:#fff;border:1px solid rgba(255,255,255,.18);box-shadow:0 26px 60px rgba(0,0,0,.45);cursor:zoom-in;transition:transform .4s var(--ease)}
+.shot:hover{transform:translateY(-4px)}
+.shot img{display:block;width:100%;height:auto}
+.cap{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:15px;color:var(--text-2)}
+.cap b{font:600 12px/1 var(--mono);color:var(--green);letter-spacing:.1em;padding:6px 9px;border-radius:8px;background:rgba(62,224,127,.1)}
+
+.chat{border-radius:20px;border:1px solid var(--line-2);background:linear-gradient(180deg,rgba(8,34,24,.94),rgba(6,26,18,.94));box-shadow:0 24px 60px rgba(0,0,0,.4);overflow:hidden}
+.chat-hd{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);font:600 12px/1 var(--mono);letter-spacing:.12em;color:var(--text-2)}
+.chat-hd .dots{display:flex;gap:7px}.chat-hd .dots span{width:10px;height:10px;border-radius:50%}
+.chat-hd .dots span:nth-child(1){background:#ff6b6b99}.chat-hd .dots span:nth-child(2){background:#f2c14e99}.chat-hd .dots span:nth-child(3){background:#3ee07f99}
+.chat-hd .ttl{display:flex;gap:8px;align-items:center}
+.chat-bd{padding:22px;display:flex;flex-direction:column;gap:14px}
+.msg{display:flex;gap:12px;align-items:flex-start}.msg.me{flex-direction:row-reverse}
+.av{width:36px;height:36px;border-radius:11px;flex:none;display:grid;place-items:center;font:700 14px/1 var(--sans)}
+.msg.me .av{background:linear-gradient(135deg,#3ee07f,#1f7a4d);color:#05170f}
+.msg.ai .av{background:#0d2f21;border:1px solid var(--line-2);color:var(--green);font-size:17px}
+.bubble{padding:14px 18px;border-radius:16px;font-size:16px;line-height:1.75}
+.msg.me .bubble{background:linear-gradient(135deg,rgba(62,224,127,.2),rgba(62,224,127,.1));border:1px solid rgba(62,224,127,.3);border-top-right-radius:6px}
+.msg.ai .bubble{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-top-left-radius:6px}
+.bubble .warn{color:#ffb4b4;background:rgba(255,107,107,.12);border-radius:6px;padding:1px 4px}
+.who{font:600 11px/1 var(--mono);letter-spacing:.16em;color:var(--muted);margin-bottom:6px}
+.msg.me .who{text-align:right}
+
+.list{display:flex;flex-direction:column;gap:12px;margin-top:14px;font-size:16.5px}
+.li{display:flex;gap:12px;align-items:flex-start;line-height:1.65;color:var(--text-2)}
+.li svg{color:var(--green);font-size:18px;margin-top:4px}
+.li b{color:var(--text);font-weight:600}
+.li.x svg{color:#ff9a9a}.li.key b{color:var(--amber)}
+
+.flowcol{display:flex;flex-direction:column}
+.fnode{display:flex;gap:12px;align-items:center;padding:14px 16px;border-radius:13px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);font-size:16px;transition:.25s}
+.fnode svg{color:var(--green);font-size:19px}
+.fconn{height:28px;position:relative;margin-left:30px}
+.fconn::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:rgba(62,224,127,.3)}
+.fconn::after{content:"";position:absolute;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);animation:down 1.6s linear infinite}
+@keyframes down{from{top:-4px;opacity:0}20%{opacity:1}to{top:calc(100% - 6px);opacity:0}}
+.fnode.lit{background:rgba(62,224,127,.2);border-color:var(--green)}
+.fnode.hot svg{color:#ff9a9a}.fnode.hot.lit{background:rgba(255,107,107,.2);border-color:var(--red)}
+
+/* hero */
+.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1.05fr;gap:56px;align-items:center;padding:80px 0 60px}
+.hero h1{font-size:clamp(44px,6.2vw,80px);white-space:nowrap;font-weight:900;letter-spacing:-.02em;line-height:1.08;margin-top:26px}
+.hero h1 .g{background:linear-gradient(120deg,#7dffb0,#3ee07f 40%,#1fbf68);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lead{font-size:22px}
+.meta{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 28px;margin-top:36px;padding-top:28px;border-top:1px solid var(--line)}
+.meta dt{font:600 11px/1 var(--mono);letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.meta dd{font-size:15.5px;margin-top:8px;color:var(--text)}
+.cta{display:flex;gap:12px;margin-top:34px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:13px 22px;border-radius:999px;font-weight:700;font-size:15.5px;text-decoration:none;transition:.25s}
+.btn.pri{background:var(--green);color:#05170f;box-shadow:0 10px 30px rgba(62,224,127,.3)}
+.btn.pri:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(62,224,127,.45)}
+.btn.sec{border:1px solid var(--line-2);color:var(--text-2)}
+.btn.sec:hover{color:var(--text);background:rgba(62,224,127,.08)}
+.hero-vis{position:relative;perspective:1400px}
+.hero-vis .rings{position:absolute;inset:-90px;pointer-events:none}
+.hero-vis .rings circle{fill:none;stroke:rgba(150,255,200,.12)}
+.hero-vis .rings .s1{transform-origin:50% 50%;animation:spin 60s linear infinite}
+.browser{border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 60px 120px rgba(0,0,0,.6),0 0 0 1px rgba(150,255,200,.15),0 0 120px rgba(62,224,127,.15);transform:rotateY(var(--ry,-8deg)) rotateX(var(--rx,4deg));transition:transform .25s ease-out}
+.browser .bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#e9ece8;border-bottom:1px solid #d8ddd6}
+.browser .bar i{width:10px;height:10px;border-radius:50%;background:#c9cec7;display:inline-block}
+.browser .url{flex:1;background:#fff;border-radius:7px;padding:5px 10px;font:11px/1.2 var(--mono);color:#556}
+.browser img{display:block;width:100%}
+.chip{position:absolute;display:flex;align-items:center;gap:10px;padding:11px 15px;border-radius:14px;font-size:13.5px;background:rgba(8,34,24,.9);border:1px solid var(--line-2);backdrop-filter:blur(8px);box-shadow:0 18px 40px rgba(0,0,0,.4);animation:float 6s ease-in-out infinite;white-space:nowrap}
+.chip code{font-family:var(--mono);color:var(--mint);font-size:12.5px}
+.chip .ic{width:28px;height:28px;font-size:14px;border-radius:8px}
+.scroll-hint{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);font:600 11px/1 var(--mono);letter-spacing:.2em;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:10px}
+.scroll-hint::after{content:"";width:1px;height:38px;background:linear-gradient(var(--green),transparent);animation:blink 2s infinite}
+@media (max-width:1000px){.hero{grid-template-columns:1fr;min-height:auto}}
+@media (max-width:640px){.chip{display:none}.dec-vis[style*="grid-template-columns"]{grid-template-columns:1fr!important}.grid2[style*="grid-template-columns"]{grid-template-columns:1fr!important}.dec-hd .dn{font-size:38px}.dec-hd .h3{font-size:21px}.big-quote h2 .g{margin-left:-.5em}}
+
+/* tldr */
+.tldr .card{padding:26px}
+.tldr .card .lab{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.tldr .card .lab b{font:700 13px/1 var(--mono);letter-spacing:.14em;color:var(--green)}
+
+/* flow5 */
+.flow5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.fstep{padding:22px 20px;display:flex;flex-direction:column;gap:10px}
+.fstep.pain{border-color:rgba(242,193,78,.4);background:linear-gradient(180deg,rgba(242,193,78,.12),rgba(242,193,78,.02))}
+.fstep .badge{position:absolute;right:14px;top:14px}
+.fstep .h3{font-size:18px}.fstep .p{font-size:14.5px;line-height:1.7}
+@media (max-width:960px){.flow5{grid-template-columns:repeat(2,1fr)}}
+
+/* before/after */
+.ba{display:grid;grid-template-columns:1fr 70px 1fr;align-items:stretch}
+.ba .mid{display:grid;place-items:center;color:var(--green);font-size:28px}
+.ba .after{border-color:rgba(62,224,127,.4);background:linear-gradient(180deg,rgba(62,224,127,.14),rgba(62,224,127,.03))}
+.pills{display:flex;flex-wrap:wrap;gap:8px 6px;align-items:center;margin-top:18px}
+.pills span{font-size:14px;padding:7px 11px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.after .pills span{background:rgba(62,224,127,.1);border-color:rgba(62,224,127,.25)}
+.pills svg{color:var(--muted);font-size:13px}
+@media (max-width:760px){.ba{grid-template-columns:1fr}.ba .mid{transform:rotate(90deg);padding:10px}}
+
+/* core flow */
+.coreflow{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap}
+.coreflow .step{flex:1;min-width:120px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:22px 12px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid var(--line);font-size:15px;font-weight:600;position:relative}
+.coreflow .step .ic{width:46px;height:46px}
+.coreflow .step small{font:600 11px/1 var(--mono);color:var(--muted);letter-spacing:.1em}
+.coreflow .step.ai{border-color:rgba(143,128,255,.4);background:rgba(143,128,255,.08)}
+.coreflow .step.me{border-color:rgba(62,224,127,.4);background:rgba(62,224,127,.08)}
+.legend{display:flex;gap:20px;margin-top:14px;font-size:13.5px;color:var(--text-2);flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:8px}.legend i{width:12px;height:12px;border-radius:4px;display:inline-block}
+
+/* demo */
+.demo{border-radius:18px;overflow:hidden;border:1px solid var(--line-2);box-shadow:0 40px 90px rgba(0,0,0,.5),0 0 80px rgba(62,224,127,.1);background:#f6f7f4}
+.demo .bar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:#0b2a1d;border-bottom:1px solid var(--line-2);font:600 12px/1 var(--mono);letter-spacing:.12em;color:var(--mint)}
+.demo .bar .live{display:flex;align-items:center;gap:8px;color:var(--green)}
+.demo .bar .live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite}
+.demo .bar .acts{margin-left:auto;display:flex;gap:6px}
+.demo .bar button,.demo .bar a{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:999px;font:500 13px/1 var(--sans);letter-spacing:0;color:var(--text-2);text-decoration:none;border:1px solid var(--line)}
+.demo .bar button:hover,.demo .bar a:hover{color:var(--text);background:rgba(62,224,127,.12)}
+.demo iframe{display:block;width:100%;height:760px;border:0;background:#f6f7f4}
+.demo .ph{height:760px;display:grid;place-items:center;color:#607066;font-size:15px}
+.howto{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.howto span{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;background:rgba(6,26,18,.6);border:1px solid var(--line);font-size:14.5px;color:var(--text-2)}
+.howto span b{font:600 12px/1 var(--mono);color:var(--green)}
+@media (max-width:760px){.demo iframe,.demo .ph{height:560px}.demo-note{display:none}.demo .bar{flex-wrap:wrap}.hero-vis .rings{display:none}}
+
+/* features */
+.prio{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.prio div{display:flex;gap:12px;align-items:center;font-size:15px;color:var(--text-2)}
+.prio b{font:700 13px/1 var(--mono);padding:6px 10px;border-radius:999px;flex:none}
+.prio .p0 b{background:rgba(62,224,127,.18);color:var(--green)}.prio .p1 b{background:rgba(242,193,78,.18);color:var(--amber)}.prio .p2 b{background:rgba(255,255,255,.08);color:var(--text-2)}
+.fields{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+.fields span{font-size:13.5px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.fields span.k{border-color:rgba(62,224,127,.4);background:rgba(62,224,127,.12);color:var(--mint)}
+
+/* decisions */
+.dec{margin-top:48px;padding:36px;border-radius:26px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012))}
+.dec-hd{display:flex;align-items:flex-start;gap:22px}
+.dec-hd .dn{font:800 54px/1 var(--sans);color:rgba(62,224,127,.22);letter-spacing:-.02em}
+.dec-hd .h3{font-size:28px}
+.pdr{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}
+.pdr div{padding:18px 20px;border-radius:16px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.07)}
+.pdr dt{display:flex;align-items:center;gap:8px;font:600 12px/1 var(--mono);letter-spacing:.14em;margin-bottom:10px}
+.pdr .q dt{color:#ff9a9a}.pdr .d dt{color:var(--amber)}.pdr .r dt{color:var(--green)}
+.pdr dd{font-size:15.5px;line-height:1.75;color:var(--text-2)}
+.dec-vis{margin-top:26px}
+@media (max-width:860px){.pdr{grid-template-columns:1fr}.dec{padding:24px}}
+
+.hl-wrap{position:relative}
+.hl-box{position:absolute;left:31%;top:53.3%;width:68.5%;height:8.6%;border:3px solid #ff5c5c;border-radius:8px;box-shadow:0 0 30px rgba(255,92,92,.5);animation:pulse 1.8s ease-in-out infinite;pointer-events:none}
+@keyframes pulse{50%{box-shadow:0 0 0 10px rgba(255,92,92,.06),0 0 40px rgba(255,92,92,.7)}}
+.evrow{border-radius:16px;background:#fff;color:#172018;overflow:hidden;box-shadow:0 26px 60px rgba(0,0,0,.4);font-family:"Noto Sans TC",var(--sans)}
+.evrow .eh{background:#173f24;color:#fff;padding:11px 16px;font-size:13.5px;font-weight:600;display:flex;justify-content:space-between;gap:10px}
+.evrow .eh code{font-family:var(--mono);color:#a7f3c4}
+.evrow dl{display:grid;grid-template-columns:96px 1fr}
+.evrow dt,.evrow dd{padding:10px 16px;border-bottom:1px solid #dfe5dc;font-size:14.5px;line-height:1.6}
+.evrow dt{color:#607066;font-weight:600;background:#f9fbf7}
+.evrow mark{background:#ffe1d6;color:#9a4428;border-radius:4px;padding:0 3px;font-weight:600}
+
+.dataflow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dataflow .nd{flex:1;min-width:130px;padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.dataflow .nd b{font-size:16px}.dataflow .nd small{font-size:13.5px;color:var(--text-2)}
+.dataflow .nd .num{font-size:11px}
+.dataflow > svg{color:var(--muted)}
+
+.kcard{flex:1;min-width:200px;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:8px;cursor:pointer;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--line-2);transition:.35s var(--ease)}
+.kcard .top{display:flex;justify-content:space-between;align-items:center}
+.kcard .kn{font-size:20px;font-weight:700}
+.kcard .env{font:500 12.5px/1 var(--mono);color:var(--mint);background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;gap:12px}
+.kcard .env span:last-child{color:var(--muted)}
+.kcard .st{display:inline-flex;gap:7px;align-items:center;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 10px;align-self:flex-start;color:#ffe1a0;background:rgba(242,193,78,.12);border:1px solid rgba(242,193,78,.3)}
+.kcard.ok{border-color:rgba(62,224,127,.5);background:linear-gradient(180deg,rgba(62,224,127,.15),rgba(62,224,127,.03))}
+.kcard.ok .st{color:var(--mint);background:rgba(62,224,127,.14);border-color:rgba(62,224,127,.35)}
+
+.viewer{position:relative;border-radius:14px;overflow:hidden;background:#fff;border:1px solid rgba(255,255,255,.18);box-shadow:0 26px 60px rgba(0,0,0,.45);aspect-ratio:2/1}
+.viewer img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;opacity:0;transition:opacity .6s;cursor:zoom-in}
+.viewer img.on{opacity:1;z-index:1}
+.viewer .vlab{position:absolute;left:12px;bottom:12px;z-index:2;display:flex;gap:8px;align-items:center;background:rgba(6,26,18,.88);color:var(--mint);font-size:13.5px;font-weight:600;padding:7px 11px;border-radius:10px}
+.viewer .vlab b{font:600 11px/1 var(--mono);color:var(--green)}
+.steps{display:flex;flex-direction:column;gap:6px}
+.vstep{display:flex;gap:14px;cursor:pointer;opacity:.5;transition:opacity .3s;padding:10px 12px;border-radius:14px}
+.vstep:hover{opacity:.85}.vstep.on{opacity:1;background:rgba(62,224,127,.06)}
+.vstep .ic{width:42px;height:42px;font-size:19px}
+.vstep.on .h3{color:var(--green)}
+.vstep .h3{font-size:17px}.vstep .p{font-size:14.5px;line-height:1.65}
+
+.counter{display:flex;align-items:baseline;gap:10px;margin-top:14px;padding:12px 16px;border-radius:13px;background:rgba(0,0,0,.2);border:1px dashed rgba(255,255,255,.14)}
+.counter .v{font:800 34px/1 var(--sans);font-variant-numeric:tabular-nums}
+.counter .l{font-size:14px;color:var(--text-2)}
+.counter.bad .v{color:#ff8a8a}.counter.good .v{color:var(--green)}
+.simbtn{display:inline-flex;align-items:center;gap:10px;padding:11px 18px;border-radius:999px;background:var(--green);color:#05170f;font-weight:700;font-size:15px;box-shadow:0 10px 30px rgba(62,224,127,.3)}
+.simbtn.ghost-btn{background:transparent;color:var(--text-2);border:1px solid var(--line-2);box-shadow:none}
+
+.rlist .li{font-size:15px;line-height:1.6}
+.concl{margin-top:12px;padding:12px 14px;border-radius:12px;background:rgba(62,224,127,.1);border:1px solid rgba(62,224,127,.25);font-size:15px;line-height:1.6}
+.concl b{color:var(--green)}
+
+/* process */
+.timeline{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.timeline::before{content:"";position:absolute;left:0;right:0;top:-18px;height:2px;background:linear-gradient(90deg,var(--green),rgba(62,224,127,.15))}
+.tl{padding:22px 18px}
+.tl .n2{font:800 32px/1 var(--sans);color:var(--green)}
+.tl .tool{display:inline-block;margin-top:12px;font:600 11px/1.3 var(--mono);color:var(--mint);padding:5px 8px;border-radius:7px;background:rgba(62,224,127,.1);border:1px solid rgba(62,224,127,.2)}
+.tl .h3{font-size:17px;margin-top:12px}.tl .p{font-size:14px;line-height:1.7;margin-top:6px}
+@media (max-width:960px){.timeline{grid-template-columns:repeat(2,1fr)}}
+table.cmp{width:100%;border-collapse:separate;border-spacing:0;font-size:15px}
+table.cmp th{text-align:left;padding:0 14px 14px;font:600 12px/1 var(--mono);letter-spacing:.14em;color:var(--muted)}
+table.cmp th .brand{display:flex;gap:9px;align-items:center;font:700 19px/1 var(--sans);letter-spacing:0;color:var(--text)}
+table.cmp th .nick{display:block;margin-top:7px;font:500 12.5px/1.3 var(--sans);letter-spacing:0;color:var(--mint)}
+table.cmp td{padding:12px 14px;border-top:1px solid rgba(255,255,255,.08);color:var(--text-2);line-height:1.55;vertical-align:top}
+table.cmp td:first-child{font-weight:700;color:var(--text);white-space:nowrap}
+table.cmp .colcf{background:rgba(62,224,127,.07)}
+table.cmp tr.pick td.cf{color:var(--mint);font-weight:600}
+.howfix{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.howfix span{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;background:rgba(6,26,18,.6);border:1px solid var(--line-2);font-size:15px}
+.howfix span svg{color:var(--green)}.howfix > svg{color:var(--muted)}
+
+/* outcome */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.vs .card ol{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:16px;counter-reset:s}
+.vs .card li{display:flex;gap:12px;align-items:center;font-size:15.5px;color:var(--text-2);counter-increment:s}
+.vs .card li::before{content:counter(s);width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font:700 12px/1 var(--mono);background:rgba(255,255,255,.07);flex:none}
+.vs .after li::before{background:rgba(62,224,127,.18);color:var(--green)}
+.vs .card li em{font-style:normal;margin-left:auto;font:600 11px/1 var(--mono);color:var(--amber);letter-spacing:.08em}
+@media (max-width:760px){.vs{grid-template-columns:1fr}}
+
+/* reflection */
+.big-quote{padding:70px 0 20px}
+.big-quote h2{font-size:64px;font-weight:900;line-height:1.3;letter-spacing:-.01em}
+.big-quote h2 .g{background:linear-gradient(120deg,#7dffb0,#3ee07f 50%,#1fbf68);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block;margin-left:-.5em}
+.big-quote p{font-size:22px;color:var(--text);margin-top:26px;max-width:900px;line-height:1.7}
+.big-quote p b{color:var(--mint);font-weight:600}
+@media (max-width:760px){.big-quote h2{font-size:40px}}
+footer{position:relative;z-index:1;border-top:1px solid var(--line);margin-top:100px;padding:40px 0 60px}
+footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+
+#lightbox{position:fixed;inset:0;z-index:60;background:rgba(3,14,9,.93);display:grid;place-items:center;opacity:0;visibility:hidden;transition:.3s;cursor:zoom-out;padding:4vh 4vw}
+#lightbox.on{opacity:1;visibility:visible}
+#lightbox img{max-width:100%;max-height:100%;border-radius:12px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;translate:none}}
+</style>
+</head>
+<body>
+<canvas id="bgfx"></canvas><div class="grid-bg"></div><div class="orb o1"></div><div class="orb o2"></div>
+<div id="progress"></div>
+<nav id="toc" aria-label="章節導覽">
+  <a href="#overview"><span>摘要</span></a>
+  <a href="#context"><span>背景與問題</span></a>
+  <a href="#positioning"><span>產品定位</span></a>
+  <a href="#solution"><span>解決方案</span></a>
+  <a href="#decisions"><span>關鍵決策</span></a>
+  <a href="#process"><span>開發過程</span></a>
+  <a href="#outcome"><span>成果</span></a>
+  <a href="#reflection"><span>反思</span></a>
+</nav>
+
+<main>
+<!-- HERO -->
+<div class="wrap" style="position:relative">
+  <header class="hero">
+    <div>
+      <div class="kicker reveal">Case Study · Product Design × AI</div>
+      <h1 class="reveal"><span class="g">埋點</span>規劃工具</h1>
+      <p class="lead reveal">把一次性的 AI 回答，變成<b style="color:var(--text)">可管理、可交付</b>的埋點文件。從工作中的實際需求出發，與 AI 協作完成需求定義、介面設計、開發與部署。</p>
+      <dl class="meta reveal">
+        <div><dt>角色</dt><dd>產品規劃・UX/UI 設計・AI 協作開發</dd></div>
+        <div><dt>類型</dt><dd>個人專案，從工作需求出發</dd></div>
+        <div><dt>協作工具</dt><dd>ChatGPT・Codex</dd></div>
+        <div><dt>技術整合</dt><dd>Figma API・OpenAI / Gemini・Cloudflare</dd></div>
+      </dl>
+      <div class="cta reveal">
+        <a class="btn pri" href="#demo"><i data-lucide="play"></i>試用互動 Demo</a>
+        <a class="btn sec" href="https://tracking-plan-builder-jay.peng19990213.chatgpt.site/" target="_blank" rel="noopener"><i data-lucide="external-link"></i>線上網站</a>
+      </div>
+    </div>
+    <div class="hero-vis reveal">
+      <svg class="rings" viewBox="0 0 800 800"><circle cx="400" cy="400" r="390"/><g class="s1"><circle cx="400" cy="400" r="330" stroke-dasharray="3 12"/><circle cx="730" cy="400" r="6" fill="#3ee07f" stroke="none"/></g></svg>
+      <div class="browser" id="heroTilt">
+        <div class="bar"><i></i><i></i><i></i><span class="url">tracking-plan-builder · 第一階段埋點建議</span></div>
+        <img src="assets/app-event-plan.webp" alt="埋點規劃工具工作區畫面">
+      </div>
+      <div class="chip" style="left:-30px;top:-22px"><span class="ic violet"><i data-lucide="sparkles"></i></span>AI 建議候選事件</div>
+      <div class="chip" style="right:-20px;bottom:40px;animation-delay:-3s"><span class="ic"><i data-lucide="file-spreadsheet"></i></span>統一匯出 Excel</div>
+      <div class="chip" style="left:-10px;bottom:-20px;animation-delay:-1.5s"><span class="ic amber"><i data-lucide="mouse-pointer-click"></i></span><code>track("view_dispatch_detail")</code></div>
+    </div>
+  </header>
+  <div class="scroll-hint">SCROLL</div>
+</div>
+
+<!-- OVERVIEW -->
+<section class="sec" id="overview"><div class="wrap">
+  <div class="kicker reveal">00 / Overview</div>
+  <h2 class="h2 reveal">專案摘要</h2>
+  <div class="grid4 tldr" style="margin-top:36px">
+    <div class="card reveal"><div class="lab"><span class="ic red"><i data-lucide="circle-alert"></i></span><b>PROBLEM</b></div><p class="p">埋點規劃仰賴經驗。用 ChatGPT 協助時，結果散落在對話與 Excel 之間，需要反覆確認、跨工具切換與人工整併。</p></div>
+    <div class="card reveal"><div class="lab"><span class="ic"><i data-lucide="lightbulb"></i></span><b>SOLUTION</b></div><p class="p">以「專案 → Figma Page → 事件」為核心的規劃平台：AI 產出候選事件，設計師審核編輯，最後統一匯出。</p></div>
+    <div class="card reveal"><div class="lab"><span class="ic violet"><i data-lucide="user-round"></i></span><b>MY ROLE</b></div><p class="p">從需求定義、介面設計，到與 Codex 協作開發、串接 Figma 與 AI、部署上線，獨立完成整個產品。</p></div>
+    <div class="card reveal"><div class="lab"><span class="ic amber"><i data-lucide="trophy"></i></span><b>OUTCOME</b></div><p class="p">把 5 段跨工具的手動流程，整合為單一平台的連續操作；每筆事件包含 13 個欄位，可直接交付工程實作。</p></div>
+  </div>
+</div></section>
+
+<!-- CONTEXT -->
+<section class="sec" id="context"><div class="wrap">
+  <div class="kicker reveal">01 / Context</div>
+  <h2 class="h2 reveal">專案需要規劃埋點，<em>但團隊缺乏經驗</em></h2>
+  <p class="lead reveal">專案正在討論埋點，我先嘗試與 AI 協作撰寫埋點 PRD，才發現寫出有價值的埋點非常仰賴經驗，而且就算有 AI 幫忙，整個流程依然繁瑣。</p>
+
+  <div class="sub-h reveal">原本的工作流程</div>
+  <div class="flow5">
+    <div class="card fstep reveal"><span class="ic"><i data-lucide="file-spreadsheet"></i></span><span class="num">STEP 01</span><div class="h3">建立 Excel 範本</div><p class="p">先定義埋點事件、欄位與填寫規則。</p></div>
+    <div class="card fstep reveal"><span class="ic"><i data-lucide="figma"></i></span><span class="num">STEP 02</span><div class="h3">提供 Figma 畫面</div><p class="p">將設計稿與分析範圍提供給 ChatGPT。</p></div>
+    <div class="card fstep pain reveal"><span class="tag amber badge"><i data-lucide="clock"></i>耗時</span><span class="ic amber"><i data-lucide="refresh-cw"></i></span><span class="num" style="color:var(--amber)">STEP 03</span><div class="h3">反覆確認結果</div><p class="p">檢查 AI 分析是否正確，持續補充需求與修正。</p></div>
+    <div class="card fstep reveal"><span class="ic"><i data-lucide="download"></i></span><span class="num">STEP 04</span><div class="h3">匯出埋點文件</div><p class="p">將分析結果下載成 Excel 檔案。</p></div>
+    <div class="card fstep pain reveal"><span class="tag amber badge"><i data-lucide="clock"></i>耗時</span><span class="ic amber"><i data-lucide="git-merge"></i></span><span class="num" style="color:var(--amber)">STEP 05</span><div class="h3">手動整併版本</div><p class="p">合併不同批次的分析結果，整理成最終版本。</p></div>
+  </div>
+  <div class="callout reveal"><span class="ic amber"><i data-lucide="hourglass"></i></span><span>真正耗時的不是 AI 分析，而是<b>反覆確認、跨工具切換與人工整併結果</b>。</span></div>
+
+  <div class="sub-h reveal">三個重複成本</div>
+  <div class="grid3">
+    <div class="card reveal"><span class="ic"><i data-lucide="message-square-warning"></i></span><div class="h3" style="margin-top:20px">需求表達門檻</div><p class="p" style="margin-top:8px">要會描述畫面、埋點條件與輸出格式，才容易得到可用的結果。</p></div>
+    <div class="card reveal"><span class="ic"><i data-lucide="search"></i></span><div class="h3" style="margin-top:20px">反覆查找與修改</div><p class="p" style="margin-top:8px">在 ChatGPT 裡反覆修改，對話越長越難回頭找；不同 Page、不同專案的結果也很難整理。</p></div>
+    <div class="card reveal"><span class="ic"><i data-lucide="files"></i></span><div class="h3" style="margin-top:20px">反覆整併 Excel 耗時</div><p class="p" style="margin-top:8px">不同頁面產出的埋點資料，需要人工合併、檢查與修正，也不容易管理最新版本。</p></div>
+  </div>
+  <div class="callout reveal"><span class="ic"><i data-lucide="target"></i></span><span>設計機會：把<b>「一次性的 AI 回答」</b>，變成<b>「可編輯、可管理、可交付的文件」</b>。</span></div>
+</div></section>
+
+<!-- POSITIONING -->
+<section class="sec" id="positioning"><div class="wrap">
+  <div class="kicker reveal">02 / Positioning</div>
+  <h2 class="h2 reveal">不是再做一個 ChatGPT，<em>而是重新定義工作流程</em></h2>
+  <p class="lead reveal">把以對話為中心的埋點規劃，轉成以專案、Page 與事件為中心。AI 仍負責加速初稿，但成果不再只留在聊天紀錄裡。</p>
+  <div class="ba" style="margin-top:40px">
+    <div class="card reveal" style="opacity:.85"><span class="tag muted">BEFORE</span><div class="h3" style="font-size:26px;margin-top:18px">以 AI 對話為中心</div><p class="p">每次分析都是獨立的對話任務</p>
+      <div class="pills"><span>建立範本</span><i data-lucide="arrow-right"></i><span>提供 Figma</span><i data-lucide="arrow-right"></i><span>AI 分析</span><i data-lucide="arrow-right"></i><span>反覆修正</span><i data-lucide="arrow-right"></i><span>下載 Excel</span><i data-lucide="arrow-right"></i><span>手動整併</span></div></div>
+    <div class="mid"><i data-lucide="arrow-right"></i></div>
+    <div class="card after reveal"><span class="tag">AFTER</span><div class="h3" style="font-size:26px;margin-top:18px">以專案與事件為中心</div><p class="p" style="color:var(--mint)">讓埋點規劃成為可持續管理的工作流程</p>
+      <div class="pills"><span>建立專案</span><i data-lucide="arrow-right"></i><span>連結 Figma</span><i data-lucide="arrow-right"></i><span>AI 建議埋點</span><i data-lucide="arrow-right"></i><span>審核與編輯事件</span><i data-lucide="arrow-right"></i><span>統一匯出 Excel</span></div></div>
+  </div>
+
+  <div class="sub-h reveal">設計原則：AI 是助手，不是決策者</div>
+  <div class="grid2">
+    <div class="card reveal" style="border-color:rgba(143,128,255,.35)"><div style="display:flex;gap:14px;align-items:center"><span class="ic violet"><i data-lucide="bot"></i></span><div class="h3">AI 擅長的部分</div></div>
+      <div class="list"><div class="li"><i data-lucide="check"></i><span>讀取設計結構與畫面資訊</span></div><div class="li"><i data-lucide="check"></i><span>提出事件名稱、目的與建議欄位</span></div><div class="li"><i data-lucide="check"></i><span>協助產出可編輯的初稿</span></div></div></div>
+    <div class="card reveal" style="border-color:rgba(62,224,127,.4)"><div style="display:flex;gap:14px;align-items:center"><span class="ic"><i data-lucide="pen-tool"></i></span><div class="h3">設計師必須判斷</div></div>
+      <div class="list"><div class="li"><i data-lucide="circle-help"></i><span>這個行為值不值得追蹤？</span></div><div class="li"><i data-lucide="circle-help"></i><span>事件是否對應使用者角色與目標？</span></div><div class="li"><i data-lucide="circle-help"></i><span>指標能不能支持後續產品決策？</span></div></div></div>
+  </div>
+  <div class="callout reveal"><span class="ic"><i data-lucide="gem"></i></span><span>不是「AI 幫我決定要埋什麼」，而是<b>「AI 讓我更快開始做有根據的判斷」</b>。</span></div>
+</div></section>
+
+<!-- SOLUTION -->
+<section class="sec" id="solution"><div class="wrap">
+  <div class="kicker reveal">03 / Solution</div>
+  <h2 class="h2 reveal">從 Figma 到可交付的<em>埋點計畫</em></h2>
+  <p class="lead reveal">整個流程收斂在同一個平台：AI 負責產生候選，設計師負責審核，平台負責保存與交付。</p>
+
+  <div class="sub-h reveal">核心流程</div>
+  <div class="coreflow reveal">
+    <div class="step"><span class="ic"><i data-lucide="folder-plus"></i></span><small>01</small>建立專案</div>
+    <div class="step"><span class="ic"><i data-lucide="figma"></i></span><small>02</small>連結 Figma</div>
+    <div class="step"><span class="ic"><i data-lucide="layout-template"></i></span><small>03</small>選擇 Page</div>
+    <div class="step ai"><span class="ic violet"><i data-lucide="sparkles"></i></span><small>04</small>AI 建議事件</div>
+    <div class="step me"><span class="ic"><i data-lucide="list-checks"></i></span><small>05</small>審核與編輯</div>
+    <div class="step"><span class="ic"><i data-lucide="library"></i></span><small>06</small>存入事件庫</div>
+    <div class="step"><span class="ic amber"><i data-lucide="file-spreadsheet"></i></span><small>07</small>匯出 Excel</div>
+  </div>
+  <div class="legend reveal"><span><i style="background:rgba(143,128,255,.5)"></i>AI 負責</span><span><i style="background:rgba(62,224,127,.5)"></i>設計師判斷</span><span><i style="background:rgba(255,255,255,.15)"></i>平台流程</span></div>
+
+  <div class="sub-h reveal" id="demo">互動 Demo</div>
+  <div class="howto reveal"><span><b>1</b>前往埋點規劃</span><span><b>2</b>輸入專案名稱</span><span><b>3</b>按「匯入」（Figma 連結已帶入）</span><span><b>4</b>選擇「3 派工詳情」</span><span><b>5</b>分析頁面內容</span></div>
+  <div class="demo reveal">
+    <div class="bar"><span class="live">INTERACTIVE DEMO</span><span class="demo-note" style="color:var(--muted);letter-spacing:.06em;font-weight:500">使用真實介面，資料為示意</span>
+      <span class="acts"><button id="demoReset"><i data-lucide="rotate-cw"></i>重新開始</button><a id="demoOpen" href="demo/index.html" target="_blank" rel="noopener"><i data-lucide="maximize-2"></i>全螢幕開啟</a></span></div>
+    <div class="ph" id="demoPh">Demo 載入中…</div>
+    <iframe id="demoFrame" title="埋點規劃工具 Demo" hidden></iframe>
+  </div>
+  <p class="p reveal" style="margin-top:14px;font-size:14px">Demo 以護理協作 APP 的 Figma 檔為範例，Page 清單取自實際檔案；分析結果為依該頁畫面規劃的示意資料。</p>
+
+  <div class="sub-h reveal">重點設計</div>
+  <div class="grid2">
+    <div class="card reveal"><span class="ic"><i data-lucide="signal"></i></span><div class="h3" style="margin-top:18px">用優先級定義「先埋什麼」</div><p class="p" style="margin-top:8px">每筆事件都標上 P0 / P1 / P2，讓團隊先處理真正影響決策的追蹤。</p>
+      <div class="prio"><div class="p0"><b>P0</b>缺少此埋點，無法驗證核心問題</div><div class="p1"><b>P1</b>用於理解核心流程中的使用行為</div><div class="p2"><b>P2</b>用於觀察次要功能與操作細節</div></div></div>
+    <div class="card reveal"><span class="ic violet"><i data-lucide="table-2"></i></span><div class="h3" style="margin-top:18px">可直接交付的事件結構</div><p class="p" style="margin-top:8px">匯出的 Excel 包含 13 個欄位，工程師拿到就能實作，不需要再補問。</p>
+      <div class="fields"><span>編號</span><span class="k">優先級</span><span>頁面/區塊</span><span>指標名稱</span><span class="k">追蹤目的</span><span class="k">分析原因</span><span>埋點事件</span><span class="k">指標計算</span><span>屬性參數</span><span>屬性定義</span><span>Data Type</span><span>Sample Values</span><span>狀態</span></div></div>
+    <div class="card reveal"><span class="ic amber"><i data-lucide="library"></i></span><div class="h3" style="margin-top:18px">事件庫：跨 Page 累積成果</div><p class="p" style="margin-top:8px">從各 Page 勾選的事件會存入專案事件庫，可依類型、優先級、來源篩選與編輯，最後統一匯出，不再需要手動整併不同批次的 Excel。</p></div>
+    <div class="card reveal"><span class="ic"><i data-lucide="layers-3"></i></span><div class="h3" style="margin-top:18px">完整的狀態設計</div><p class="p" style="margin-top:8px">針對空狀態、切換 Page、授權或分析失敗、資料保存，都設計了明確的提示與下一步，讓使用者知道現在發生什麼事。</p></div>
+  </div>
+</div></section>
+
+<!-- DECISIONS -->
+<section class="sec" id="decisions"><div class="wrap">
+  <div class="kicker reveal">04 / Key Decisions</div>
+  <h2 class="h2 reveal">五個關鍵設計決策</h2>
+  <p class="lead reveal">開發過程中最有價值的，不是畫面順利產出的時刻，而是系統沒有照預期運作、需要重新做判斷的時候。</p>
+
+  <!-- D1 -->
+  <article class="dec reveal">
+    <div class="dec-hd"><span class="dn">01</span><div><span class="tag">產品通用化</span><div class="h3" style="margin-top:12px">需求寫得太具體，反而限制了產品</div></div></div>
+    <dl class="pdr">
+      <div class="q"><dt><i data-lucide="circle-alert"></i>問題</dt><dd>一開始把醫療專案的情境直接寫進需求，AI 分不清「產品規則」與「專案範例」。換成電商專案測試時，埋點建議裡竟混入醫療相關事件。</dd></div>
+      <div class="d"><dt><i data-lucide="git-branch"></i>決策</dt><dd>先定義產品通用的欄位、流程與驗收條件，把特定專案降級為測試資料，並將專案內容去識別化。</dd></div>
+      <div class="r"><dt><i data-lucide="circle-check"></i>結果</dt><dd>分析規則改為只根據本次選定 Page 的來源節點，不預設產業、不沿用其他專案，平台得以套用到不同類型的產品。</dd></div>
+    </dl>
+    <div class="dec-vis grid2" style="align-items:center">
+      <div class="evrow"><div class="eh"><span>PRD 階段產出的範例事件</span><code>CDM_001 · view_page</code></div>
+        <dl><dt>頁面</dt><dd><mark>個案詳情</mark></dd><dt>觸發條件</dt><dd>當<mark>醫療人員</mark>進入<mark>個案詳情</mark>頁，且主要內容載入完成時</dd><dt>追蹤目的</dt><dd>確認個案詳情是否為<mark>醫療人員</mark>日常查看<mark>病患資料</mark>的主要入口</dd></dl></div>
+      <div><div class="shot hl-wrap" data-zoom="assets/app-event-plan.webp"><img src="assets/app-event-plan.webp" alt="電商專案出現醫療事件"><div class="hl-box"></div></div><div class="cap"><b>TEST</b>電商專案的建議中，出現「病患資訊點擊率」</div></div>
+    </div>
+  </article>
+
+  <!-- D2 -->
+  <article class="dec reveal">
+    <div class="dec-hd"><span class="dn">02</span><div><span class="tag">資料真實性</span><div class="h3" style="margin-top:12px">介面有結果，不代表功能已完成</div></div></div>
+    <dl class="pdr">
+      <div class="q"><dt><i data-lucide="circle-alert"></i>問題</dt><dd>初版看起來功能完整，實際操作才發現沒有串接 AI，分析結果是寫死的示意資料；Page 選擇與空狀態也不完整。</dd></div>
+      <div class="d"><dt><i data-lucide="git-branch"></i>決策</dt><dd>建立完整的資料流：從 Figma 取得節點、整理成模型輸入，再把 AI 回傳解析成標準欄位，最後交給人工審核。同時支援 OpenAI 與 Gemini 模型。</dd></div>
+      <div class="r"><dt><i data-lucide="circle-check"></i>結果</dt><dd>驗證的重點從「AI 有沒有回應」，轉為「模型實際讀到了哪些設計資訊」，每一段資料都能追溯。</dd></div>
+    </dl>
+    <div class="dec-vis">
+      <div class="dataflow">
+        <div class="nd"><span class="num">01</span><b>Figma</b><small>取得 Page 節點</small></div><i data-lucide="chevron-right"></i>
+        <div class="nd"><span class="num">02</span><b>資料整理</b><small>保留畫面與互動資訊</small></div><i data-lucide="chevron-right"></i>
+        <div class="nd" style="border-color:rgba(143,128,255,.4)"><span class="num">03</span><b>AI 模型</b><small>提出候選埋點</small></div><i data-lucide="chevron-right"></i>
+        <div class="nd"><span class="num">04</span><b>事件解析</b><small>轉成標準欄位</small></div><i data-lucide="chevron-right"></i>
+        <div class="nd" style="border-color:rgba(62,224,127,.45)"><span class="num">05</span><b>人工審核</b><small>確認與修正</small></div>
+      </div>
+      <div class="grid2" style="margin-top:22px;align-items:center">
+        <div><div class="shot" data-zoom="assets/v1-landing.webp"><img src="assets/v1-landing.webp" alt="初版首頁"></div><div class="cap"><b>V1</b>初版首頁：看起來已經成形</div></div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <div class="kcard" title="點擊模擬設定完成"><div class="top"><span class="ic" style="width:38px;height:38px;font-size:17px"><i data-lucide="brain-circuit"></i></span><span class="st" data-off="尚未設定" data-on="已連線">尚未設定</span></div><div class="kn">OpenAI</div><div class="env"><span>OPENAI_API_KEY</span><span data-off="未填寫" data-on="sk-••••">未填寫</span></div></div>
+          <div class="kcard" title="點擊模擬設定完成"><div class="top"><span class="ic violet" style="width:38px;height:38px;font-size:17px"><i data-lucide="sparkles"></i></span><span class="st" data-off="尚未設定" data-on="已連線">尚未設定</span></div><div class="kn">Gemini</div><div class="env"><span>GEMINI_API_KEY</span><span data-off="未填寫" data-on="AIza••">未填寫</span></div></div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- D3 -->
+  <article class="dec reveal">
+    <div class="dec-hd"><span class="dn">03</span><div><span class="tag">授權設計</span><div class="h3" style="margin-top:12px">從個人 Token 到 OAuth：讓每位使用者授權自己的 Figma</div></div></div>
+    <dl class="pdr">
+      <div class="q"><dt><i data-lucide="circle-alert"></i>問題</dt><dd>初期平台用我的個人 Token（PAT）讀取設計稿：所有人共用我的權限，也有共用金鑰的安全與維護風險，無法開放給其他設計師使用。</dd></div>
+      <div class="d"><dt><i data-lucide="git-branch"></i>決策</dt><dd>改用 Figma OAuth，並在 Figma Developers 建立 App、只申請必要的讀取權限，設定授權後的返回網址與發布方式。</dd></div>
+      <div class="r"><dt><i data-lucide="circle-check"></i>結果</dt><dd>每位使用者依自己的權限存取設計檔，從「只有我能用的工具」變成「其他設計師也能用的產品」。</dd></div>
+    </dl>
+    <div class="dec-vis" style="display:grid;grid-template-columns:1.5fr 1fr;gap:28px;align-items:start">
+      <div class="viewer" id="oauthViewer">
+        <img class="on" src="assets/figma-apps.webp" alt="建立 Developer App" data-zoom="assets/figma-apps.webp">
+        <img src="assets/figma-scopes.webp" alt="設定 OAuth 權限" data-zoom="assets/figma-scopes.webp">
+        <img src="assets/figma-credentials.webp" alt="設定授權後的返回網址" data-zoom="assets/figma-credentials.webp">
+        <img src="assets/figma-publish.webp" alt="選擇發布方式" data-zoom="assets/figma-publish.webp">
+        <span class="vlab"><b id="vNum">01</b><span id="vTxt">建立 Developer App</span></span>
+      </div>
+      <div class="steps" id="oauthSteps">
+        <div class="vstep on"><span class="ic"><i data-lucide="app-window"></i></span><div><div class="h3">建立 Developer App</div><p class="p">在 Figma Developers 建立應用程式，取得串接資訊。</p></div></div>
+        <div class="vstep"><span class="ic"><i data-lucide="shield-check"></i></span><div><div class="h3">設定 OAuth 權限</div><p class="p">只申請必要的存取範圍（Scopes）。</p></div></div>
+        <div class="vstep"><span class="ic"><i data-lucide="corner-down-left"></i></span><div><div class="h3">設定授權後的返回網址</div><p class="p">使用者按下「允許存取」後，帶回平台。</p></div></div>
+        <div class="vstep"><span class="ic amber"><i data-lucide="send"></i></span><div><div class="h3">選擇發布方式</div><p class="p">Private App 可直接發布；Public App 須提交 Figma 官方審核。</p></div></div>
+      </div>
+    </div>
+  </article>
+
+  <!-- D4 -->
+  <article class="dec reveal">
+    <div class="dec-hd"><span class="dn">04</span><div><span class="tag">效能與成本</span><div class="h3" style="margin-top:12px">OAuth 成功了，卻還是遇到 Figma API 額度限制</div></div></div>
+    <dl class="pdr">
+      <div class="q"><dt><i data-lucide="circle-alert"></i>問題</dt><dd>每次點「AI 分析」都會重新向 Figma 抓一次設計資料，即使設計稿沒改也會消耗額度；而額度又受帳號席次、方案與 API 類型影響。</dd></div>
+      <div class="d"><dt><i data-lucide="git-branch"></i>決策</dt><dd>把「取得設計資料」與「執行 AI 分析」分開：第一次匯入後，若快取仍有效，就直接用已取得的資料重新分析。</dd></div>
+      <div class="r"><dt><i data-lucide="circle-check"></i>結果</dt><dd>同一個 Page 反覆分析時，不必再額外讀取 Figma，把額度留給真正需要更新的資料。（優化方向）</dd></div>
+    </dl>
+    <div class="dec-vis grid2" style="align-items:start">
+      <div class="card" style="padding:22px"><span class="tag muted">BEFORE · 每次都重抓</span>
+        <div class="flowcol" style="margin-top:16px" data-flow="before"><div class="fnode"><i data-lucide="mouse-pointer-click"></i>點擊「AI 分析」</div><div class="fconn"></div><div class="fnode hot"><i data-lucide="refresh-cw"></i>重新呼叫 Figma API</div><div class="fconn"></div><div class="fnode"><i data-lucide="sparkles"></i>AI 產生埋點建議</div></div>
+        <div class="counter bad"><span class="v" id="cBefore">0</span><span class="l">次 Figma 請求（分析階段）</span></div></div>
+      <div class="card" style="padding:22px;border-color:rgba(62,224,127,.4)"><span class="tag">AFTER · 使用有效快取</span>
+        <div class="flowcol" style="margin-top:16px" data-flow="after"><div class="fnode"><i data-lucide="mouse-pointer-click"></i>點擊「AI 分析」</div><div class="fconn"></div><div class="fnode"><i data-lucide="database"></i>優先使用已取得的設計資料</div><div class="fconn"></div><div class="fnode"><i data-lucide="sparkles"></i>AI 重新產生埋點建議</div></div>
+        <div class="counter good"><span class="v" id="cAfter">0</span><span class="l">次 Figma 請求（分析階段）</span></div></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;align-items:center;flex-wrap:wrap"><button class="simbtn" id="simRun"><i data-lucide="play"></i>模擬：同一 Page 分析 5 次</button><button class="simbtn ghost-btn" id="simReset"><i data-lucide="rotate-ccw"></i>重設</button>
+      <span class="p" style="font-size:14px;margin-left:8px">延伸觀察：ChatGPT 透過 MCP 讀取 Figma，與平台直接呼叫 Figma API 的整合方式不同，不能直接比較額度。</span></div>
+  </article>
+
+  <!-- D5 -->
+  <article class="dec reveal">
+    <div class="dec-hd"><span class="dn">05</span><div><span class="tag">分析品質</span><div class="h3" style="margin-top:12px">AI 產出太少時，先確認規則，而不是要求更多</div></div></div>
+    <dl class="pdr">
+      <div class="q"><dt><i data-lucide="circle-alert"></i>問題</dt><dd>分析一個大型、流程複雜的頁面，AI 卻只產出 8 筆埋點事件。直覺會想要求 AI「多產一點」。</dd></div>
+      <div class="d"><dt><i data-lucide="git-branch"></i>決策</dt><dd>先回頭檢查整條資料流：Figma 資料有沒有讀完整、送給 AI 時有沒有被截斷、建議是否涵蓋主要流程，並請 Codex 列出目前的分析規則。</dd></div>
+      <div class="r"><dt><i data-lucide="circle-check"></i>結果</dt><dd>確認平台的策略是「挑選有價值的第一階段事件」，而非「列出所有操作」，並找出輸入上限是大型頁面產出偏少的原因之一。</dd></div>
+    </dl>
+    <div class="dec-vis grid2" style="align-items:start">
+      <div><div class="shot" data-zoom="assets/ai-thin-result.webp"><img src="assets/ai-thin-result.webp" alt="AI 產出的埋點清單"></div><div class="cap"><b>RESULT</b>大型流程只產出 8 筆</div></div>
+      <div class="chat"><div class="chat-hd"><span class="dots"><span></span><span></span><span></span></span><span class="ttl"><i data-lucide="terminal"></i>CODEX · AI 模型主要限制</span></div>
+        <div class="chat-bd"><div class="rlist list" style="margin-top:0">
+          <div class="li"><i data-lucide="crosshair"></i><span>只根據本次選定 Page 的來源節點，不預設產業、不沿用其他專案。</span></div>
+          <div class="li"><i data-lucide="eye-off"></i><span>去識別化，但保留功能語意。</span></div>
+          <div class="li key"><i data-lucide="filter"></i><span><b>排除返回、取消、關閉、部分收合、日期導覽及純資訊顯示</b>；後端也會過濾。</span></div>
+          <div class="li"><i data-lucide="list-filter"></i><span>只保留有產品決策價值的事件，允許零筆，最多 80 筆。</span></div>
+          <div class="li key"><i data-lucide="scissors"></i><span>輸入摘要上限為 <b>1,200 節點、96,000 字元</b>，大型頁面不保證每個節點都送進模型。</span></div>
+        </div></div></div>
+    </div>
+  </article>
+</div></section>
+
+<!-- PROCESS -->
+<section class="sec" id="process"><div class="wrap">
+  <div class="kicker reveal">05 / Process</div>
+  <h2 class="h2 reveal">與 AI 協作的<em>五個階段</em></h2>
+  <p class="lead reveal">不是一次下指令就完成，而是透過需求定義、功能驗證與反覆修正，逐步把產品做出來。</p>
+  <div class="timeline" style="margin-top:56px">
+    <div class="card tl reveal"><div class="n2">01</div><span class="tool">ChatGPT</span><div class="h3">定義需求與規格</div><p class="p">釐清需求、使用流程與功能規格，建立開發依據。</p></div>
+    <div class="card tl reveal"><div class="n2">02</div><span class="tool">Codex</span><div class="h3">建立產品初版</div><p class="p">開發核心功能，實際操作並檢查流程是否符合預期。</p></div>
+    <div class="card tl reveal"><div class="n2">03</div><span class="tool">Figma / OpenAI / Gemini</span><div class="h3">串接 Figma 與 AI</div><p class="p">取得設計資料，讓 AI 分析畫面並產生埋點建議。</p></div>
+    <div class="card tl reveal"><div class="n2">04</div><span class="tool">GitHub × Cloudflare</span><div class="h3">部署網站</div><p class="p">以 GitHub 管理程式碼，透過 Cloudflare 部署正式網站。</p></div>
+    <div class="card tl reveal"><div class="n2">05</div><span class="tool">Codex</span><div class="h3">測試與持續優化</div><p class="p">處理授權、API 額度與操作中的異常狀況。</p></div>
+  </div>
+
+  <div class="sub-h reveal">我和 AI 協作的方法</div>
+  <div class="grid3">
+    <div class="card reveal"><span class="ic"><i data-lucide="split"></i></span><div class="h3" style="margin-top:18px">分開「規則」與「範例」</div><p class="p" style="margin-top:8px">需求裡只寫產品通用的規則，特定專案當作測試資料，避免 AI 把範例當成預設。</p></div>
+    <div class="card reveal"><span class="ic violet"><i data-lucide="scan-search"></i></span><div class="h3" style="margin-top:18px">追問資料從哪裡來</div><p class="p" style="margin-top:8px">不因為介面有結果就當作完成，持續確認流程是否真的有執行、資料是否完整。</p></div>
+    <div class="card reveal"><span class="ic amber"><i data-lucide="list-ordered"></i></span><div class="h3" style="margin-top:18px">用結構化方式回報問題</div><p class="p" style="margin-top:8px">比起「這裡不好用」，明確描述情境，Codex 才能逐項修正、再驗收。</p></div>
+  </div>
+  <div class="callout reveal"><span>回報方式：</span><div class="howfix"><span><i data-lucide="list-ordered"></i>操作步驟</span><i data-lucide="arrow-right"></i><span><i data-lucide="eye"></i>實際結果</span><i data-lucide="arrow-right"></i><span><i data-lucide="target"></i>預期結果</span><i data-lucide="arrow-right"></i><span style="background:var(--green);color:#05170f;border-color:var(--green)">請 Codex 修正</span></div></div>
+
+  <div class="sub-h reveal">部署選擇：Vercel 還是 Cloudflare？</div>
+  <div class="grid2" style="grid-template-columns:1.35fr 1fr;align-items:center">
+    <div class="card reveal" style="padding:20px 10px 8px;overflow-x:auto">
+      <table class="cmp" style="min-width:520px">
+        <thead><tr><th>比較</th><th><span class="brand"><i data-lucide="triangle"></i>Vercel</span><small class="nick">像「前端專屬的精品工作室」</small></th><th class="colcf" style="border-radius:12px 12px 0 0;padding-top:12px"><span class="brand"><i data-lucide="cloud" style="color:#f6821f"></i>Cloudflare</span><small class="nick">像「全球物流網＋自家倉庫」</small></th></tr></thead>
+        <tbody>
+          <tr><td>最大優點</td><td>每次改動自動產生預覽連結</td><td class="cf colcf">程式在離使用者最近的機房執行</td></tr>
+          <tr><td>資料與儲存</td><td>透過市集串接其他廠商服務</td><td class="cf colcf">資料庫、儲存、快取都是自家服務</td></tr>
+          <tr><td>適合誰</td><td>重視開發順手、快速預覽的團隊</td><td class="cf colcf">想一個平台包辦網站、後端與資料</td></tr>
+          <tr class="pick"><td>對我的專案</td><td>要重新確認架構相容、再測一次</td><td class="cf colcf" style="border-radius:0 0 12px 12px">Codex 已照 Cloudflare 規格建好，直接沿用</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="reveal"><div class="shot" data-zoom="assets/cf-build.webp"><img src="assets/cf-build.webp" alt="Cloudflare 自動建置"></div><div class="cap"><b>DEPLOY</b>連接 GitHub 後自動建置與部署</div></div>
+  </div>
+</div></section>
+
+<!-- OUTCOME -->
+<section class="sec" id="outcome"><div class="wrap">
+  <div class="kicker reveal">06 / Outcome</div>
+  <h2 class="h2 reveal">從散落的對話，<em>到一份可交付的文件</em></h2>
+  <p class="lead reveal">埋點規劃不再需要在 ChatGPT、Excel 與 Figma 之間來回切換，每一次分析的成果都能被保存、管理並交付。</p>
+  <div class="vs" style="margin-top:40px">
+    <div class="card reveal" style="opacity:.85"><span class="tag muted">BEFORE · 跨 3 個工具</span>
+      <ol><li>建立 Excel 範本</li><li>把 Figma 畫面交給 ChatGPT</li><li>反覆確認與修正 <em>耗時</em></li><li>下載成 Excel</li><li>手動整併不同批次 <em>耗時</em></li></ol></div>
+    <div class="card after reveal" style="border-color:rgba(62,224,127,.4);background:linear-gradient(180deg,rgba(62,224,127,.12),rgba(62,224,127,.02))"><span class="tag">AFTER · 單一平台</span>
+      <ol><li>貼上 Figma 連結，匯入 Page</li><li>選擇 Page，AI 產出候選事件</li><li>依優先級審核、勾選與編輯</li><li>存入專案事件庫</li><li>一鍵匯出 13 欄位的 Excel</li></ol></div>
+  </div>
+  <div class="grid3" style="margin-top:22px">
+    <div class="card reveal"><span class="ic"><i data-lucide="file-check-2"></i></span><div class="h3" style="margin-top:18px">成果可保存</div><p class="p" style="margin-top:8px">分析結果以專案、Page 為單位保存，不再只留在聊天紀錄裡。</p></div>
+    <div class="card reveal"><span class="ic violet"><i data-lucide="users-round"></i></span><div class="h3" style="margin-top:18px">可給其他設計師使用</div><p class="p" style="margin-top:8px">透過 OAuth 與獨立部署，同事可以用自己的 Figma 帳號直接使用。</p></div>
+    <div class="card reveal"><span class="ic amber"><i data-lucide="handshake"></i></span><div class="h3" style="margin-top:18px">跨部門的共同語言</div><p class="p" style="margin-top:8px">統一的欄位與優先級，讓設計、PM 與工程討論埋點時有一致的基準。</p></div>
+  </div>
+</div></section>
+
+<!-- REFLECTION -->
+<section class="sec" id="reflection"><div class="wrap">
+  <div class="kicker reveal">07 / Reflection</div>
+  <div class="big-quote reveal">
+    <h2>技術門檻降低後，<br><span class="g">「體驗」反而更有價值。</span></h2>
+    <p>AI 補上了技術，但<b>哪些問題值得解決、怎樣才算好用</b>，仍需要設計師的判斷與經驗。</p>
+  </div>
+
+  <div class="sub-h reveal">我學到的事</div>
+  <div class="grid2">
+    <div class="card reveal" style="display:flex;gap:18px"><span class="ic"><i data-lucide="network"></i></span><div><div class="h3">API 與資料流</div><p class="p" style="margin-top:6px">理解 Figma 資料如何被讀取、整理，再交給 AI 分析，而不只是看到最後的結果。</p></div></div>
+    <div class="card reveal" style="display:flex;gap:18px"><span class="ic violet"><i data-lucide="shield-check"></i></span><div><div class="h3">OAuth 與權限</div><p class="p" style="margin-top:6px">理解 PAT 與 OAuth 的差異，以及授權成功不代表 API 就能無限制使用。</p></div></div>
+    <div class="card reveal" style="display:flex;gap:18px"><span class="ic amber"><i data-lucide="rocket"></i></span><div><div class="h3">部署與環境</div><p class="p" style="margin-top:6px">理解 GitHub 與 Cloudflare 的角色；程式寫好，不代表網站已經能用。</p></div></div>
+    <div class="card reveal" style="display:flex;gap:18px"><span class="ic"><i data-lucide="database"></i></span><div><div class="h3">避免重複讀取資料</div><p class="p" style="margin-top:6px">同一份設計稿不必每次重新讀取，也要判斷資料何時該更新、何時已過期。</p></div></div>
+  </div>
+
+  <div class="sub-h reveal">下一步</div>
+  <div class="grid3">
+    <div class="card reveal"><span class="ic"><i data-lucide="database-zap"></i></span><div class="h3" style="margin-top:18px">讓快取機制正式上線</div><p class="p" style="margin-top:8px">把讀取與分析分開的優化方向落地，降低 API 額度消耗。</p></div>
+    <div class="card reveal"><span class="ic violet"><i data-lucide="badge-check"></i></span><div class="h3" style="margin-top:18px">完成 Figma App 審核</div><p class="p" style="margin-top:8px">通過官方審核後，讓更多團隊不需額外設定就能使用。</p></div>
+    <div class="card reveal"><span class="ic amber"><i data-lucide="chart-line"></i></span><div class="h3" style="margin-top:18px">驗證實際成效</div><p class="p" style="margin-top:8px">導入團隊後，追蹤規劃時間、採用率與工程端回饋，用數據驗證產品價值。</p></div>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap"><span>埋點規劃工具 · Case Study　|　彭子傑 Jay</span><a href="#" style="text-decoration:none;display:inline-flex;gap:8px;align-items:center"><i data-lucide="arrow-up"></i>回到頂部</a></div></footer>
+<div id="lightbox"><img alt=""></div>
+
+<script>
+(() => {
+  if (window.lucide) lucide.createIcons();
+
+  // reveal on scroll
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px" });
+  document.querySelectorAll(".reveal").forEach((el, i) => { el.style.transitionDelay = (i % 5) * 60 + "ms"; io.observe(el); });
+
+  // progress + toc
+  const prog = document.getElementById("progress");
+  const links = [...document.querySelectorAll("#toc a")];
+  const secs = links.map(a => document.querySelector(a.getAttribute("href")));
+  function onScroll(){
+    const h = document.documentElement; prog.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + "%";
+    let k = -1; secs.forEach((s, i) => { if (s.getBoundingClientRect().top < innerHeight * .4) k = i; });
+    links.forEach((a, i) => a.classList.toggle("on", i === k));
+  }
+  addEventListener("scroll", onScroll, { passive: true }); onScroll();
+
+  // hero tilt + spotlight
+  const tilt = document.getElementById("heroTilt");
+  addEventListener("mousemove", e => {
+    const x = e.clientX / innerWidth, y = e.clientY / innerHeight;
+    document.documentElement.style.setProperty("--sx", x * 100 + "%"); document.documentElement.style.setProperty("--sy", y * 100 + "%");
+    mouse.x = e.clientX; mouse.y = e.clientY;
+    if (scrollY < innerHeight) { tilt.style.setProperty("--ry", ((x - .5) * 14 - 6) + "deg"); tilt.style.setProperty("--rx", ((.5 - y) * 10 + 3) + "deg"); }
+  });
+
+  // lightbox
+  const lb = document.getElementById("lightbox");
+  document.addEventListener("click", e => { const z = e.target.closest("[data-zoom]"); if (z && !(z.closest(".viewer") && !z.classList.contains("on"))) { lb.querySelector("img").src = z.dataset.zoom; lb.classList.add("on"); } });
+  lb.addEventListener("click", () => lb.classList.remove("on"));
+  addEventListener("keydown", e => { if (e.key === "Escape") lb.classList.remove("on"); });
+
+  // demo (lazy)
+  const frame = document.getElementById("demoFrame"), ph = document.getElementById("demoPh"), open = document.getElementById("demoOpen");
+  let demoUrl = "demo/index.html";
+  if (window.__DEMO_HTML__) { demoUrl = URL.createObjectURL(new Blob([window.__DEMO_HTML__], { type: "text/html" })); open.href = demoUrl; }
+  const loadDemo = () => { frame.hidden = false; ph.remove(); if (window.__DEMO_HTML__) frame.srcdoc = window.__DEMO_HTML__; else frame.src = demoUrl + "?t=" + Date.now(); };
+  const dio = new IntersectionObserver(es => { if (es[0].isIntersecting) { loadDemo(); dio.disconnect(); } }, { rootMargin: "400px" });
+  dio.observe(document.querySelector(".demo"));
+  document.getElementById("demoReset").addEventListener("click", () => { if (frame.hidden) return; if (window.__DEMO_HTML__) frame.srcdoc = window.__DEMO_HTML__ + "<!-- " + Date.now() + " -->"; else frame.src = "demo/index.html?t=" + Date.now(); });
+
+  // API key cards
+  document.querySelectorAll(".kcard").forEach(c => c.addEventListener("click", () => { const on = c.classList.toggle("ok"); c.querySelectorAll("[data-on]").forEach(el => el.textContent = on ? el.dataset.on : el.dataset.off); }));
+
+  // OAuth step viewer
+  const oSteps = [...document.querySelectorAll("#oauthSteps .vstep")], oImgs = [...document.querySelectorAll("#oauthViewer img")];
+  let oCur = 0, oUser = false;
+  const oShow = k => { oCur = k; oSteps.forEach((s, i) => s.classList.toggle("on", i === k)); oImgs.forEach((im, i) => im.classList.toggle("on", i === k)); document.getElementById("vNum").textContent = "0" + (k + 1); document.getElementById("vTxt").textContent = oSteps[k].querySelector(".h3").textContent; };
+  oSteps.forEach((s, i) => s.addEventListener("click", () => { oUser = true; oShow(i); }));
+  setInterval(() => { if (oUser) return; const r = document.getElementById("oauthViewer").getBoundingClientRect(); if (r.top < innerHeight && r.bottom > 0) oShow((oCur + 1) % oSteps.length); }, 4500);
+
+  // cache simulator
+  const cB = document.getElementById("cBefore"), cA = document.getElementById("cAfter");
+  const fb = [...document.querySelectorAll('[data-flow="before"] .fnode')], fa = [...document.querySelectorAll('[data-flow="after"] .fnode')];
+  let busy = false; const wait = ms => new Promise(r => setTimeout(r, ms));
+  document.getElementById("simReset").addEventListener("click", () => { if (!busy) { cB.textContent = 0; cA.textContent = 0; } });
+  document.getElementById("simRun").addEventListener("click", async () => {
+    if (busy) return; busy = true; cB.textContent = 0; cA.textContent = 0;
+    for (let r = 0; r < 5; r++) { for (let k = 0; k < 3; k++) { fb[k].classList.add("lit"); fa[k].classList.add("lit"); if (k === 1) cB.textContent = +cB.textContent + 1; await wait(260); fb[k].classList.remove("lit"); fa[k].classList.remove("lit"); } await wait(120); }
+    busy = false;
+  });
+
+  // background particles
+  const cv = document.getElementById("bgfx"), ctx = cv.getContext("2d"); const mouse = { x: -999, y: -999 };
+  let W, H; const P = [];
+  function size(){ const d = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0); }
+  size(); addEventListener("resize", size);
+  for (let i = 0; i < 52; i++) P.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .25, vy: (Math.random() - .5) * .25, r: Math.random() * 1.5 + .6 });
+  const pings = [];
+  (function tick(){
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    ctx.clearRect(0, 0, W, H);
+    for (const p of P) { p.x += p.vx; p.y += p.vy; if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1; const dx = p.x - mouse.x, dy = p.y - mouse.y, d = Math.hypot(dx, dy); if (d < 140) { p.x += dx / d * .8; p.y += dy / d * .8; } }
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { const a = P[i], b = P[j], d = Math.hypot(a.x - b.x, a.y - b.y); if (d < 150) { ctx.strokeStyle = `rgba(120,240,170,${(1 - d / 150) * .12})`; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); } }
+    for (const p of P) { ctx.fillStyle = "rgba(167,243,196,.5)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+    if (Math.random() < .02) { const p = P[Math.random() * P.length | 0]; pings.push({ x: p.x, y: p.y, t: 0 }); }
+    for (let k = pings.length - 1; k >= 0; k--) { const g = pings[k]; g.t += .012; if (g.t >= 1) { pings.splice(k, 1); continue; } ctx.strokeStyle = `rgba(62,224,127,${(1 - g.t) * .55})`; ctx.beginPath(); ctx.arc(g.x, g.y, 4 + g.t * 28, 0, 7); ctx.stroke(); }
+    requestAnimationFrame(tick);
+  })();
+})();
+</script>
+</body>
+</html>
