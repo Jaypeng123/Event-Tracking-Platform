@@ -52,10 +52,20 @@ i[data-lucide],svg.lucide{width:1em;height:1em;stroke-width:1.8;flex:none}
 .fill>.card .h3{margin-top:auto!important;font-size:28px}
 .fill>.card .p{font-size:18px}
 .fill>.card{overflow:hidden}
-.ghost{position:absolute;right:-28px;bottom:38%;font-size:190px;color:var(--green);opacity:.06;pointer-events:none;transition:opacity .4s,transform .6s var(--ease)}
-.ghost svg{stroke-width:1.1}
-.fill>.card:hover .ghost{opacity:.13;transform:rotate(-8deg) scale(1.06)}
-.fill.states .ghost{display:none}
+/* icon medallion filling the open middle of tall cards */
+.medal{flex:1;min-height:0;display:grid;place-items:center;pointer-events:none;--mc:var(--green);--mr:62,224,127}
+.medal.amber{--mc:var(--amber);--mr:242,193,78}.medal.violet{--mc:var(--violet);--mr:143,128,255}.medal.red{--mc:var(--red);--mr:255,107,107}
+.medal i{position:relative;width:104px;height:104px;border-radius:50%;display:grid;place-items:center;color:var(--mc);
+  background:radial-gradient(circle at 35% 30%,rgba(var(--mr),.26),rgba(var(--mr),.05) 70%);border:1px solid rgba(var(--mr),.35);
+  box-shadow:0 0 40px rgba(var(--mr),.18),inset 0 0 24px rgba(var(--mr),.12);transition:transform .5s var(--ease),box-shadow .5s}
+.medal i::before,.medal i::after{content:"";position:absolute;border-radius:50%;border:1px dashed rgba(var(--mr),.25)}
+.medal i::before{inset:-16px;animation:spin 24s linear infinite}
+.medal i::after{inset:-32px;border-style:solid;border-color:rgba(var(--mr),.08)}
+.medal svg{width:46px;height:46px;stroke-width:1.6}
+.fill>.card:hover .medal i{transform:scale(1.07);box-shadow:0 0 60px rgba(var(--mr),.3),inset 0 0 24px rgba(var(--mr),.18)}
+.fill>.card.has-medal .ic{display:none}
+.flow5 .medal i{width:84px;height:84px}.flow5 .medal svg{width:38px;height:38px}
+.flow5 .medal i::after{inset:-26px}
 .fill.states{grid-auto-rows:1fr}
 .why4>.card .h3{font-size:24px!important;white-space:nowrap}
 .why4>.card .p{min-height:calc(1.75em * 4)}
@@ -1116,7 +1126,7 @@ body.live-on #help{display:none}
     const nav = s.querySelector(".secnav"); if (!nav) return;
     nav.innerHTML = SECS.map(([id,l],i) => `<button data-goto="${id}" class="${+s.dataset.sec===i?"on":""}">${l}</button>`).join("");
   });
-  document.querySelectorAll('.fill>.card').forEach(c => { const ic = c.querySelector('.ic svg'); if (!ic) return; const g = document.createElement('span'); g.className = 'ghost'; g.appendChild(ic.cloneNode(true)); c.appendChild(g); });
+  document.querySelectorAll('.fill:not(.states)>.card').forEach(c => { const ic = c.querySelector('.ic'); const h = c.querySelector('.h3'); if (!ic || !h) return; const m = document.createElement('span'); m.className = 'medal ' + [...ic.classList].filter(k => k !== 'ic').join(' '); const ring = document.createElement('i'); ring.appendChild(ic.querySelector('svg').cloneNode(true)); m.appendChild(ring); h.parentNode.insertBefore(m, h); c.classList.add('has-medal'); });
   // stagger index for entry animations
   slides.forEach(s => s.querySelectorAll("[data-a]").forEach((el,i) => el.style.setProperty("--i", i)));
 
