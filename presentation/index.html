@@ -926,35 +926,6 @@ body.live-on #help{display:none}
     <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
   </section>
 
-  <!-- 22 帳號管理 -->
-  <section class="slide" data-stage="4" data-notes="當時我把用 ChatGPT Sites 做出來的網站連結打開，卻被要求先登入 ChatGPT。我心想：這不就是一個網址嗎？為什麼還需要登入？這讓我擔心，如果繼續這樣做，整個產品會不會一直建立在 ChatGPT 底下，同事也沒辦法直接打開使用。所以我跟 Codex 討論後，決定保留 Sites 當測試版，把程式碼放到 GitHub 管理，再透過 Cloudflare 部署成獨立的正式網站。">
-    <div class="kicker" data-a>03 / How</div>
-    <h2 class="title" data-a>打開網址，<em>卻要先登入 ChatGPT</em>？</h2>
-    <p class="sub" data-a>用 ChatGPT Sites 分享測試網站時，開啟連結竟然要先登入 ChatGPT——我開始擔心，產品會不會一直綁在 ChatGPT 底下。</p>
-    <div class="body" style="flex-direction:row;gap:40px;margin-top:30px">
-      <div data-a style="width:520px;position:relative;align-self:flex-start">
-        <div class="browser">
-          <div class="bar"><span class="dots"><span></span><span></span><span></span></span><span class="url"><i data-lucide="lock"></i>tracking-plan-builder-jay….chatgpt.site</span></div>
-          <div class="pg"><div class="login"><div class="lg"><i data-lucide="message-circle"></i></div><h4>請先登入 ChatGPT</h4><p>登入後才能繼續瀏覽此網站</p><div class="b1">登入</div><div class="b2">免費註冊</div></div></div>
-        </div>
-        <div class="thought"><i data-lucide="circle-help"></i>不就是一個網址嗎？同事要怎麼用？</div>
-      </div>
-      <div class="chat" data-a style="flex:1;align-self:stretch">
-        <div class="chat-hd"><span class="dots"><span></span><span></span><span></span></span><span class="ttl"><i data-lucide="terminal"></i>CODEX · 對話紀錄</span><span class="live">CONVERSATION</span></div>
-        <div class="chat-bd" style="gap:22px;padding:26px 28px;justify-content:center">
-          <div class="msg me"><span class="av">J</span><div><div class="who">JAY · PROMPT</div><div class="bubble">「能不能讓網站不要綁定目前的帳號？因為我之後可能會切換 Codex 帳號，而且這個網站最終要提供給同事使用。」</div></div></div>
-          <div class="msg ai"><span class="av"><i data-lucide="terminal"></i></span><div style="flex:1"><div class="who">與 CODEX 討論後的部署方向</div>
-            <div class="bubble" style="display:flex;flex-direction:column;gap:10px;padding:16px">
-              <div class="fnode"><i data-lucide="flask-conical"></i><b style="font-weight:600">Sites</b><span style="color:var(--text-2)">保留作為測試版</span></div>
-              <div class="fnode"><i data-lucide="github"></i><b style="font-weight:600">GitHub</b><span style="color:var(--text-2)">管理程式碼</span></div>
-              <div class="fnode" style="border-color:rgba(62,224,127,.4);background:rgba(62,224,127,.1)"><i data-lucide="cloud"></i><b style="font-weight:600">Cloudflare／Vercel</b><span style="color:var(--text-2)">部署獨立的正式網站</span></div>
-            </div></div></div>
-        </div>
-      </div>
-    </div>
-    <div class="callout" data-a style="margin-top:28px"><span class="ic amber"><i data-lucide="users-round"></i></span><span>網址打得開，不代表別人能用。要讓同事使用，<b>網站必須獨立部署，不依附在個人帳號上</b>。</span></div>
-    <div class="foot"><span>DESIGN × AI × PRODUCT</span></div>
-  </section>
   <!-- 23 Vercel vs Cloudflare -->
   <section class="slide" data-stage="4" data-notes="我之前比較熟悉 Vercel，所以這次也順便研究它和 Cloudflare 有什麼不同。其實兩者都可以部署網站、執行後端程式，也都能串接 Figma 和 AI。Vercel 在前端開發、預覽與部署流程上很方便；Cloudflare 則把 Workers、網路、安全和資料服務整合在同一個生態系。但我這個專案不是因為 Cloudflare 在所有方面都比較好才選它，而是 Codex 當時已經建立了和 Cloudflare Workers 相容的架構，沿用它可以減少重新修改和測試的成本。">
     <div class="kicker" data-a>03 / How</div>
@@ -1096,7 +1067,7 @@ body.live-on #help{display:none}
 </div>
 
 <div id="progress"></div>
-<div id="nav"><button data-act="prev" title="上一頁 (←)"><i data-lucide="chevron-left"></i></button><span class="count" id="count">01 / 30</span><button data-act="next" title="下一頁 (→)"><i data-lucide="chevron-right"></i></button><button data-act="notes" title="講者備註 (N)"><i data-lucide="notebook-pen"></i></button><button data-act="fs" title="全螢幕 (F)"><i data-lucide="maximize"></i></button></div>
+<div id="nav"><button data-act="prev" title="上一頁 (←)"><i data-lucide="chevron-left"></i></button><span class="count" id="count">01 / 29</span><button data-act="next" title="下一頁 (→)"><i data-lucide="chevron-right"></i></button><button data-act="notes" title="講者備註 (N)"><i data-lucide="notebook-pen"></i></button><button data-act="fs" title="全螢幕 (F)"><i data-lucide="maximize"></i></button></div>
 <div id="notesPanel"><h4>SPEAKER NOTES</h4><div id="notesText"></div></div>
 <div id="lightbox"><img alt=""></div>
 
