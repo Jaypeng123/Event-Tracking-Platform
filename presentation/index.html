@@ -874,7 +874,7 @@ body.live-on #help{display:none}
   <!-- 19 API 額度 -->
   <section class="slide" data-stage="3" data-notes="後來我遇到一個新的問題：明明 OAuth 已經成功，Figma 也曾經可以正常匯入，但使用一段時間後，卻突然無法取得新資料。排查後才知道，Figma API 本身有額度限制。這個限制和使用者的席次、檔案所屬方案，以及呼叫的是哪一類 API 都有關係。也就是說，OAuth 只代表使用者同意平台以他的權限讀取檔案，不代表能無限制呼叫 Figma。這個發現讓我開始思考，平台是否真的需要在每次操作時，都重新向 Figma 取得同樣的資料。">
     <div class="kicker" data-a>03 / How</div>
-    <h2 class="title" data-a>OAuth 成功後，但還是遇到 <em>API 額度限制</em>？</h2>
+    <h2 class="title" data-a>OAuth 成功了，卻還是遇到 <em>Figma API 額度限制</em>？</h2>
     <p class="sub" data-a>雖然已經可以正常讀取設計稿，但不同使用者能呼叫 API 的次數，可能有很大的差異。</p>
     <div class="body">
       <div class="grid3 fill">
