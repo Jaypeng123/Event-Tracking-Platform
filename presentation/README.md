@@ -26,7 +26,7 @@ cd .. && python3 build_standalone.py          # 更新 standalone.html
 ```
 
 ## HTML 簡報 Skill（`skills/html-deck/`）
-把這份簡報的做法與 `AI_Skill.zip` 裡 60 份設計 skill 的規則，整理成可重複使用的簡報製作 skill。
-- `SKILL.md`：主流程與硬規則；`references/` 放細節（內容流程、視覺系統、動態、素材與嵌入、QA、來源對照）
-- `assets/template.html`：簡報骨架；`scripts/`：圖示內嵌、單檔建置、逐頁截圖 QA
-- 安裝：把整個 `html-deck` 資料夾放到 `~/.claude/skills/`（Claude Code）或對應工具的 skills 目錄；`html-deck.zip` 是同內容的壓縮檔
+通用的 HTML 簡報製作 skill，適用任何主題與場合（設計分享、提案、發表、技術分享、教學、工作坊、成果報告、研究、作品集）。內容整合自 `AI_Skill.zip` 全部 60 份文件中對簡報有用的規則，加上實際製作經驗。
+- `SKILL.md`：路線選擇、流程、硬規則、可搭配的 skill；`references/` 放細節（內容流程與簡報類型骨架、視覺系統、圖表與數據、動態、素材與嵌入、QA、來源對照）
+- `assets/template.html`：中性淺色／深色兩套 tokens 的簡報骨架；`scripts/`：圖示內嵌、單檔建置、逐頁截圖 QA
+- 安裝：把整個 `html-deck` 資料夾放到 `~/.claude/skills/`（或對應工具的 skills 目錄）；`html-deck.zip` 是同內容的壓縮檔

@@ -1,103 +1,107 @@
 ---
 name: html-deck
-description: 製作可直接播放的 HTML 互動簡報（1600×900 固定舞台、鍵盤翻頁、講者備註、全螢幕、可離線的單一檔案），適合設計分享、作品集、產品介紹、教學與提案。當使用者要「做簡報／投影片／deck／slides」、要把 PPTX 或文件轉成網頁簡報、要在簡報裡嵌入線上網站或可操作的 Demo、或要把簡報改成作品集案例頁時使用。不用於產出 .pptx 檔（那是 PPTX 路線）或以 AI 生成整頁圖片的簡報。
+description: 製作可直接在瀏覽器播放的 HTML 互動簡報：固定 16:9 舞台、鍵盤與觸控翻頁、講者備註、全螢幕、可列印成 PDF、可離線開啟的單一檔案。適用於任何主題與場合：設計分享、提案與募資簡報、產品發表、技術分享、教學與課程、工作坊、成果報告與週報、研究報告、作品集與案例研究。當使用者要「做簡報／投影片／deck／slides／pitch」、要把文件、筆記、PPTX、PDF、網頁或 Figma 內容轉成簡報、要在簡報中嵌入網站或可操作的 Demo、要審查或改善既有簡報、或要把簡報延伸成作品集長頁時使用。不適用：必須交付可在 PowerPoint 編輯的 .pptx（改用 PPTX 類 skill）、整頁由 AI 生成圖片組成的圖片式簡報。
 ---
 
 # HTML 互動簡報
 
-做出來的簡報要能在任何瀏覽器全螢幕播放、不捲動、離線可用，而且看起來是設計師做的，不是 AI 範本。
+目標：任何主題、任何場合，都能做出一份**內容站得住、看起來是設計師做的、在現場不會出包**的簡報。
 
-需要細節時讀 references：
-- `references/workflow.md`：需求表、六步驟內容流程、確認點、誠實規則
-- `references/visual-system.md`：design read、tokens、字體與字級、版型輪替、元件規格、AI 味檢查表
-- `references/motion.md`：動態的用途、參數、簡報專屬技術規則
-- `references/assets-embed-build.md`：截圖處理、Figma 取材、HTML 重建介面、嵌入網站、離線 Demo、單檔交付、作品集頁
-- `references/qa.md`：截圖 QA、人工走查、審查格式、無障礙底線、已知技術陷阱
-- `references/sources.md`：規則來源與衝突裁決（修改這份 skill 前先讀）
+## 何時讀哪份 reference
 
-工具：
-- `assets/template.html`：可直接複製的簡報骨架（舞台縮放、翻頁、備註、計時、燈箱、列印、tokens、基本元件）
-- `scripts/inline-icons.cjs`：把 Lucide 圖示內嵌成離線可用
-- `scripts/build_standalone.py`：圖片與 Demo 內嵌成單一 HTML
-- `scripts/shoot.cjs`：逐頁截圖、縮圖總覽、出界／裁切／孤字／錯誤偵測
+| 階段 | 讀 |
+| --- | --- |
+| 開工、寫大綱 | `references/workflow.md`：需求表、簡報類型與骨架、六步驟、確認點、誠實規則 |
+| 定風格、排版 | `references/visual-system.md`：design read、色彩策略、tokens、字級、版型輪替、元件、AI 味清單 |
+| 圖表、流程圖、數據 | `references/diagrams-data.md`：先問要不要畫、圖表選型、複雜度上限、資料誠實 |
+| 加動態與互動 | `references/motion.md`：用途關卡、參數、簡報專屬規則 |
+| 素材、截圖、Figma、生成圖、嵌入網站、Demo、單檔交付 | `references/assets-embed-build.md` |
+| 檢查、審查、交付 | `references/qa.md`：自動截圖、人工走查、審查格式、無障礙、技術陷阱 |
+| 修改這份 skill 前 | `references/sources.md`：每條規則來自哪份 skill、衝突怎麼裁決 |
+
+工具：`assets/template.html`（簡報骨架）、`scripts/inline-icons.cjs`（圖示離線內嵌）、`scripts/build_standalone.py`（單檔建置）、`scripts/shoot.cjs`（逐頁截圖＋出界／裁切／孤字／錯誤偵測）。
 
 ## 0. 選路線
 
 | 需求 | 路線 |
 | --- | --- |
-| 現場播放、要互動、要嵌入網站或 Demo、要寄單一檔案 | **本 skill（HTML）** |
-| 對方一定要能用 PowerPoint 編輯 | 可編輯 PPTX（其他 skill） |
-| 視覺海報式、不需要編輯文字 | 圖片式 PPTX（其他 skill） |
+| 現場或線上播放、需要互動、嵌入網站或 Demo、寄送單一檔案、轉作品集 | **本 skill** |
+| 對方必須在 PowerPoint／Keynote 裡改字 | 可編輯 PPTX 類 skill（本 skill 的內容流程與視覺規則仍適用） |
+| 海報感、整頁視覺、不需要改字 | 圖片式簡報類 skill |
+| 要輸出成影片 | 影片合成類 skill；本 skill 的故事線與視覺規則可沿用 |
 
-不確定時問一句：「需要在 PowerPoint 裡編輯嗎？」不需要就走 HTML。
+不確定就問一句：「需要在 PowerPoint 裡編輯嗎？」不需要就走 HTML。
 
 ## 1. 流程（細節見 workflow.md）
 
-1. **蒐集**：填需求表。使用者給了 PPTX／文件／截圖就先完整讀過，從中自動填表，只問會改變方向的缺口（受眾、時間、要不要 Demo、播放場景）。**使用者給的每一張圖、每一段內容都要被用到或說明為何不用。**
-2. **大綱**（確認點 1）：逐頁表：標題（直接講結論）／該頁目的／版型家族／講者重點。故事骨架、情緒曲線、唯一高峰一起給。
-3. **design read＋樣張**（確認點 2）：寫一段 design read（場景、方向、主色來源、記憶點），做封面＋一頁內容＋一頁特殊頁（Demo、表格或對話框）給使用者看。
-4. **全量製作**：從 `assets/template.html` 開始；先改 tokens，再逐頁做。
-5. **QA**：跑 `shoot.cjs`，**打開截圖看**，修到 report 乾淨，再做人工走查。
-6. **交付**：`index.html`（開發版，素材分開）＋`standalone.html`（單檔），附上：頁數、每頁備註是否齊全、待補資料清單、已驗證／未驗證項目。
+1. **讀素材、填需求表**：使用者給的檔案（文件、PPTX、PDF、截圖、網址、Figma）先完整讀過，從中自動填表。只問會改變方向的缺口：受眾、場景（暗場投影／會議室／線上／寄送閱讀）、時間、要不要 Demo。使用者說「直接做」就寫下推論並繼續。
+2. **確認點 1 — 大綱**：選定簡報類型與骨架，給逐頁表（標題直接講結論／該頁目的／版型家族／講者重點）、一句話主張、情緒曲線與唯一高峰。
+3. **確認點 2 — 風格樣張**：一段 design read＋封面、一頁內容、一頁特殊頁（圖表、Demo 或比較）。
+4. **全量製作**：從 `assets/template.html` 開始，先改 tokens，再逐頁做。
+5. **QA**：跑 `shoot.cjs`，**打開截圖看**，修到乾淨，再人工走查。
+6. **交付**：開發版＋單檔版，附頁數、備註完整度、待補資料、已驗證／未驗證清單。
 
-使用者說「直接做」時，可以把 1–3 合併成一次確認，但不要跳過大綱：大綱錯了要重做全部。
-使用者之後的修改要求通常是文案和局部版面：直接改、重跑 QA、回報改了哪幾頁。
+使用者提供的每一份素材都要被用到，或說明為什麼沒用。之後的修改通常是文案和局部版面：直接改、重跑 QA、回報改了哪幾頁。
 
 ## 2. 硬規則
 
 **內容**
-- 一頁一個概念。標題本身就是結論（「OAuth 成功了，卻還是遇到額度限制？」而不是「OAuth 介紹」）。
-- 細節放講者備註（`data-notes`），投影片上只留看得懂的最少文字。
-- 白話優先：技術名詞第一次出現時用比喻或一句話解釋。
-- **不捏造**：數據、引言、成果、使用者回饋沒有來源就標「待補資料」；沒有量化成果就寫質性成果。示意資料要標明。
-- 提示詞照原文呈現；問題與結果分頁。
-- 結尾要收住：一句主張＋一句為什麼，不要只有「謝謝聆聽」。
+- 一頁一個概念。標題本身就是結論（「轉換率卡在第二步」，不是「數據分析」）。
+- 細節放講者備註（`data-notes`），投影片只留看得懂的最少文字。
+- 白話優先；專有名詞第一次出現時用一句話或比喻解釋。
+- **不捏造**：數據、引言、客戶評語、成果、logo 沒有來源就標「待補資料」；沒有量化成果就寫質性成果；示意資料要標明。
+- 結尾要收住：重述主張＋希望受眾採取的行動，不要只有「謝謝聆聽」。
 
 **版面**
-- 固定 1600×900、`overflow:hidden`、每頁都不能捲動、不能出界。內容放不下就拆頁或刪字，不縮字級到 16px 以下。
-- 沒有頁首列。頁碼與導覽在角落低調的 HUD。
-- 同一版型家族不連續超過 2 頁；至少 4 種家族；高峰前一頁安靜。
-- 一個強調色只給 1–2 個元素；最多 3 個語意色。主色來自使用者的素材（PPTX 封面、品牌），不要自己發明。
-- 中文：不加負字距、處理孤字、行首「懸掛、同排卡片標題對齊。
-- 截圖裁掉瀏覽器與系統外框，不畫假外框；比較用表格；提示詞用對話框。
+- 固定 16:9 舞台（預設 1600×900），不捲動、不出界。放不下就拆頁或刪字，不把字縮到投影看不清。
+- 同一版型家族不連續超過 2 頁；整份至少 4 種家族；高峰前一頁安靜。
+- 一個強調色只給 1–2 個重點元素；語意色最多 3 個。品牌或來源素材有主色就用它，不自己發明配色。
+- 深色或淺色由播放場景決定，整份鎖定一種。
+- 中文排版：不加負字距、處理孤字、行首標點懸掛、同排標題對齊。
+- 截圖裁掉瀏覽器與系統外框，不手繪假瀏覽器外框；手機 App 畫面可用一致的簡潔裝置框。
 
 **動態**
-- 有用途才動（引導順序／說明變化／高峰驚喜）。只動 transform、translate、opacity、clip-path。
-- 進場用 `translate` 屬性；每頁狀態可直接跳到；`prefers-reduced-motion` 要處理；不在畫面上的動畫要暫停。
+- 只有三個用途：引導閱讀順序、說明變化或因果、在高峰給一次驚喜。換頁轉場短而一致；不要每個標題、段落都淡入。
+- 只動 transform／translate／opacity／clip-path；每頁狀態可直接跳到；處理 `prefers-reduced-motion`；不在畫面上的動畫要暫停。
 
 **技術**
-- 單一 HTML、無建置也能開；不依賴 CDN（圖示用 `inline-icons.cjs` 內嵌）。
-- 鍵盤：← → Space PageUp PageDown Home End、N 備註、F 全螢幕、Esc 關閉；觸控滑動；網址 `#頁碼`。
-- 需要登入或付費 API 的產品不要只靠 iframe 嵌入：做離線 Demo（真前端＋fetch mock＋真實資料），線上網址當備案。
+- 單一 HTML、免建置也能開；不依賴 CDN（圖示內嵌、字體系統字或 subset 內嵌）。
+- 鍵盤：← → Space PageUp PageDown Home End、N 備註、F 全螢幕、Esc 關閉；觸控滑動；網址 `#頁碼`；列印時每頁一張。
+- 需要登入、付費 API 或現場網路不穩的 Demo：做離線版（真前端＋假 API），線上網址當備案。
 
-## 3. 簡報骨架（設計分享預設）
+## 3. 可搭配的 skill（有安裝就在對應階段使用，沒安裝就用本 skill 的摘要規則）
 
-```
-封面（主張一句話）
-→ 01 WHY：為什麼做（2–4 個原因，具體情境）
-→ 02 WHAT：做了什麼（產品一句話 → 現場 Demo＝全場高峰）
-→ 03 HOW：關卡 × N（每關：遇到什麼 → 我怎麼跟 AI 說 → 結果／教訓），用步驟條標示進度
-→ 04 LEARN：帶走什麼（3–6 個核心結論框）
-→ 結尾金句 → Q&A
-```
+| 階段 | Skill | 用途 |
+| --- | --- | --- |
+| 內容 | 簡報製作流程與提示詞 | 需求表、六步驟提示詞 |
+| 內容 | design-critique、ai-native-product-designer | 設計分享的骨架（問題→選項→驗證→決策→成果）、要求回饋的方式 |
+| 內容 | design-workshop-facilitation | 工作坊型簡報：議程、活動頁、時間緩衝 |
+| 風格 | ppt-visual、pptx-presentations、theme-factory | 投影片版型、配色與字體組合起點 |
+| 風格 | hallmark、impeccable、design-taste-frontend、frontend-design、minimalist-ui、high-end-visual-design | 方向宣告、色彩策略、AI 味清單、版型多樣性 |
+| 排版 | better-typography、make-a-type-scale、better-layout、better-ui、make-interfaces-feel-better | 字級比例、行高、對齊、間距、圓角、圖示粗細 |
+| 圖表 | diagram-design | 流程圖、架構圖、旅程圖、各類圖表 |
+| 動態 | animate、design-motion-principles、find-animation-opportunities、review-animations、apple-design | 要不要動、怎麼動、AI 味動態 |
+| 素材 | prompt-images、prompt-videos、ai-image-generation、ai-video-generation、imagegen-frontend-web | 生成背景、插圖、短影片、版面參考圖 |
+| 素材 | figma-use、figma-generate-design、image-to-code、imagegen-frontend-mobile、ui-state-expander | 從 Figma 取素材、用 HTML 重建介面、手機畫面呈現、狀態頁 |
+| 背景 | algorithmic-art | 固定 seed 的生成式背景 |
+| QA | better-interface、superfuture-design-review、break-ui、web-interface-guidelines | 審查格式、最壞資料測試 |
 
-作品集、提案、教學可以換骨架，但保留「主張 → 證據 → 結論」與單一高峰。
+完整對照、每份 skill 的簡報適用度與刻意不採用的部分見 `references/sources.md`。
 
 ## 4. 實作要點
 
-- 每頁 `<section class="slide" data-notes="…">`；要錯開進場的元素加 `data-a`（腳本會自動編號）。
+- 每頁 `<section class="slide" data-notes="…">`；需要依序出現的元素才加 `data-a`（腳本自動編號），標題與一般內文不加。
 - 互動元件在 `slide.addEventListener("enter", …)` 裡初始化或重設。
-- 跨頁共用的資訊（章節導覽、步驟條、高卡片的圖示徽章）用 JS 從資料產生，不要每頁手抄。
-- 圖片放 `assets/*.webp`；可放大的加 `data-zoom="assets/x.webp"`。
-- 元件 class 要有辨識度（避免 `.ghost`、`.active` 這種會撞名的字），選擇器用 `>` 限定範圍。
-- 改完任何樣式都重跑 `shoot.cjs`；改動大的頁面要個別放大看。
+- 跨頁共用的資訊（章節導覽、進度條、步驟條）用 JS 從資料產生，不要每頁手抄。
+- 圖片放 `assets/`，可放大的加 `data-zoom`。
+- 元件 class 名稱要有辨識度，選擇器用 `>` 限定範圍，避免互相污染。
+- 改完任何樣式都重跑 `shoot.cjs`。
 
-## 5. 交付前檢查（摘要，完整版見 qa.md）
+## 5. 交付前檢查（完整版見 qa.md）
 
-- [ ] `shoot.cjs` report 沒有出界、裁切、孤字、JS 錯誤
-- [ ] 看過 contact sheet：節奏有變化、沒有連續重複版型
-- [ ] 每頁有備註；總時間符合報告長度
-- [ ] 斷網開 `standalone.html`：圖示、圖片、Demo 正常
-- [ ] 內文對比 ≥ 4.5:1；AI 味檢查表（visual-system.md §7）沒有命中
+- [ ] `shoot.cjs` 沒有出界、裁切、孤字、JS 錯誤；看過縮圖總覽，節奏有變化
+- [ ] 每頁有備註；總時間符合報告長度（含 Q&A 與 20–30% 緩衝）
+- [ ] 斷網開單檔版：圖示、圖片、Demo、字體都正常
+- [ ] 內文對比 ≥ 4.5:1；AI 味清單沒有命中
 - [ ] 沒有捏造的數據或引言；待補資料已列給使用者
 - [ ] 回報時分清楚「看過截圖確認」與「只改了程式碼、未驗證」

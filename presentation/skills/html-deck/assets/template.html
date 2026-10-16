@@ -7,33 +7,36 @@
 <!-- 圖示：新增 <i data-lucide="名稱"> 後執行 node scripts/inline-icons.cjs 本檔，會重寫下面這個 script（不依賴 CDN，離線可用） -->
 <script id="icons">window.lucide={icons:{"chevron-left":"<path d=\"m15 18-6-6 6-6\"/>","chevron-right":"<path d=\"m9 18 6-6-6-6\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>","lightbulb":"<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>","maximize":"<path d=\"M8 3H5a2 2 0 0 0-2 2v3\"/><path d=\"M21 8V5a2 2 0 0 0-2-2h-3\"/><path d=\"M3 16v3a2 2 0 0 0 2 2h3\"/><path d=\"M16 21h3a2 2 0 0 0 2-2v-3\"/>","notebook-pen":"<path d=\"M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4\"/><path d=\"M2 6h4\"/><path d=\"M2 10h4\"/><path d=\"M2 14h4\"/><path d=\"M2 18h4\"/><path d=\"M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z\"/>","target":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>"},createIcons(){document.querySelectorAll("i[data-lucide]").forEach(el=>{const d=this.icons[el.dataset.lucide];if(!d)return;const s=document.createElementNS("http://www.w3.org/2000/svg","svg");["width","height"].forEach(a=>s.setAttribute(a,"24"));s.setAttribute("viewBox","0 0 24 24");s.setAttribute("fill","none");s.setAttribute("stroke","currentColor");s.setAttribute("stroke-width","2");s.setAttribute("stroke-linecap","round");s.setAttribute("stroke-linejoin","round");s.setAttribute("class","lucide "+(el.getAttribute("class")||""));if(el.getAttribute("style"))s.setAttribute("style",el.getAttribute("style"));s.innerHTML=d;el.replaceWith(s);});}};</script>
 <style>
-/* ============ 1. Design tokens：只改這裡就能換主題 ============ */
+/* ============ 1. Design tokens：只改這裡就能換主題 ============
+   預設是中性淺色（適合會議室、螢幕分享、寄送閱讀）；暗場投影改用 <html data-theme="dark">。
+   --accent 是佔位色：換成品牌色或素材的主色，並同步 --accent-rgb。 */
 :root{
-  /* 背景三階：由封面主色推導（同色相、明度遞增） */
-  --bg-0:#061a12; --bg-1:#0a2a1d; --bg-2:#0f3a28;
-  --surface:rgba(255,255,255,.035); --surface-2:rgba(255,255,255,.06);
-  --line:rgba(150,255,200,.12); --line-2:rgba(150,255,200,.22);
-  /* 一個主強調色 + 最多三個語意色（警示 / 次要 / 錯誤），不要更多 */
-  --accent:#3ee07f; --accent-rgb:62,224,127;
-  --warn:#f2c14e; --alt:#8f80ff; --bad:#ff6b6b;
-  --text:#ecf7f0; --text-2:#b9d4c4; --muted:#7f9f8e;
+  --bg-0:#f6f7f8; --bg-1:#ffffff; --bg-2:#eef0f2;
+  --surface:rgba(20,24,31,.03); --surface-2:rgba(20,24,31,.06);
+  --line:rgba(20,24,31,.10); --line-2:rgba(20,24,31,.18);
+  /* 一個強調色 + 最多三個語意色（警示／次要／負向） */
+  --accent:#c2410c; --accent-rgb:194,65,12;
+  --warn:#a16207; --alt:#1d4ed8; --bad:#b91c1c;
+  --text:#15181d; --text-2:#3d434d; --muted:#6a717c;
+  --shadow:0 12px 32px rgba(20,24,31,.10);
   /* 中文優先的字體堆疊；Latin 不預設 Inter */
   --sans:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,monospace;
-  /* 字級（1600×900 舞台的實際 px） */
-  --fs-hero:76px; --fs-title:46px; --fs-h3:26px; --fs-body:20px; --fs-small:15px; --fs-kicker:14px;
+  /* 字級：內文 20px × 1.333 比例往上推（1600×900 舞台的實際 px） */
+  --fs-hero:84px; --fs-title:48px; --fs-h3:27px; --fs-body:20px; --fs-small:15px; --fs-kicker:15px;
   /* 動態 */
   --ease-out:cubic-bezier(.23,1,.32,1);
   --ease-in-out:cubic-bezier(.77,0,.175,1);
-  --dur:.6s; --stagger:70ms;
+  --dur:.5s; --stagger:70ms;
 }
-/* 淺色主題範例：<html data-theme="light"> */
-:root[data-theme="light"]{
-  --bg-0:#f4f6f2; --bg-1:#ffffff; --bg-2:#e9eee7;
-  --surface:rgba(10,40,25,.04); --surface-2:rgba(10,40,25,.07);
-  --line:rgba(10,40,25,.12); --line-2:rgba(10,40,25,.22);
-  --accent:#118a4a; --accent-rgb:17,138,74;
-  --text:#10231a; --text-2:#3b5547; --muted:#6c8277;
+:root[data-theme="dark"]{
+  --bg-0:#111316; --bg-1:#171a1e; --bg-2:#1d2126;
+  --surface:rgba(255,255,255,.04); --surface-2:rgba(255,255,255,.07);
+  --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.18);
+  --accent:#fb8a5c; --accent-rgb:251,138,92;
+  --warn:#facc15; --alt:#93b4ff; --bad:#f87171;
+  --text:#f2f3f5; --text-2:#c3c8cf; --muted:#8e959f;
+  --shadow:0 24px 60px rgba(0,0,0,.40);
 }
 
 /* ============ 2. 舞台：固定 1600×900，等比縮放，永不捲動 ============ */
@@ -61,8 +64,8 @@ svg.lucide{width:1em;height:1em;stroke-width:1.75;flex:none}
 .notes{display:none} /* 講者備註寫在 data-notes 屬性；這個 class 保留給長備註 */
 
 /* ============ 4. 文字 ============ */
-.kicker{font:600 var(--fs-kicker)/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:10px}
-.kicker::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
+/* 章節標籤：只在簡報真的有章節時使用，整份同一種寫法 */
+.kicker{font:600 var(--fs-kicker)/1 var(--sans);letter-spacing:.06em;color:var(--accent)}
 .title{font-size:var(--fs-title);font-weight:700;line-height:1.25;letter-spacing:-.01em;margin-top:20px;text-wrap:balance}
 .hero{font-size:var(--fs-hero);font-weight:800;line-height:1.12;letter-spacing:-.02em;text-wrap:balance}
 .sub{font-size:22px;line-height:1.7;color:var(--text-2);margin-top:16px;max-width:36em;text-wrap:pretty}
@@ -99,26 +102,36 @@ svg.lucide{width:1em;height:1em;stroke-width:1.75;flex:none}
 .bubble.ai{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:6px}
 .who{font:600 12px/1 var(--mono);letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
 /* 截圖框：已裁掉瀏覽器外框的圖片，點擊放大 */
-.shot{border-radius:12px;overflow:hidden;border:1px solid var(--line-2);box-shadow:0 24px 60px rgba(0,0,0,.35);cursor:zoom-in;background:var(--bg-1)}
+.shot{border-radius:12px;overflow:hidden;box-shadow:var(--shadow);cursor:zoom-in;background:var(--bg-1);outline:1px solid var(--line);outline-offset:-1px}
 .shot img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
 /* 比較表 */
 .table{width:100%;border-collapse:separate;border-spacing:0;font-size:19px;line-height:1.6}
 .table th,.table td{padding:16px 20px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
-.table th{font:600 14px/1 var(--mono);letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.table th{font:600 15px/1.2 var(--sans);letter-spacing:.04em;color:var(--muted)}
+.table td.n{text-align:right;font-variant-numeric:tabular-nums}
 .table td:first-child{color:var(--text);font-weight:600;white-space:nowrap}
 .table td{color:var(--text-2)}
+
+/* 長條圖：標題寫結論，只有一根用強調色，數值直接標在旁邊 */
+.bars{display:grid;gap:18px;margin-top:8px}
+.bar{display:grid;grid-template-columns:220px 1fr 90px;align-items:center;gap:20px;font-size:20px}
+.bar .track{height:28px;border-radius:6px;background:var(--surface-2);overflow:hidden}
+.bar .val{display:block;height:100%;width:var(--w);background:var(--muted);border-radius:6px}
+.bar.hi .val{background:var(--accent)}
+.bar .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.source{margin-top:auto;font-size:var(--fs-small);color:var(--muted)}
 
 /* ============ 6. HUD：頁碼、進度、備註、燈箱 ============ */
 #progress{position:fixed;left:0;bottom:0;height:3px;background:var(--accent);z-index:30;transition:width .45s var(--ease-out)}
 #nav{position:fixed;right:20px;bottom:16px;z-index:31;display:flex;align-items:center;gap:4px;padding:6px;border-radius:14px;
-  background:rgba(0,0,0,.35);backdrop-filter:blur(10px);border:1px solid var(--line);opacity:.35;transition:opacity .2s}
+  background:var(--bg-1);border:1px solid var(--line);color:var(--text);opacity:.4;transition:opacity .2s}
 #nav:hover{opacity:1}
 #nav button{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:18px}
 #nav button:hover{background:var(--surface-2)}
 #nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #count{font:500 13px/1 var(--mono);color:var(--text-2);padding:0 8px;font-variant-numeric:tabular-nums}
 #notesPanel{position:fixed;left:50%;bottom:72px;transform:translate(-50%,16px);width:min(960px,92vw);max-height:36vh;overflow:auto;z-index:35;
-  padding:20px 24px;border-radius:18px;background:rgba(5,15,10,.92);border:1px solid var(--line-2);font-size:17px;line-height:1.8;color:var(--text-2);
+  padding:20px 24px;border-radius:18px;background:rgba(17,19,22,.95);border:1px solid rgba(255,255,255,.12);font-size:17px;line-height:1.8;color:#d7dbe0;
   opacity:0;visibility:hidden;transition:opacity .2s,transform .2s var(--ease-out),visibility .2s}
 #notesPanel.on{opacity:1;visibility:visible;transform:translate(-50%,0)}
 #notesPanel h4{font:600 12px/1 var(--mono);letter-spacing:.16em;color:var(--accent);margin-bottom:10px;display:flex;justify-content:space-between}
@@ -142,66 +155,78 @@ svg.lucide{width:1em;height:1em;stroke-width:1.75;flex:none}
 <div id="stage">
   <div class="spot"></div>
 
-  <!-- 封面 -->
-  <section class="slide" data-notes="開場：一句話說明這場分享要回答什麼問題。">
+  <!-- 封面：不放進場動畫，主張一句話 -->
+  <section class="slide" data-notes="開場：30 秒內說出這場要回答的問題，以及聽完能帶走什麼。">
     <div style="margin:auto 0">
-      <div class="kicker" data-a>DESIGN SHARE · 2026</div>
-      <h1 class="hero" style="margin-top:28px" data-a>一句話講清楚<br><span class="hl">這份簡報的主張</span></h1>
-      <p class="sub" data-a>副標：對象是誰、帶走什麼。</p>
+      <div class="kicker">簡報類型 · 場合 · 日期</div>
+      <h1 class="hero" style="margin-top:28px">一句話講清楚<br><span class="hl">這份簡報的主張</span></h1>
+      <p class="sub">副標：對誰說、為什麼現在說、聽完要做什麼。</p>
     </div>
   </section>
 
-  <!-- 章節頁 -->
-  <section class="slide" id="why" data-notes="章節轉場：預告這一段要回答的問題。">
+  <!-- 章節頁：只有真的分章節時才用 -->
+  <section class="slide" id="part1" data-notes="章節轉場：預告這一段要回答的問題。">
     <div style="margin:auto 0">
-      <div class="kicker" data-a>01 WHY</div>
-      <h2 class="hero" style="margin-top:24px" data-a>為什麼要做這件事</h2>
+      <div class="kicker">第一部分</div>
+      <h2 class="hero" style="margin-top:24px">這一段要回答的問題</h2>
     </div>
   </section>
 
-  <!-- 卡片頁：一個重點一頁，卡片 2–4 張 -->
-  <section class="slide" data-notes="三個原因，各講一句，不要唸卡片。">
-    <div class="kicker" data-a>01 WHY</div>
-    <h2 class="title" data-a>標題直接說結論，不寫「介紹」</h2>
+  <!-- Grid：並列項目依序出現（data-a 只加在有順序意義的元素上） -->
+  <section class="slide" data-notes="三個重點，各講一句；細節放這裡，不要唸卡片。">
+    <h2 class="title">標題直接說結論，不寫「介紹」或「概述」</h2>
     <div class="fill grid g3">
-      <div class="card" data-a><span class="ic"><i data-lucide="target"></i></span><h3 class="h3">原因一</h3><p class="p">一到兩句白話說明，具體到一個情境。</p></div>
-      <div class="card" data-a><span class="ic"><i data-lucide="clock"></i></span><h3 class="h3">原因二</h3><p class="p">一到兩句白話說明。</p></div>
-      <div class="card" data-a><span class="ic"><i data-lucide="users"></i></span><h3 class="h3">原因三</h3><p class="p">一到兩句白話說明。</p></div>
+      <div class="card" data-a><span class="ic"><i data-lucide="target"></i></span><h3 class="h3">重點一</h3><p class="p">一到兩句白話說明，具體到一個情境。</p></div>
+      <div class="card" data-a><span class="ic"><i data-lucide="clock"></i></span><h3 class="h3">重點二</h3><p class="p">一到兩句白話說明。</p></div>
+      <div class="card" data-a><span class="ic"><i data-lucide="users"></i></span><h3 class="h3">重點三</h3><p class="p">一到兩句白話說明。</p></div>
     </div>
   </section>
 
-  <!-- 提示詞 + 結果 -->
-  <section class="slide" data-notes="先唸我給的提示詞，再看 AI 回了什麼、問題在哪。">
-    <div class="kicker" data-a>02 HOW</div>
-    <h2 class="title" data-a>我怎麼跟 AI 說，它又怎麼回</h2>
-    <div class="fill grid g2" style="align-items:start">
-      <div class="chat" data-a>
-        <div class="bubble me"><div class="who">ME</div>提示詞原文（不改寫、不美化）。</div>
-        <div class="bubble ai"><div class="who">AI</div>AI 回覆的重點摘錄。</div>
+  <!-- Evidence：圖表與文字並排，標題寫結論 -->
+  <section class="slide" data-notes="先講結論，再指出強調色那一根；數值是示意，換成真實資料並註明來源。">
+    <h2 class="title">標題寫數據的結論，例如「第二步流失最多」</h2>
+    <div class="fill grid" style="grid-template-columns:1fr 2fr;align-items:center">
+      <p class="p">一句話解讀：這張圖要觀眾注意哪裡、代表什麼。</p>
+      <div class="bars">
+        <div class="bar"><span>項目 A</span><span class="track"><span class="val" style="--w:82%"></span></span><span class="num">82%</span></div>
+        <div class="bar hi"><span>項目 B</span><span class="track"><span class="val" style="--w:41%"></span></span><span class="num">41%</span></div>
+        <div class="bar"><span>項目 C</span><span class="track"><span class="val" style="--w:35%"></span></span><span class="num">35%</span></div>
+        <div class="bar"><span>項目 D</span><span class="track"><span class="val" style="--w:28%"></span></span><span class="num">28%</span></div>
       </div>
-      <div class="shot" style="aspect-ratio:16/10" data-a data-zoom="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000'%3E%3Crect width='1600' height='1000' fill='%230f3a28'/%3E%3Ctext x='800' y='520' fill='%237f9f8e' font-size='48' text-anchor='middle' font-family='sans-serif'%3E替換成 assets/your-shot.webp%3C/text%3E%3C/svg%3E"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000'%3E%3Crect width='1600' height='1000' fill='%230f3a28'/%3E%3Ctext x='800' y='520' fill='%237f9f8e' font-size='48' text-anchor='middle' font-family='sans-serif'%3E替換成 assets/your-shot.webp%3C/text%3E%3C/svg%3E" alt="結果截圖（替換成實際截圖）"></div>
+    </div>
+    <p class="source">資料來源：待補資料（目前為示意數值）</p>
+  </section>
+
+  <!-- Dialogue + 畫面：引言、訪談、提示詞照原文 -->
+  <section class="slide" data-notes="先唸原文，再說這段話代表什麼、和右邊畫面的關係。">
+    <h2 class="title">原文呈現：說了什麼、得到什麼</h2>
+    <div class="fill grid g2" style="align-items:start">
+      <div class="chat">
+        <div class="bubble me" data-a><div class="who">提問</div>原文（不改寫、不美化；太長就摘錄並在備註放全文）。</div>
+        <div class="bubble ai" data-a><div class="who">回覆</div>回覆的重點摘錄。</div>
+      </div>
+      <div class="shot" style="aspect-ratio:16/10" data-zoom="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000'%3E%3Crect width='1600' height='1000' fill='%23e6e8eb'/%3E%3Ctext x='800' y='520' fill='%236a717c' font-size='48' text-anchor='middle' font-family='sans-serif'%3E替換成 assets/your-shot.webp%3C/text%3E%3C/svg%3E"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000'%3E%3Crect width='1600' height='1000' fill='%23e6e8eb'/%3E%3Ctext x='800' y='520' fill='%236a717c' font-size='48' text-anchor='middle' font-family='sans-serif'%3E替換成 assets/your-shot.webp%3C/text%3E%3C/svg%3E" alt="結果畫面（替換成實際截圖）"></div>
     </div>
   </section>
 
-  <!-- 比較表 -->
+  <!-- Compare：比較表，用白話與具體差異 -->
   <section class="slide" data-notes="用比喻講差異，不念表格。">
-    <div class="kicker" data-a>02 HOW</div>
-    <h2 class="title" data-a>A 與 B 該選哪個？</h2>
-    <div class="fill" data-a>
+    <h2 class="title">A 與 B 該選哪個？</h2>
+    <div class="fill">
       <table class="table">
         <tr><th></th><th>A</th><th>B</th></tr>
         <tr><td>像什麼</td><td>白話比喻</td><td>白話比喻</td></tr>
-        <tr><td>好處</td><td>具體優點</td><td>具體優點</td></tr>
+        <tr><td>具體好處</td><td>寫可感受的差異</td><td>寫可感受的差異</td></tr>
         <tr><td>適合</td><td>情境</td><td>情境</td></tr>
       </table>
     </div>
   </section>
 
-  <!-- 結尾 -->
-  <section class="slide" data-notes="收尾：重述主張，留一句讓人記得的話。">
+  <!-- 結尾：主張＋行動，不只是「謝謝」 -->
+  <section class="slide" data-notes="收尾：回到開場的問題，給出答案與一個行動。">
     <div style="margin:auto 0">
-      <h2 class="hero" data-a>結尾金句，<span class="hl">一行說完</span></h2>
-      <p class="sub" data-a>補一句為什麼。</p>
+      <h2 class="hero">結尾一句話，<span class="hl">回答開場的問題</span></h2>
+      <p class="sub">希望大家接下來做的一件事。</p>
     </div>
     <div class="callout" data-a><i data-lucide="lightbulb"></i><span>真正的核心結論只放這裡。</span></div>
   </section>
