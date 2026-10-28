@@ -77,8 +77,14 @@ main{padding-block:16px 96px;padding-left:max(16px,env(safe-area-inset-left,0px)
 .ic.ok{background:var(--ok-bg);color:var(--ok)}
 
 .charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.25fr);gap:12px}
-@media (max-width:1180px){.charts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.charts .wide{grid-column:1/-1}}
-@media (max-width:760px){.charts{grid-template-columns:minmax(0,1fr)}}
+.charts.c2{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)}
+.region-lb{font-size:13px;font-weight:500;color:var(--ink2);padding:2px 4px 0;margin-bottom:-4px}
+.hrow.item{grid-template-columns:70px minmax(0,1fr) 52px 52px}
+.hrow.item.hd{font-size:11px;color:var(--muted)}
+.hrow.item.hd span:nth-child(n+3){text-align:right}
+.note{font-size:11px;color:var(--muted);margin-top:10px}
+@media (max-width:1180px){.charts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.charts .wide{grid-column:1/-1}.charts.c2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media (max-width:760px){.charts,.charts.c2{grid-template-columns:minmax(0,1fr)}}
 .card{background:var(--card);border-radius:var(--r);padding:14px 16px;min-width:0}
 .card-hd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:10px;min-height:28px}
 .card-hd h3{margin:0;font-size:15px;font-weight:700}
@@ -342,7 +348,7 @@ PEOPLE.forEach(p => {
     let n = 0, r = p.rate;
     while (r > 0){ if (rand() < Math.min(r, 1)) n++; r -= 1; }
     for (let k = 0; k < n; k++){
-      const ts = today0 - d * DAY + (6 + Math.floor(rand() * 16)) * HOUR + Math.floor(rand() * 60) * 6e4;
+      const ts = d === 0 ? today0 + Math.floor(rand() * Math.max(1, NOW - today0 - 6e4)) : today0 - d * DAY + (6 + Math.floor(rand() * 16)) * HOUR + Math.floor(rand() * 60) * 6e4;
       if (ts > NOW) continue;
       const src = p.src[Math.floor(rand() * p.src.length)];
       let keys;
@@ -399,7 +405,7 @@ function abnList(pid){
 }
 
 /* ---------- state ---------- */
-const state = { care: [], preset: '30d', from: 0, to: 0, tab: 'all', kw: '', src: 'all', sort: 'risk', page: 1, per: 10, expanded: new Set(), itemSrc: 'dev', itemMode: 'count', trendMode: 'abn', flashKey: null, menu: null };
+const state = { care: [], preset: '30d', from: 0, to: 0, tab: 'all', kw: '', src: 'all', sort: 'risk', page: 1, per: 10, expanded: new Set(),  flashKey: null, menu: null };
 function seedCare(){
   state.care = [
     { type:'family', fam:'F1', at: NOW - 1 * DAY }, { type:'person', pid:'p21', at: NOW - 2 * DAY },
@@ -422,7 +428,7 @@ function setRange(preset){
   else if (preset === '7d'){ state.from = t0 - 6 * DAY; state.to = NOW; }
   else if (preset === '30d'){ state.from = t0 - 29 * DAY; state.to = NOW; }
 }
-setRange('30d');
+setRange('today');
 
 /* ---------- 統計 ---------- */
 function lowerBound(ts){ let lo = 0, hi = EVENTS.length; while (lo < hi){ const m = (lo + hi) >> 1; if (EVENTS[m].ts < ts) lo = m + 1; else hi = m; } return lo; }
@@ -566,22 +572,23 @@ function render(){
   $('#app').innerHTML = `
   <section class="stats" aria-labelledby="statsTitle">
     <div class="stats-hd">
-      <h2 id="statsTitle">統計概覽</h2>
+      <h2 id="statsTitle">健康數據統計</h2>
       <div class="seg" role="group" aria-label="統計區間">${[['today','今日'],['7d','近 7 日'],['30d','近 30 日'],['custom','自訂']].map(([v, l]) => `<button data-preset="${v}">${l}</button>`).join('')}</div>
       <div class="daterange"><input type="date" id="dFrom" aria-label="開始日期"><span>至</span><input type="date" id="dTo" aria-label="結束日期"></div>
       <span class="sp"></span><span class="scope" id="scope"></span>
     </div>
+    <div class="region-lb">統計總覽</div>
     <div class="kpis" id="kpis"></div>
+    <div class="region-lb">量測分析</div>
+    <div class="charts c2">
+      <section class="card"><div class="card-hd"><h3>量測次數 Top 10 排行榜</h3><span class="sp"></span><span class="muted" style="font-size:12px">統計 3</span></div><div id="top10"></div></section>
+      <section class="card"><div class="card-hd"><h3>量測人數 / 人次趨勢</h3><span class="sp"></span><span class="muted" style="font-size:12px">統計 1・2</span></div><div id="trendM"></div></section>
+    </div>
+    <div class="region-lb">健康異常分析</div>
     <div class="charts">
-      <section class="card"><div class="card-hd"><h3>量測次數 Top 10</h3></div><div id="top10"></div></section>
-      <section class="card"><div class="card-hd"><h3>異常項目分布</h3><span class="sp"></span>
-        <div class="seg sm" role="group" aria-label="來源"><button data-isrc="dev">檢測儀</button><button data-isrc="watch">Watch</button></div></div>
-        <div class="card-hd" style="margin:-4px 0 8px;min-height:0"><span class="muted" style="font-size:12px" id="itemNote"></span><span class="sp"></span>
-          <div class="radio" role="radiogroup" aria-label="指標"><label><input type="radio" name="itemMode" value="count">次數</label><label><input type="radio" name="itemMode" value="pct">占比</label></div></div>
-        <div id="items"></div></section>
-      <section class="card wide"><div class="card-hd"><h3>趨勢</h3><span class="sp"></span>
-        <div class="seg sm" role="group" aria-label="趨勢"><button data-trend="abn">異常與處理</button><button data-trend="people">量測人數</button><button data-trend="visits">量測人次</button></div></div>
-        <div id="trend"></div></section>
+      <section class="card"><div class="card-hd"><h3>Home / Pro 七大項目異常</h3><span class="sp"></span><span class="muted" style="font-size:12px">統計 4</span></div><div id="itemsDev"></div></section>
+      <section class="card"><div class="card-hd"><h3>Watch 異常</h3><span class="sp"></span><span class="muted" style="font-size:12px">統計 5</span></div><div id="itemsWatch"></div></section>
+      <section class="card wide"><div class="card-hd"><h3>異常次數趨勢</h3><span class="sp"></span><span class="muted" style="font-size:12px">統計 6・7</span></div><div id="trendA"></div></section>
     </div>
   </section>
   <section class="listcard" aria-labelledby="listTitle">
@@ -602,33 +609,37 @@ function render(){
 /* ---------- 統計概覽 ---------- */
 function renderStats(){
   document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', b.dataset.preset === state.preset));
-  document.querySelectorAll('[data-isrc]').forEach(b => b.setAttribute('aria-pressed', b.dataset.isrc === state.itemSrc));
-  document.querySelectorAll('[data-trend]').forEach(b => b.setAttribute('aria-pressed', b.dataset.trend === state.trendMode));
-  document.querySelector(`input[name=itemMode][value=${state.itemMode}]`).checked = true;
   $('#dFrom').value = isoD(state.from); $('#dTo').value = isoD(state.to);
   const pids = carePids(), s = computeStats();
-  $('#scope').textContent = `統計對象：關懷名單內 ${pids.length} 人`;
+  $('#scope').textContent = `統計對象：關懷名單內 ${pids.length} 人（個案及其家庭成員）`;
   const pctPeople = pids.length ? s.people / pids.length * 100 : 0;
   const kpi = (ic, cls, lb, v, unit, sub) => `<div class="kpi"><span class="ic ${cls}">${ic}</span><span class="lb">${lb}</span><span class="v">${v}<small>${unit}</small></span><div class="sub">${sub}</div></div>`;
   $('#kpis').innerHTML =
-    kpi(I.people, 'teal', '已量測人數', n0(s.people), `/ ${pids.length} 人`, `<span class="track"><i style="width:${pctPeople}%"></i></span>覆蓋率 ${Math.round(pctPeople)}%`) +
+    kpi(I.people, 'teal', '已量測人數（去重）', n0(s.people), `/ ${pids.length} 人`, `<span class="track"><i style="width:${pctPeople}%"></i></span>覆蓋率 ${Math.round(pctPeople)}%`) +
     kpi(I.pulse, 'grey', '已量測人次', n0(s.visits), '次', `平均每人 ${s.people ? (s.visits / s.people).toFixed(1) : 0} 次`) +
     kpi(I.alert, 'risk', '異常次數', n0(s.abn), '次', `占量測人次 ${s.visits ? (s.abn / s.visits * 100).toFixed(1) : '0.0'}%`) +
     kpi(I.check, 'ok', '已處理次數', n0(s.done), '次', `待處理 ${n0(s.abn - s.done)} 次`) +
-    kpi(I.rate, 'teal', '異常處理率', s.abn ? s.rate.toFixed(1) : '—', s.abn ? '%' : '', `<span class="track"><i style="width:${s.rate}%"></i></span>已處理 ÷ 異常`);
+    kpi(I.rate, 'teal', '異常處理率', s.abn ? s.rate.toFixed(1) : '—', s.abn ? '%' : '', `<span class="track"><i style="width:${s.rate}%"></i></span>${n0(s.done)} / ${n0(s.abn)}`);
   const max = s.top.length ? s.top[0][1] : 1;
   $('#top10').innerHTML = s.top.length ? `<div class="hbars">${s.top.map(([pid, c], i) => `<div class="hrow"><span class="no">${i + 1}</span><button class="nm" data-act="locate" data-pid="${pid}" title="在名單中查看">${esc(PBY[pid].name)}</button><span class="tr"><i style="width:${c / max * 100}%;${i === 0 ? 'background:var(--accent)' : ''}"></i></span><span class="val"><b>${n0(c)}</b> 次</span></div>`).join('')}</div>` : '<div class="nodata">此區間內沒有量測資料</div>';
-  const items = state.itemSrc === 'dev' ? HOME_ITEMS : WATCH_ITEMS, data = state.itemSrc === 'dev' ? s.dev : s.watch;
-  const vals = items.map(k => ({ k, n: data[k].n, ab: data[k].ab, pct: data[k].n ? data[k].ab / data[k].n * 100 : 0 }));
-  const key = state.itemMode === 'pct' ? 'pct' : 'ab', vmax = Math.max(1e-9, ...vals.map(v => v[key]));
-  $('#itemNote').textContent = state.itemSrc === 'dev' ? 'Home / Pro 七大項目' : 'Watch 監測項目';
-  $('#items').innerHTML = vals.some(v => v.n) ? `<div class="hbars">${vals.map(v => `<div class="hrow noidx" title="${v.k}：異常 ${v.ab} 次 / 量測 ${v.n} 次（${v.pct.toFixed(1)}%）"><span class="nm">${v.k}</span><span class="tr"><i style="width:${v[key] / vmax * 100}%;background:var(--chart-abn)"></i></span><span class="val">${state.itemMode === 'pct' ? `<b>${v.pct.toFixed(1)}</b>%` : `<b>${n0(v.ab)}</b> 次`}</span></div>`).join('')}</div>` : '<div class="nodata">此區間內沒有這個來源的量測資料</div>';
+  const itemBars = (items, data) => {
+    const totalAb = items.reduce((n, k) => n + data[k].ab, 0);
+    if (!items.some(k => data[k].n)) return '<div class="nodata">此區間內沒有這個來源的量測資料</div>';
+    const vmax = Math.max(1, ...items.map(k => data[k].ab));
+    return `<div class="hbars"><div class="hrow item hd"><span>項目</span><span></span><span>異常次數</span><span>占比</span></div>${items.map(k => {
+      const ab = data[k].ab, pct = totalAb ? ab / totalAb * 100 : 0;
+      return `<div class="hrow item" title="${k}：異常 ${ab} 次，占全部異常 ${pct.toFixed(1)}%（該項共量測 ${data[k].n} 次）"><span class="nm">${k}</span><span class="tr"><i style="width:${ab / vmax * 100}%;background:var(--chart-abn)"></i></span><span class="val"><b>${n0(ab)}</b></span><span class="val">${pct.toFixed(1)}%</span></div>`;
+    }).join('')}</div><div class="note">共 ${n0(totalAb)} 次異常判定・占比 = 該項目異常次數 ÷ 所有項目異常判定總次數</div>`;
+  };
+  $('#itemsDev').innerHTML = itemBars(HOME_ITEMS, s.dev);
+  $('#itemsWatch').innerHTML = itemBars(WATCH_ITEMS, s.watch);
   const labels = s.buckets.map(b => b.label);
-  let series;
-  if (state.trendMode === 'abn') series = [{ name: '異常次數', color: '#EC8378', values: s.buckets.map(b => b.abn) }, { name: '已處理次數', color: '#00868B', values: s.buckets.map(b => b.done) }];
-  else if (state.trendMode === 'people') series = [{ name: '已量測人數', color: '#00868B', values: s.buckets.map(b => b.ppl.size) }];
-  else series = [{ name: '已量測人次', color: '#5B6363', values: s.buckets.map(b => b.visits) }];
-  $('#trend').innerHTML = s.visits ? `<div class="legend" style="margin:-4px 0 6px">${series.map(x => `<span><i style="background:${x.color}"></i>${x.name}</span>`).join('')}</div>` + lineChart('trend', labels, series, undefined, 520) : '<div class="nodata">此區間內沒有量測資料</div>';
+  const legend = series => `<div class="legend" style="margin:-4px 0 6px">${series.map(x => `<span><i style="background:${x.color}"></i>${x.name}</span>`).join('')}</div>`;
+  const sm = [{ name: '已量測人數', color: '#00868B', values: s.buckets.map(b => b.ppl.size) }, { name: '已量測人次', color: '#5B6363', values: s.buckets.map(b => b.visits) }];
+  const sa = [{ name: '異常次數', color: '#EC8378', values: s.buckets.map(b => b.abn) }, { name: '已處理次數', color: '#00868B', values: s.buckets.map(b => b.done) }];
+  const unitTxt = { hour: '每小時', day: '每日', month: '每月' }[s.unit];
+  $('#trendM').innerHTML = s.visits ? legend(sm) + lineChart('trendM', labels, sm, undefined, 720) + `<div class="note">${unitTxt}統計</div>` : '<div class="nodata">此區間內沒有量測資料</div>';
+  $('#trendA').innerHTML = s.visits ? legend(sa) + lineChart('trendA', labels, sa, undefined, 520) + `<div class="note">${unitTxt}統計・異常次數以量測事件計，一次量測多項異常算 1 次</div>` : '<div class="nodata">此區間內沒有量測資料</div>';
 }
 
 /* ---------- 關懷名單 ---------- */
@@ -807,11 +818,20 @@ $('#docBody').innerHTML = `
     <li>上方分頁：全部 / 異常 / 逾 ${STALE_DAYS} 天未量測 / 正常 / 無資料，數字徽章只有異常是紅色。</li>
     <li>「結束關懷」收在每列的 ⋯ 選單，避免誤觸；點整列可展開家庭或查看個案。</li>
   </ul>
-  <h3>統計</h3>
+  <h3>需求單統計項目對照（2.3 / 三 / 四）</h3>
   <ul>
-    <li>KPI 5 張對應需求統計 1、2、7、6、8，覆蓋率與處理率附進度條。</li>
-    <li>三張圖：Top 10（統計 3）、異常項目分布（統計 4/5，用 V7.9 的「檢測儀 / Watch」切換）、趨勢（異常與處理 / 量測人數 / 量測人次）。</li>
-    <li>點 Top 10 的名字會跳到名單中那個人。</li>
+    <li><b>2.3.1 全局篩選</b>：預設「今日」，可選近 7 日、近 30 日、自訂；切換後統計概覽內所有數據與圖表同步更新；範圍為名單內個案及其家庭成員。</li>
+    <li><b>1 已量測人數</b>：KPI，同一人多次量測只算 1 人（規則 1）。</li>
+    <li><b>2 已量測人次</b>：KPI，一次量測含多個指標仍算 1 人次（規則 2）。</li>
+    <li><b>3 量測次數排行榜</b>：橫向長條圖，Top 10，由高至低。</li>
+    <li><b>4 Home / Pro 七大項目異常統計</b>：長條圖，同時列出各項異常次數與占比。</li>
+    <li><b>5 Watch 異常統計</b>：長條圖，同時列出各項異常次數與占比。</li>
+    <li>占比 = 該項目異常次數 ÷ 所有項目異常判定總次數 × 100%（規則 4），各來源加總為 100%。</li>
+    <li><b>6 已處理次數</b>：KPI，區間內異常事件中目前已處理的數量（規則 5）。</li>
+    <li><b>7 異常次數</b>：KPI，以量測事件計，一次量測多項異常算 1 次（規則 3）。</li>
+    <li><b>8 異常處理率</b>：KPI＋進度條，已處理異常事件 ÷ 應處理異常事件 × 100%。</li>
+    <li><b>四、排版建議</b>：統計總覽（5 張 KPI）→ 量測分析（Top 10、量測人數 / 人次趨勢圖）→ 健康異常分析（Home / Pro、Watch、異常次數趨勢圖），三區順序與內容照需求單。</li>
+    <li>額外：已量測人數附覆蓋率、異常次數趨勢多一條「已處理次數」線、點 Top 10 名字會跳到名單中那個人。</li>
   </ul>`;
 
 /* ---------- toast / clock / events ---------- */
@@ -850,8 +870,6 @@ document.addEventListener('click', ev => {
   const tb = t.closest('[data-tab]'); if (tb){ state.tab = tb.dataset.tab; state.page = 1; renderList(); return; }
   const so = t.closest('[data-sort]'); if (so){ state.sort = so.dataset.sort; renderList(); return; }
   const pg = t.closest('[data-page]'); if (pg && !pg.disabled){ state.page = +pg.dataset.page; renderList(); return; }
-  const is = t.closest('[data-isrc]'); if (is){ state.itemSrc = is.dataset.isrc; renderStats(); return; }
-  const tr = t.closest('[data-trend]'); if (tr){ state.trendMode = tr.dataset.trend; renderStats(); return; }
   const pre = t.closest('[data-preset]');
   if (pre){ if (pre.dataset.preset === 'custom'){ state.preset = 'custom'; renderStats(); $('#dFrom').focus(); } else { setRange(pre.dataset.preset); renderStats(); } }
 });
@@ -859,7 +877,6 @@ document.addEventListener('change', ev => {
   const t = ev.target;
   if (t.id === 'per'){ state.per = +t.value; state.page = 1; renderList(); }
   if (t.id === 'srcSel'){ state.src = t.value; state.page = 1; renderList(); }
-  if (t.name === 'itemMode'){ state.itemMode = t.value; renderStats(); }
   if (t.id === 'dFrom' || t.id === 'dTo'){
     const f = $('#dFrom').value, to = $('#dTo').value;
     if (!f || !to) return;
@@ -874,7 +891,7 @@ document.addEventListener('keydown', ev => { if (ev.key === 'Escape'){ document.
 
 $('#openDoc').addEventListener('click', () => { $('#docDrawer').hidden = false; });
 $('#tglEmpty').addEventListener('click', () => { if (state.care.length) state.care = []; else seedCare(); render(); });
-$('#resetAll').addEventListener('click', () => { seedCare(); setRange('30d'); render(); toast('已重置為範例資料'); });
+$('#resetAll').addEventListener('click', () => { seedCare(); setRange('today'); render(); toast('已重置為範例資料'); });
 
 seedCare();
 render();
