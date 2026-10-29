@@ -766,7 +766,7 @@ function render(){
       <div class="region-lb">第三區・健康異常分析</div>
       <div class="charts c2r">
         <section class="card"><div class="card-hd"><h3>Home / Pro 七大項目異常占比及次數<i class="info" title="占比 = 該項目異常次數 ÷ 所有項目異常判定總次數 × 100%">i</i></h3><span class="sp"></span><span class="muted spec-no" style="font-size:12px">統計 4</span></div><div id="itemsDev"></div></section>
-        <section class="card"><div class="card-hd"><h3>異常次數趨勢<i class="info" title="長條總高度 = 異常次數（以量測事件計，一次量測多項異常只算 1 次），分成已處理與待處理">i</i></h3><span class="sp"></span><span class="muted spec-no" style="font-size:12px">統計 6・7・8</span></div><div id="trendA"></div></section>
+        <section class="card"><div class="card-hd"><h3>異常次數趨勢<i class="info" title="異常次數以量測事件計，一次量測有多項異常只算 1 次">i</i></h3><span class="sp"></span><span class="muted spec-no" style="font-size:12px">統計 6・7・8</span></div><div id="trendA"></div></section>
       </div>
     </div>
   </section>`;
@@ -892,11 +892,10 @@ function renderStats(){
   const labels = s.buckets.map(b => b.label);
   const legend = (series, shapes) => `<div class="legend" style="margin:-4px 0 6px">${series.map((x, i) => `<span><i style="background:${x.color};${shapes && shapes[i] === 'bar' ? 'height:10px;width:10px;vertical-align:-1px' : ''}"></i>${x.name}</span>`).join('')}</div>`;
   const line = { name: '已量測人數', color: '#00868B', values: s.buckets.map(b => b.ppl.size) }, bars = { name: '已量測人次', color: '#CBD1D1', values: s.buckets.map(b => b.visits) };
-  const done = s.buckets.map(b => b.done), pend = s.buckets.map(b => b.abn - b.done);
-  const sa = [{ name: '已處理', color: '#00868B', values: done }, { name: '待處理', color: '#EC8378', values: pend }];
+  const sa = [{ name: '異常次數', color: '#E06A5D', values: s.buckets.map(b => b.abn) }, { name: '已處理次數', color: '#00868B', values: s.buckets.map(b => b.done) }];
   const unitTxt = { hour: '每小時', day: '每日', month: '每月' }[s.unit];
   $('#trendM').innerHTML = s.visits ? legend([line, bars], ['line', 'bar']) + comboChart('trendM', labels, bars, line, cwOf($('#trendM'))) + `<div class="zero-line">${unitTxt}統計</div>` : noData('此區間內沒有量測資料');
-  $('#trendA').innerHTML = s.visits ? legend(sa, ['bar', 'bar']) + stackChart('trendA', labels, sa, cwOf($('#trendA'))) + `<div class="zero-line">${unitTxt}統計・長條總高度＝異常次數・滑過可看當期處理率</div>` : noData('此區間內沒有量測資料');
+  $('#trendA').innerHTML = s.visits ? legend(sa) + lineChart('trendA', labels, sa, undefined, cwOf($('#trendA'))) + `<div class="zero-line">${unitTxt}統計・兩條線的差距＝待處理次數</div>` : noData('此區間內沒有量測資料');
 }
 function reloadStats(spin){
   const st = $('.stats'); if (!st) return;
@@ -1086,7 +1085,7 @@ $('#docBody').innerHTML = `
   <ul>
     <li><b>七大項目用環形圓餅圖</b>：看「哪個項目占最多」的組成比例。中心顯示異常判定總數；右側表格列出每個項目的次數與占比，顏色以外也看得出差異。圓餅超過 6 塊就難以辨識，所以有 7 個項目同時異常時，第 6 名之後併入「其他」，表格仍列出全部 7 項。</li>
     <li><b>異常次數、已處理、處理率放同一張卡</b>：三個數字本來就是「異常 = 已處理 + 待處理」的關係，分開放會看不出關聯。處理率用進度條（已處理 / 待處理兩段），比儀表盤或只有兩塊的圓餅更容易讀。</li>
-    <li><b>異常次數趨勢改成堆疊長條</b>：長條總高度就是異常次數，分成已處理與待處理，同時看到「異常有沒有變多」和「有沒有跟上處理」。滑過可看當期處理率。不用雙 Y 軸，避免兩條刻度互相誤導。</li>
+    <li><b>異常次數趨勢用折線圖</b>：異常次數與已處理次數兩條線，兩線之間的差距就是待處理次數。</li>
   </ul>
   <h3>已移除</h3>
   <ul>
