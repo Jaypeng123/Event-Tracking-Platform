@@ -1,0 +1,1077 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>重點關懷管理看板 v5</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout v3: one page. Top = 統計概覽 panel (its own range bar, KPI row, 3 chart cards). Below = 關懷名單 table (current status, own filters). V7.9 visual language: card rows, outlined risk chips, black segmented controls. */
+:root{
+  color-scheme: light;
+  --bar:#2B2D2D; --canvas:#EFF0F0; --card:#FFFFFF; --sub:#F7F8F8; --line:#E4E6E6;
+  --ink:#1F2323; --ink2:#4A5050; --muted:#6F7777;
+  --accent:#00868B; --accent-weak:#E3F3F3; --accent-ink:#006A6E;
+  --risk:#E5484D; --risk-bg:#FFF3F2; --risk-line:#F5A3A3;
+  --warn:#E07B00; --warn-bg:#FFF8EC; --warn-line:#F5C27A;
+  --ok:#2F9E44; --ok-bg:#EBF7EE;
+  --chip:#E6E8E8; --none:#A3AAAA;
+  --chart-abn:#EC8378; --chart-dark:#5B6363;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --r:8px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--canvas)}
+body{font-family:var(--font);color:var(--ink);font-size:14px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bar)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bar);color:#fff}
+.topbar-in{display:flex;align-items:center;gap:16px;min-height:52px;padding-block:6px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.topbar h1{font-size:18px;font-weight:500;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-add{background:var(--accent);border:0;color:#fff;border-radius:6px;padding:6px 16px;font-size:14px;font-weight:500;white-space:nowrap}
+.btn-add:hover{background:var(--accent-ink)}
+.clock{font-size:13px;color:#ffffffb3;white-space:nowrap}
+@media (max-width:640px){.clock{display:none}}
+
+main{padding-block:16px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1760px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+
+/* 統計概覽 */
+.stats{background:#E4E7E7;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.stats-hd{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:2px 4px}
+.stats-hd h2{font-size:16px;margin:0;font-weight:700}
+.stats-hd .scope{font-size:12px;color:var(--ink2)}
+.stats-hd .sp{flex:1}
+.seg{display:inline-flex;background:var(--card);border:1px solid #CDD2D2;border-radius:6px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:4px 12px;font-size:13px;color:var(--ink2);border-right:1px solid #CDD2D2;white-space:nowrap}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--bar);color:#fff}
+.seg.sm button{padding:2px 10px;font-size:12px}
+.daterange{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid #CDD2D2;border-radius:6px;padding:2px 8px}
+.daterange input{border:0;background:transparent;font-size:13px;padding:2px 0;min-width:0}
+.daterange span{color:var(--muted);font-size:13px}
+
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis .kpi:last-child{grid-column:1/-1}}
+.kpi{background:var(--card);border-radius:var(--r);padding:14px 16px;display:grid;grid-template-columns:40px minmax(0,1fr);gap:4px 12px;align-items:center}
+.kpi .ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;grid-row:span 2}
+@media (max-width:640px){.kpi{grid-template-columns:minmax(0,1fr);padding:12px}.kpi .ic{display:none}.kpi .v{font-size:22px}}
+.kpi .ic svg{width:20px;height:20px}
+.kpi .lb{font-size:13px;color:var(--ink2);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.kpi .v{font-size:26px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:13px;font-weight:400;color:var(--ink2);margin-left:3px}
+.kpi .sub{grid-column:1/-1;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.track{flex:1;height:5px;background:#ECEEEE;border-radius:3px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.ic.teal{background:var(--accent-weak);color:var(--accent)}
+.ic.grey{background:#ECEEEE;color:var(--ink2)}
+.ic.risk{background:var(--risk-bg);color:var(--risk)}
+.ic.ok{background:var(--ok-bg);color:var(--ok)}
+
+.charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.25fr);gap:12px}
+.charts.c2{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)}
+.region-lb{font-size:13px;font-weight:500;color:var(--ink2);padding:2px 4px 0;margin-bottom:-4px}
+.hrow.item{grid-template-columns:70px minmax(0,1fr) 52px 52px}
+.hrow.item.hd{font-size:11px;color:var(--muted)}
+.hrow.item.hd span:nth-child(n+3){text-align:right}
+.note{font-size:11px;color:var(--muted);margin-top:10px}
+@media (max-width:1180px){.charts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.charts .wide{grid-column:1/-1}.charts.c2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media (max-width:760px){.charts,.charts.c2{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border-radius:var(--r);padding:14px 16px;min-width:0}
+.card-hd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:10px;min-height:28px}
+.card-hd h3{margin:0;font-size:15px;font-weight:700}
+.card-hd .sp{flex:1}
+.hbars{display:flex;flex-direction:column;gap:7px}
+.hrow{display:grid;grid-template-columns:20px 70px minmax(0,1fr) 58px;align-items:center;gap:8px;font-size:13px}
+.hrow.noidx{grid-template-columns:80px minmax(0,1fr) 64px}
+.hrow .no{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.hrow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow button.nm{border:0;background:none;padding:0;text-align:left}
+.hrow button.nm:hover{color:var(--accent-ink);text-decoration:underline}
+.hrow .tr{height:16px;background:var(--sub);border-radius:3px;overflow:hidden}
+.hrow .tr i{display:block;height:100%;border-radius:3px;background:var(--chart-dark);transition:width .3s}
+.hrow .val{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink2);font-size:12px}
+.hrow .val b{color:var(--ink);font-weight:500;font-size:13px}
+.radio{display:inline-flex;gap:10px;font-size:12px}
+.radio label{display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.radio input{accent-color:var(--bar);margin:0}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--ink2)}
+.legend i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:3px}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font-family:var(--font);font-size:11px;fill:var(--muted)}
+.chart .vlab{fill:var(--ink2)}
+.tip{position:absolute;top:0;pointer-events:none;background:var(--bar);color:#fff;border-radius:5px;padding:6px 10px;font-size:12px;white-space:nowrap;transform:translateX(-50%);z-index:3;box-shadow:0 4px 12px #0003}
+.tip b{font-weight:500}
+.tip .row{display:flex;gap:8px;align-items:center}
+.tip .dot{width:8px;height:8px;border-radius:50%}
+.nodata{padding:40px 0;text-align:center;color:var(--muted);font-size:13px}
+
+/* 關懷名單 */
+.listcard{background:var(--card);border-radius:12px;padding:16px 16px 12px;min-width:0}
+.list-hd{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.list-hd h2{font-size:16px;margin:0}
+.list-hd .meta{font-size:13px;color:var(--muted)}
+.list-hd .sp{flex:1}
+.kw{border:1px solid #CDD2D2;border-radius:6px;padding:5px 10px 5px 30px;font-size:13px;width:200px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Ccircle cx='6' cy='6' r='4.5' fill='none' stroke='%238B9292' stroke-width='1.5'/%3E%3Cpath d='M9.5 9.5l3 3' stroke='%238B9292' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 10px center}
+.sel{border:1px solid #CDD2D2;border-radius:6px;padding:5px 8px;font-size:13px;background:var(--card)}
+.sel-lb{font-size:13px;color:var(--ink2);display:inline-flex;align-items:center;gap:6px}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-top:12px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:8px 14px;font-size:14px;color:var(--ink2);border-bottom:3px solid transparent;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.tabs button[aria-selected="true"]{color:var(--ink);font-weight:500;border-bottom-color:var(--bar)}
+.badge{min-width:18px;height:18px;border-radius:9px;padding:0 5px;font-size:11px;line-height:18px;text-align:center;background:#DDE0E0;color:var(--ink2);font-weight:500}
+.badge.risk{background:var(--risk);color:#fff}
+.badge.warn{background:var(--warn);color:#fff}
+
+.tbl-wrap{overflow-x:auto;margin-top:8px}
+.tbl{min-width:1120px;display:flex;flex-direction:column;gap:6px;padding:2px}
+.tr-row{display:grid;grid-template-columns:30px 168px 210px 112px 150px 92px minmax(200px,1fr) 104px;align-items:center;gap:0 12px;padding:10px 12px 10px 6px;border-radius:6px}
+.tr-row.head{font-size:13px;color:var(--muted);padding-block:4px}
+.tr-row.head .sort{border:0;background:none;padding:0;color:inherit;display:inline-flex;align-items:center;gap:3px}
+.tr-row.head .sort[aria-pressed="true"]{color:var(--ink);font-weight:500}
+.tr-row.main{background:var(--card);box-shadow:0 0 0 1px var(--line),0 1px 3px #0000000d;cursor:pointer}
+.tr-row.main:hover{box-shadow:0 0 0 1px #B9C0C0,0 2px 6px #00000014}
+.tr-row.member{background:var(--sub);margin-top:-6px;border-radius:0;cursor:pointer;box-shadow:0 0 0 1px var(--line)}
+.tr-row.member:last-of-type{border-radius:0 0 6px 6px}
+.tr-row.main.open{border-radius:6px 6px 0 0}
+.tr-row.member .who{padding-left:12px}
+.tr-row.flash{animation:flash 2.2s ease-out}
+@keyframes flash{0%,40%{background:var(--accent-weak)}100%{background:var(--card)}}
+.who{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-width:0}
+.who b{font-weight:500;font-size:14px}
+.who .m{font-size:12px;color:var(--muted)}
+.famtag{font-size:11px;padding:0 5px;border-radius:3px;background:var(--accent-weak);color:var(--accent-ink);margin-left:4px;font-weight:400;vertical-align:1px}
+.chev{width:26px;height:26px;border:0;background:transparent;border-radius:4px;display:grid;place-items:center;color:var(--ink2)}
+.chev:hover{background:var(--sub)}
+.chev svg{transition:transform .2s}
+.chev[aria-expanded="true"] svg{transform:rotate(180deg)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:20px;padding:0 7px;border-radius:3px;background:var(--chip);color:var(--ink);border:1px solid transparent;white-space:nowrap}
+.chip.out{background:transparent;border-color:#CDD2D2;color:var(--ink2)}
+.chip.risk{background:var(--risk-bg);border-color:var(--risk-line);color:var(--risk)}
+.chip .d{width:6px;height:6px;border-radius:50%;background:var(--risk)}
+.chip .src{font-size:10px;color:#C77;margin-left:1px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;line-height:22px;padding:0 9px 0 6px;border-radius:11px;white-space:nowrap}
+.tag svg{width:13px;height:13px}
+.tag.abn{background:var(--risk-bg);color:var(--risk)}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.tag.none{background:#EEF0F0;color:var(--muted)}
+.when{font-size:13px;line-height:1.35}
+.when small{display:block;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stale{display:inline-block;margin-top:2px;font-size:11px;line-height:18px;padding:0 6px;border-radius:3px;border:1px solid var(--warn-line);background:var(--warn-bg);color:var(--warn)}
+.muted{color:var(--muted);font-size:13px}
+.ops{display:flex;align-items:center;justify-content:flex-end;gap:6px;position:relative}
+.ops .ph{width:28px;flex:none}
+.btn-view{border:1px solid var(--ink2);background:var(--card);border-radius:4px;padding:2px 12px;font-size:13px}
+.btn-view:hover{background:var(--sub)}
+.kebab{border:0;background:none;width:28px;height:28px;border-radius:4px;display:grid;place-items:center;color:var(--ink2)}
+.kebab:hover{background:var(--sub)}
+.menu{position:absolute;right:0;top:32px;z-index:15;background:var(--card);border-radius:6px;box-shadow:0 6px 20px #00000026;padding:4px;min-width:140px}
+.menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:7px 12px;border-radius:4px;font-size:13px;white-space:nowrap}
+.menu button:hover{background:var(--sub)}
+.menu button.danger{color:var(--risk)}
+.empty-row{padding:40px 0;text-align:center;color:var(--muted)}
+.pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;margin-top:12px;font-size:12px;color:var(--muted)}
+.pager button{min-width:28px;height:28px;border:1px solid var(--line);background:var(--card);border-radius:4px;font-size:12px}
+.pager button[aria-current="page"]{border-color:var(--ink);font-weight:700;color:var(--ink)}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager select{border:1px solid var(--line);border-radius:4px;padding:3px 6px;background:var(--card);font-size:12px}
+
+.empty{max-width:560px;margin:8vh auto 0;background:var(--card);border-radius:12px;padding:36px 32px;text-align:center}
+.empty h2{margin:0 0 8px;font-size:20px}
+.empty p{color:var(--ink2);margin:0 0 20px}
+.empty ol{text-align:left;color:var(--ink2);font-size:13px;margin:0 auto 24px;max-width:380px;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+
+.overlay{position:fixed;inset:0;background:#00000073;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+.dialog{background:var(--card);border-radius:12px;width:min(560px,100%);max-height:calc(100% - 32px);display:flex;flex-direction:column;box-shadow:0 12px 40px #0004}
+.dialog.small{width:min(440px,100%)}
+.dlg-hd{display:flex;align-items:center;padding:16px 24px;border-bottom:1px solid var(--line)}
+.dlg-hd h2{margin:0;font-size:19px;font-weight:500;flex:1}
+.icon-btn{border:0;background:none;width:32px;height:32px;border-radius:5px;font-size:22px;line-height:1}
+.icon-btn:hover{background:var(--sub)}
+.dlg-bd{padding:22px 24px;overflow:auto;min-height:140px}
+.dlg-ft{display:flex;justify-content:flex-end;gap:12px;padding:14px 24px;border-top:1px solid var(--line)}
+.btn{border:1px solid #9AA2A2;background:var(--card);border-radius:6px;padding:7px 20px;font-size:14px}
+.btn:hover{background:var(--sub)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-ink)}
+.btn.primary:disabled{background:#86C3C5;border-color:#86C3C5;cursor:default}
+.btn.danger{background:var(--risk);border-color:var(--risk);color:#fff}
+.searchbox{display:flex;align-items:center;border:1px solid var(--accent);border-radius:6px;padding:0 6px 0 12px}
+.searchbox.err{border-color:var(--risk)}
+.searchbox input{flex:1;border:0;padding:10px 0;font-size:15px;min-width:0;background:transparent}
+.searchbox input:focus{outline:none}
+.searchbox:focus-within{box-shadow:0 0 0 3px var(--accent-weak)}
+.clear{border:1.5px solid #888;background:none;width:18px;height:18px;border-radius:50%;font-size:11px;line-height:1;color:#666;display:grid;place-items:center;margin-right:8px;padding:0}
+.link-btn{border:0;background:none;color:var(--accent-ink);font-weight:700;padding:6px}
+.field-err{color:var(--risk);font-size:13px;margin:8px 2px 0}
+.result{margin-top:14px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.result .rh{padding:12px 14px;background:var(--sub)}
+.result .nm{font-weight:500;font-size:15px}
+.result .nm span{color:var(--ink2);font-weight:400;margin-left:8px;font-size:13px}
+.result .note{font-size:13px;color:var(--ink2);margin-top:4px}
+.result.exists .rh{background:var(--warn-bg)}
+.result.exists{border-color:var(--warn-line)}
+.fam-list{margin:0;padding:6px 14px 10px;list-style:none}
+.fam-list li{display:flex;gap:10px;align-items:center;font-size:13px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.fam-list li:last-child{border-bottom:0}
+.fam-list li .r{width:40px;color:var(--muted)}
+.fam-list li .x{margin-left:auto;font-size:12px;color:var(--muted)}
+.testdata{margin-top:18px;font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.testdata button{border:1px dashed #C4CACA;background:none;border-radius:4px;padding:1px 8px;font-size:12px;color:var(--ink2)}
+.testdata button:hover{border-color:var(--accent);color:var(--accent-ink)}
+.drawer-ov{justify-content:flex-end;padding:0}
+.drawer{background:var(--card);width:min(600px,100%);height:100%;overflow:auto;padding:20px 24px calc(24px + env(safe-area-inset-bottom,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+.doc h2{font-size:19px;margin:0}
+.doc h3{font-size:15px;margin:22px 0 8px}
+.doc p{font-size:13px;color:var(--ink2);margin:0}
+.doc ul{padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink2)}
+.doc b{color:var(--ink);font-weight:500}
+.toast{position:fixed;left:50%;top:calc(76px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;background:var(--card);border-radius:8px;box-shadow:0 8px 28px #0003;padding:14px 22px;display:flex;align-items:center;gap:8px;font-size:14px;max-width:calc(100% - 32px)}
+.toast .ic{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex:none;background:var(--accent)}
+.toast.warn .ic{background:var(--warn)}
+.dock{position:fixed;left:max(16px,calc(env(safe-area-inset-left,0px) + 12px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:35;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:#1F2323EE;color:#fff;border-radius:10px;padding:6px 8px;font-size:12px;max-width:calc(100% - 32px)}
+.dock span{opacity:.7;padding:0 4px}
+.dock button{border:1px solid #ffffff40;background:transparent;color:#fff;border-radius:6px;padding:3px 10px;font-size:12px}
+.dock button:hover{background:#ffffff1a}
+.fresh{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);white-space:nowrap}
+.fresh button{border:1px solid #CDD2D2;background:var(--card);border-radius:6px;width:28px;height:28px;display:grid;place-items:center;color:var(--ink2)}
+.fresh button:hover{background:var(--sub)}
+.fresh button.spin svg{animation:spin .6s linear}
+@keyframes spin{to{transform:rotate(360deg)}}
+.delta{font-size:11px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ctoggle{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:2px 4px}
+.ctoggle button{border:1px solid #C3C9C9;background:var(--card);border-radius:16px;padding:4px 14px;font-size:13px;color:var(--ink);display:inline-flex;align-items:center;gap:6px;font-weight:500}
+.ctoggle button:hover{background:var(--sub)}
+.ctoggle button svg{transition:transform .2s}
+.ctoggle button[aria-expanded="true"] svg{transform:rotate(180deg)}
+.ctoggle .insight{font-size:12px;color:var(--ink2);display:flex;flex-wrap:wrap;gap:4px 14px}
+.ctoggle .insight b{font-weight:500;color:var(--ink)}
+.spec-no{display:none}
+.show-spec .spec-no{display:inline}
+.info{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1px solid #B5BBBB;font-size:10px;font-style:normal;color:var(--ink2);cursor:help;font-weight:500;margin-left:6px;vertical-align:2px}
+.hrow.item.top .tr i{background:#E06A5D!important}
+.zero-line{font-size:12px;color:var(--muted);margin-top:10px}
+.nodata .btn-link{display:block;margin:10px auto 0;border:1px solid #CDD2D2;background:var(--card);border-radius:16px;padding:3px 12px;font-size:12px;color:var(--accent-ink)}
+.stats.skel .kpi .v,.stats.skel .card>div:not(.card-hd){opacity:.3;transition:opacity .15s}
+.chip b{font-weight:500}
+@media (max-width:760px){
+  .tbl{min-width:0}
+  .tr-row{grid-template-columns:26px minmax(0,1fr) auto;grid-template-areas:"c w s" "c r r" "c a a" "c t o";gap:6px 10px;padding:12px 10px 12px 4px}
+  .tr-row>:nth-child(1){grid-area:c;align-self:start}
+  .tr-row>:nth-child(2){grid-area:w}
+  .tr-row>:nth-child(3){grid-area:r}
+  .tr-row>:nth-child(4){display:none}
+  .tr-row>:nth-child(5){grid-area:t;align-self:center}
+  .tr-row>:nth-child(6){grid-area:s;justify-self:end;align-self:start}
+  .tr-row>:nth-child(7){grid-area:a}
+  .tr-row>.muted:nth-child(7),.tr-row>:nth-child(7):has(>.muted:only-child){display:none}
+  .tr-row>:nth-child(8){grid-area:o;align-self:center}
+  .tr-row.head{display:none}
+  .when small{display:none}
+  .list-hd .kw{width:100%}
+}
+.navtabs{display:flex;gap:2px;align-self:stretch;margin-left:8px}
+.navtabs button{border:0;background:transparent;color:#ffffffb3;padding:0 14px;border-bottom:3px solid transparent;font-size:15px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.navtabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--accent);font-weight:500}
+.navtabs button:hover{color:#fff}
+.nbadge{min-width:18px;height:18px;border-radius:9px;padding:0 5px;font-size:11px;line-height:18px;text-align:center;background:var(--risk);color:#fff;font-weight:500}
+.nbadge:empty{display:none}
+.topbar h1{flex:0 1 auto}
+.topbar .grow{flex:1}
+.fresh-top{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#ffffffb3;white-space:nowrap}
+.fresh-top button{border:1px solid #ffffff40;background:transparent;border-radius:6px;width:28px;height:28px;display:grid;place-items:center;color:#fff}
+.fresh-top button:hover{background:#ffffff1a}
+@media (max-width:760px){.topbar-in{flex-wrap:wrap}.navtabs{order:3;flex-basis:100%;margin-left:0}.navtabs button{padding:8px 12px}.fresh-top{display:none}}
+.ifilter{position:relative}
+.if-btn{border:1px solid #CDD2D2;background:var(--card);border-radius:6px;padding:5px 10px;font-size:13px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.if-btn.on{border-color:var(--accent);background:var(--accent-weak);color:var(--accent-ink);font-weight:500}
+.if-btn .x{border:0;background:none;padding:0 0 0 2px;font-size:14px;line-height:1;color:inherit}
+.if-pop{position:absolute;top:calc(100% + 6px);right:0;z-index:25;background:var(--card);border-radius:10px;box-shadow:0 10px 30px #00000029;padding:14px;width:min(340px,calc(100vw - 32px))}
+.if-pop.left{right:auto;left:0}
+.if-hd{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:500;margin-bottom:10px}
+.if-hd button{border:0;background:none;color:var(--accent-ink);font-size:12px;padding:2px 4px}
+.if-grp{font-size:11px;color:var(--muted);margin:8px 0 4px}
+.if-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px}
+.if-grid label{display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 6px;border-radius:5px;cursor:pointer}
+.if-grid label:hover{background:var(--sub)}
+.if-grid input{accent-color:var(--accent);margin:0}
+.if-grid small{font-size:10px;color:var(--muted);margin-left:auto}
+.if-ft{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5}
+.filter-note{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--accent-ink);background:var(--accent-weak);border-radius:6px;padding:6px 10px;margin-top:10px}
+.filter-note button{border:0;background:none;color:inherit;text-decoration:underline;font-size:12px;padding:0;margin-left:auto}
+.tr-row.dim{opacity:.55}
+.stats{background:transparent;padding:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="topbar"><div class="topbar-in">
+  <h1>重點關懷管理看板</h1>
+  <nav class="navtabs" role="tablist" aria-label="頁面">
+    <button role="tab" data-view="list" aria-selected="true">釘選人群<span class="nbadge" id="navBadge" title="目前異常人數"></span></button>
+    <button role="tab" data-view="stats" aria-selected="false">統計數據</button>
+  </nav>
+  <span class="grow"></span>
+  <span class="fresh-top" id="freshTop"></span>
+  <button class="btn-add" data-act="add">＋ 加入關懷對象</button>
+</div></header>
+
+<main id="app"></main>
+
+<div class="overlay" id="addModal" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <div class="dlg-hd"><h2 id="addTitle">加入關懷對象</h2><button class="icon-btn" data-close aria-label="關閉">×</button></div>
+    <div class="dlg-bd">
+      <form id="searchForm" class="searchbox" autocomplete="off">
+        <input id="q" aria-label="手機號碼或身分證/居留證號" placeholder="輸入手機號碼或身分證/居留證號">
+        <button type="button" class="clear" id="qClear" aria-label="清除" hidden>×</button>
+        <button type="submit" class="link-btn">搜尋</button>
+      </form>
+      <p class="field-err" id="qErr" hidden></p>
+      <div id="qResult"></div>
+      <div class="testdata" id="testdata"><span>原型測試資料：</span></div>
+    </div>
+    <div class="dlg-ft"><button class="btn" data-close>取消</button><button class="btn primary" id="addConfirm" disabled>加入</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="rmModal" hidden>
+  <div class="dialog small" role="dialog" aria-modal="true" aria-labelledby="rmTitle">
+    <div class="dlg-hd"><h2 id="rmTitle">結束關懷</h2><button class="icon-btn" data-close aria-label="關閉">×</button></div>
+    <div class="dlg-bd" id="rmText" style="min-height:0"></div>
+    <div class="dlg-ft"><button class="btn" data-close>取消</button><button class="btn danger" id="rmConfirm">結束關懷</button></div>
+  </div>
+</div>
+
+<div class="overlay drawer-ov" id="docDrawer" hidden><aside class="drawer doc" role="dialog" aria-modal="true" aria-label="設計說明" id="docBody"></aside></div>
+
+<div class="dock" aria-label="原型工具">
+  <span>原型工具</span>
+  <button id="openDoc">v5 設計說明</button>
+  <button id="tglSpecNo" aria-pressed="false">顯示需求編號</button>
+  <button id="tglEmpty">切換空狀態</button>
+  <button id="resetAll">重置</button>
+</div>
+
+<script>
+(() => {
+'use strict';
+const DAY = 864e5, HOUR = 36e5;
+const NOW = Date.now();
+const HOME_ITEMS = ['血壓','心電','血氧','體溫','血糖','尿酸','總膽固醇'];
+const WATCH_ITEMS = ['血壓','心電','血氧','心率','心率變異性','睡眠'];
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const sod = ts => { const d = new Date(ts); d.setHours(0,0,0,0); return d.getTime(); };
+const fmtDT = ts => { const d = new Date(ts); return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fmtD = ts => { const d = new Date(ts); return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}`; };
+const isoD = ts => { const d = new Date(ts); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const n0 = v => v.toLocaleString('zh-TW');
+
+/* ---------- mock 個案資料（示意） ---------- */
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rand = rng(315);
+const P = (id,name,g,age,h,w,phone,nid,fam,rel,src,rate,abn,stale) => ({id,name,g,age,h,w,phone,nid,fam,rel,src,rate,abn,stale:stale||0});
+const PEOPLE = [
+  P('p01','王橙宇','男',64,172,80,'0912345678','A123456789','F1','本人',['Home','Watch'],1.6,.12),
+  P('p02','王大明','男',88,165,62,'0922111333','A100234567','F1','父親',['Home'],1.2,.2),
+  P('p03','林秀英','女',85,152,50,'0922111444','A200345678','F1','母親',['Pro','Home'],.9,.15),
+  P('p04','王小麗','女',23,160,48,'0933222555','A223456780','F1','子女',[],0,0),
+  P('p05','陳美玲','女',52,158,55,'0918777666','B212345678','F2','本人',['Watch'],2.2,.05),
+  P('p06','陳志強','男',55,175,78,'0918777555','B112345678','F2','配偶',['Home','Watch'],1.4,.09),
+  P('p07','陳宥安','男',19,178,66,'0918777444','B198765432','F2','子女',['Watch'],.6,.02),
+  P('p08','黃國華','男',58,170,74,'0955666777','F121212121','F3','本人',['Pro'],1,.1),
+  P('p09','黃陳阿嬌','女',82,150,46,'0955666888','F221212121','F3','母親',['Home'],1.3,.22),
+  P('p10','林佳蓉','女',45,163,57,'0966111222','E223344556','F4','本人',['Home','Watch'],1.1,.06),
+  P('p11','林正雄','男',78,168,70,'0966111333','E123344556','F4','父親',['Pro','Home'],1.5,.18),
+  P('p12','張月娥','女',74,155,58,'0966111444','E287654321','F4','母親',['Home'],1,.14,4),
+  P('p13','吳俊傑','男',47,180,85,'0966111555','E187654321','F4','配偶',['Watch'],1.8,.07),
+  P('p14','吳以晴','女',12,148,38,'0966111666','E276543210','F4','子女',[],0,0),
+  P('p15','李建宏','男',67,169,73,'0921000111','A131313131','','本人',['Home'],1.7,.16),
+  P('p16','張淑芬','女',71,156,60,'0921000222','A232323232','','本人',['Pro'],.8,.2,6),
+  P('p17','劉家豪','男',39,176,72,'0921000333','A143434343','','本人',['Watch'],2.5,.04),
+  P('p18','蔡宜庭','女',33,162,52,'0921000444','A254545454','','本人',['Home','Watch'],.7,.05),
+  P('p19','許文彬','男',59,171,81,'0921000555','A165656565','','本人',['Pro','Home'],1.2,.13),
+  P('p20','鄭雅雯','女',46,160,55,'0921000666','A276767676','','本人',[],0,0),
+  P('p21','謝明哲','男',81,166,64,'0921000777','A187878787','','本人',['Home'],1.9,.25),
+  P('p22','郭麗華','女',62,157,61,'0921000888','A298989898','','本人',['Home','Watch'],1,.11,40),
+  P('p23','洪志偉','男',50,174,79,'0988123456','H120000001','','本人',['Watch'],1.4,.06),
+  P('p24','曾怡君','女',28,165,53,'0977555888','H220000002','','本人',['Home'],.5,.03),
+  P('p25','周柏翰','男',73,167,69,'0933444555','H130000003','','本人',['Pro'],1.1,.19),
+];
+const PBY = Object.fromEntries(PEOPLE.map(p => [p.id, p]));
+const FAM = {};
+PEOPLE.forEach(p => { if (p.fam) (FAM[p.fam] = FAM[p.fam] || []).push(p.id); });
+
+/* 量測事件：一筆 = 一次量測，可含多個項目；異常事件 = 任一項目異常 */
+const EVENTS = [];
+function pick(arr, k){ const a = arr.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, k); }
+const today0 = sod(NOW);
+PEOPLE.forEach(p => {
+  if (!p.rate) return;
+  for (let d = 0; d < 365; d++){
+    if (d < p.stale) continue;
+    let n = 0, r = p.rate;
+    while (r > 0){ if (rand() < Math.min(r, 1)) n++; r -= 1; }
+    for (let k = 0; k < n; k++){
+      const ts = d === 0 ? today0 + Math.floor(rand() * Math.max(1, NOW - today0 - 6e4)) : today0 - d * DAY + (6 + Math.floor(rand() * 16)) * HOUR + Math.floor(rand() * 60) * 6e4;
+      if (ts > NOW) continue;
+      const src = p.src[Math.floor(rand() * p.src.length)];
+      let keys;
+      if (src === 'Watch') keys = pick(WATCH_ITEMS, 2 + Math.floor(rand() * 3));
+      else { keys = pick(HOME_ITEMS, 1 + Math.floor(rand() * 3)); if (rand() < .55 && !keys.includes('血壓')) keys[0] = '血壓'; }
+      const items = keys.map(k => ({ k, ab: rand() < p.abn }));
+      const ab = items.some(i => i.ab);
+      const done = ab && rand() < (NOW - ts > 2 * DAY ? .82 : .3);
+      EVENTS.push({ pid: p.id, ts, src, items, ab, done });
+    }
+  }
+});
+EVENTS.sort((a, b) => a.ts - b.ts);
+const BYPID = {};
+EVENTS.forEach(e => (BYPID[e.pid] = BYPID[e.pid] || []).push(e));
+
+/* 個案最新狀態：各項目取最新一次量測；異常且已處理 → 視為正常（同小鈴鐺邏輯） */
+const STATUS = {};
+PEOPLE.forEach(p => {
+  const evs = BYPID[p.id] || [];
+  if (!evs.length){ STATUS[p.id] = { st:'none', srcs:[], dev:{}, watch:{}, latest:0, abnItems:[] }; return; }
+  const dev = {}, watch = {}, srcs = new Set();
+  for (let i = evs.length - 1; i >= 0; i--){
+    const e = evs[i]; srcs.add(e.src);
+    const g = e.src === 'Watch' ? watch : dev;
+    e.items.forEach(it => { if (!(it.k in g)) g[it.k] = { ab: it.ab && !e.done, rawAb: it.ab, done: e.done, ts: e.ts }; });
+  }
+  const abnItems = [...new Set([...Object.keys(dev).filter(k => dev[k].ab), ...Object.keys(watch).filter(k => watch[k].ab)])];
+  STATUS[p.id] = { st: abnItems.length ? 'abn' : 'ok', srcs: ['Pro','Home','Watch'].filter(s => srcs.has(s)), dev, watch, latest: evs[evs.length - 1].ts, abnItems };
+});
+
+/* ---------- v3：數值示意、成員狀態 ---------- */
+const STALE_DAYS = 3;
+const RANGES = {
+  '血壓':[[112,134,72,86],[146,172,92,106],'mmHg'], '血氧':[[96,99],[88,93],'%'], '體溫':[[36.2,37.2],[37.9,38.7],'°C'],
+  '血糖':[[82,118],[146,212],'mg/dL'], '尿酸':[[4.1,6.9],[7.8,9.6],'mg/dL'], '總膽固醇':[[150,196],[222,262],'mg/dL'],
+  '心率':[[62,88],[106,128],'bpm'], '心率變異性':[[32,58],[12,20],'ms'], '睡眠':[[6.1,7.9],[3.4,4.8],'小時'],
+};
+function hash(str){ let h = 2166136261; for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; }
+function valueOf(pid, k, g){
+  if (k === '心電') return g.rawAb ? '疑似心房顫動' : '竇性心律';
+  const r = hash(pid + k + g.ts), [nr, ar, unit] = RANGES[k], rg = g.rawAb ? ar : nr, lerp = (a, b, t) => a + (b - a) * t;
+  if (k === '血壓') return `${Math.round(lerp(rg[0], rg[1], r))}/${Math.round(lerp(rg[2], rg[3], hash(k + pid)))} ${unit}`;
+  const v = lerp(rg[0], rg[1], r);
+  return `${Number.isInteger(rg[0]) && k !== '睡眠' ? Math.round(v) : v.toFixed(1)} ${unit}`;
+}
+const ALL_ITEMS = [...new Set([...HOME_ITEMS, ...WATCH_ITEMS])];
+const ITEM_SRC = k => [HOME_ITEMS.includes(k) && '檢測儀', WATCH_ITEMS.includes(k) && 'Watch'].filter(Boolean).join('・');
+const selItems = () => state.items.size ? state.items : null;
+const mstat = pid => {
+  const s = STATUS[pid], sel = selItems();
+  if (sel){
+    if (![...Object.keys(s.dev), ...Object.keys(s.watch)].some(k => sel.has(k))) return 'nomatch';
+    return abnList(pid).length ? 'abn' : NOW - s.latest > STALE_DAYS * DAY ? 'stale' : 'ok';
+  }
+  return s.st === 'none' ? 'none' : s.st === 'abn' ? 'abn' : NOW - s.latest > STALE_DAYS * DAY ? 'stale' : 'ok';
+};
+const pst = pid => { const m = mstat(pid); return m === 'stale' ? 'ok' : m; };
+const daysSince = ts => Math.floor((NOW - ts) / DAY);
+function rel(ts){ const m = Math.floor((NOW - ts) / 6e4); return m < 60 ? `${Math.max(1, m)} 分鐘前` : m < 1440 ? `${Math.floor(m / 60)} 小時前` : `${Math.floor(m / 1440)} 天前`; }
+function abnList(pid){
+  const s = STATUS[pid], out = [];
+  [['檢測儀', s.dev], ['Watch', s.watch]].forEach(([lb, g]) => Object.keys(g).forEach(k => { if (g[k].ab) out.push({ k, lb, g: g[k], pid }); }));
+  const sel = selItems();
+  return (sel ? out.filter(a => sel.has(a.k)) : out).sort((a, b) => b.g.ts - a.g.ts);
+}
+
+/* ---------- state ---------- */
+const state = { care: [], preset: '30d', from: 0, to: 0, tab: 'all', kw: '', src: 'all', sort: 'risk', page: 1, per: 10, expanded: new Set(),  flashKey: null, menu: null, view: 'list', items: new Set(), ifOpen: null, chartsOpen: true, _old: (() => { try { return localStorage.getItem('care-charts-open') === '1'; } catch (e) { return false; } })(), refreshedAt: Date.now() };
+function seedCare(){
+  state.care = [
+    { type:'family', fam:'F1', at: NOW - 1 * DAY }, { type:'person', pid:'p21', at: NOW - 2 * DAY },
+    { type:'family', fam:'F2', at: NOW - 3 * DAY }, { type:'person', pid:'p15', at: NOW - 4 * DAY },
+    { type:'person', pid:'p20', at: NOW - 5 * DAY }, { type:'family', fam:'F4', at: NOW - 6 * DAY },
+    { type:'person', pid:'p16', at: NOW - 8 * DAY }, { type:'person', pid:'p17', at: NOW - 9 * DAY },
+    { type:'person', pid:'p18', at: NOW - 11 * DAY }, { type:'person', pid:'p19', at: NOW - 12 * DAY },
+    { type:'person', pid:'p22', at: NOW - 15 * DAY },
+  ];
+  state.expanded = new Set(); state.tab = 'all'; state.kw = ''; state.src = 'all'; state.page = 1;
+}
+const keyOf = e => e.type === 'family' ? e.fam : e.pid;
+const pidsOf = e => e.type === 'family' ? FAM[e.fam] : [e.pid];
+const carePids = () => state.care.flatMap(pidsOf);
+const inCare = pid => carePids().includes(pid);
+function setRange(preset){
+  state.preset = preset;
+  const t0 = sod(NOW);
+  if (preset === 'today'){ state.from = t0; state.to = NOW; }
+  else if (preset === '7d'){ state.from = t0 - 6 * DAY; state.to = NOW; }
+  else if (preset === '30d'){ state.from = t0 - 29 * DAY; state.to = NOW; }
+}
+setRange('today');
+
+/* ---------- 統計 ---------- */
+function lowerBound(ts){ let lo = 0, hi = EVENTS.length; while (lo < hi){ const m = (lo + hi) >> 1; if (EVENTS[m].ts < ts) lo = m + 1; else hi = m; } return lo; }
+function computeStats(){
+  const set = new Set(carePids()), from = state.from, to = state.to, sel = selItems();
+  const span = to - from;
+  const unit = span <= DAY + 1000 ? 'hour' : span <= 62 * DAY ? 'day' : 'month';
+  const buckets = [];
+  let idxOf;
+  if (unit === 'hour'){
+    const s = from; for (let t = s; t <= to; t += HOUR) buckets.push({ label: `${pad(new Date(t).getHours())}:00` });
+    idxOf = ts => Math.floor((ts - s) / HOUR);
+  } else if (unit === 'day'){
+    const s = sod(from); for (let t = s; t <= to; t += DAY){ const d = new Date(t); buckets.push({ label: `${pad(d.getMonth()+1)}/${pad(d.getDate())}` }); }
+    idxOf = ts => Math.round((sod(ts) - s) / DAY);
+  } else {
+    const d0 = new Date(from), y0 = d0.getFullYear(), m0 = d0.getMonth(), d1 = new Date(to);
+    const n = (d1.getFullYear() - y0) * 12 + d1.getMonth() - m0 + 1;
+    for (let i = 0; i < n; i++){ const d = new Date(y0, m0 + i, 1); buckets.push({ label: `${d.getFullYear()}/${pad(d.getMonth()+1)}` }); }
+    idxOf = ts => { const d = new Date(ts); return (d.getFullYear() - y0) * 12 + d.getMonth() - m0; };
+  }
+  buckets.forEach(b => { b.ppl = new Set(); b.visits = 0; b.abn = 0; b.done = 0; });
+  const people = new Set(), perPid = {}, dev = {}, watch = {};
+  HOME_ITEMS.forEach(k => dev[k] = { n: 0, ab: 0 }); WATCH_ITEMS.forEach(k => watch[k] = { n: 0, ab: 0 });
+  let visits = 0, abn = 0, done = 0;
+  for (let i = lowerBound(from); i < EVENTS.length && EVENTS[i].ts <= to; i++){
+    const e = EVENTS[i]; if (!set.has(e.pid)) continue;
+    const its = sel ? e.items.filter(it => sel.has(it.k)) : e.items;
+    if (!its.length) continue;
+    const eab = its.some(it => it.ab);
+    visits++; people.add(e.pid); perPid[e.pid] = (perPid[e.pid] || 0) + 1;
+    if (eab){ abn++; if (e.done) done++; }
+    const g = e.src === 'Watch' ? watch : dev;
+    its.forEach(it => { g[it.k].n++; if (it.ab) g[it.k].ab++; });
+    const b = buckets[idxOf(e.ts)];
+    if (b){ b.ppl.add(e.pid); b.visits++; if (eab){ b.abn++; if (e.done) b.done++; } }
+  }
+  const top = Object.entries(perPid).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  return { people: people.size, visits, abn, done, rate: abn ? done / abn * 100 : 0, top, dev, watch, buckets, unit };
+}
+
+/* ---------- 圖表（SVG） ---------- */
+const CHARTS = {};
+let W = 640; const H = 230, PL = 44, PR = 14, PT = 16, PB = 30;
+function niceMax(v){ if (v <= 0) return 4; const raw = Math.max(1, v / 4), e = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e * 4; }
+function axes(max, fmt){
+  let s = '';
+  for (let i = 0; i <= 4; i++){
+    const v = max * i / 4, y = PT + (H - PT - PB) * (1 - i / 4);
+    s += `<line x1="${PL}" x2="${W - PR}" y1="${y}" y2="${y}" stroke="#DDE1E1" stroke-dasharray="${i ? '3 4' : ''}"/><text x="${PL - 8}" y="${y + 4}" text-anchor="end">${fmt(v)}</text>`;
+  }
+  return s;
+}
+function lineChart(id, labels, series, fmt = v => n0(Math.round(v * 10) / 10), cw = 640){
+  W = cw;
+  const n = labels.length;
+  const max = niceMax(Math.max(1, ...series.flatMap(s => s.values)));
+  const step = n > 1 ? (W - PL - PR) / (n - 1) : 0;
+  const x0 = PL, xw = W - PL - PR;
+  const x = i => n > 1 ? x0 + step * i : x0 + xw / 2;
+  const y = v => PT + (H - PT - PB) * (1 - v / max);
+  let s = axes(max, fmt);
+  const every = Math.ceil(n / 8);
+  labels.forEach((l, i) => { if (i % every === 0 || i === n - 1 && n < 10) s += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${l}</text>`; });
+  series.forEach((se, si) => {
+    const pts = se.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+    if (si === 0) s += `<path d="M${x(0)},${y(0)} L${pts.join(' L')} L${x(n - 1)},${y(0)} Z" fill="${se.color}" fill-opacity=".08"/>`;
+    s += `<polyline points="${pts.join(' ')}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    if (n <= 31) se.values.forEach((v, i) => s += `<circle cx="${x(i)}" cy="${y(v)}" r="2.6" fill="${se.color}"/>`);
+    const li = n - 1; s += `<circle cx="${x(li)}" cy="${y(se.values[li])}" r="4" fill="#fff" stroke="${se.color}" stroke-width="2"/>`;
+  });
+  s += `<line class="guide" x1="0" x2="0" y1="${PT}" y2="${H - PB}" stroke="#9AA2A2" stroke-dasharray="2 3" visibility="hidden"/>`;
+  CHARTS[id] = { kind: 'line', n, x, labels, series, fmt, W: cw };
+  const out = `<div class="chart" data-chart="${id}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(series.map(s => s.name).join('、'))}趨勢圖">${s}</svg><div class="tip" hidden></div></div>`;
+  W = 640;
+  return out;
+}
+function barChart(id, cats, data, mode, color){
+  const vals = cats.map(k => mode === 'pct' ? (data[k].n ? data[k].ab / data[k].n * 100 : 0) : data[k].ab);
+  const max = mode === 'pct' ? Math.max(10, niceMax(Math.max(...vals))) : niceMax(Math.max(1, ...vals));
+  const fmt = mode === 'pct' ? v => `${Math.round(v)}%` : v => n0(Math.round(v));
+  const band = (W - PL - PR) / cats.length, bw = Math.min(42, band * .5);
+  const y = v => PT + (H - PT - PB) * (1 - v / max);
+  let s = axes(max, fmt);
+  cats.forEach((k, i) => {
+    const cx = PL + band * (i + .5), v = vals[i];
+    s += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(0, y(0) - y(v))}" rx="3" fill="${color}"/>`;
+    s += `<text class="vlab" x="${cx}" y="${y(v) - 5}" text-anchor="middle">${mode === 'pct' ? v.toFixed(1) + '%' : n0(v)}</text>`;
+    s += `<text x="${cx}" y="${H - 8}" text-anchor="middle">${k}</text>`;
+  });
+  s += `<rect class="guide" x="0" y="${PT}" width="${band}" height="${H - PT - PB}" fill="#00868B" fill-opacity=".06" visibility="hidden"/>`;
+  CHARTS[id] = { kind: 'bar', n: cats.length, band, cats, data, W };
+  return `<div class="chart" data-chart="${id}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="各項目異常統計">${s}</svg><div class="tip" hidden></div></div>`;
+}
+document.addEventListener('pointermove', ev => {
+  const el = ev.target.closest && ev.target.closest('.chart');
+  document.querySelectorAll('.chart').forEach(c => { if (c !== el){ c.querySelector('.tip').hidden = true; const g = c.querySelector('.guide'); if (g) g.setAttribute('visibility', 'hidden'); } });
+  if (!el) return;
+  const c = CHARTS[el.dataset.chart]; if (!c) return;
+  const svg = el.querySelector('svg'), r = svg.getBoundingClientRect(), k = r.width / c.W;
+  const fx = (ev.clientX - r.left) / k;
+  const tip = el.querySelector('.tip'), g = el.querySelector('.guide');
+  let i, px, html;
+  if (c.kind === 'line' || c.kind === 'combo'){
+    const step = c.n > 1 ? (c.W - PL - PR) / (c.n - 1) : 1;
+    i = c.idx ? c.idx(fx) : Math.max(0, Math.min(c.n - 1, Math.round((fx - PL) / step)));
+    px = c.x(i); g.setAttribute('x1', px); g.setAttribute('x2', px);
+    html = `<b>${c.labels[i]}</b>` + c.series.map(s => `<div class="row"><span class="dot" style="background:${s.color}"></span>${s.name}<span class="num" style="margin-left:auto;padding-left:12px">${c.fmt(s.values[i])}</span></div>`).join('');
+  } else {
+    i = Math.max(0, Math.min(c.n - 1, Math.floor((fx - PL) / c.band)));
+    px = PL + c.band * (i + .5); g.setAttribute('x', PL + c.band * i);
+    const d = c.data[c.cats[i]];
+    html = `<b>${c.cats[i]}</b><div class="row">異常次數<span class="num" style="margin-left:auto;padding-left:12px">${n0(d.ab)}</span></div><div class="row">量測次數<span class="num" style="margin-left:auto;padding-left:12px">${n0(d.n)}</span></div><div class="row">異常占比<span class="num" style="margin-left:auto;padding-left:12px">${d.n ? (d.ab / d.n * 100).toFixed(1) : '0.0'}%</span></div>`;
+  }
+  g.setAttribute('visibility', 'visible');
+  tip.innerHTML = html; tip.hidden = false;
+  const left = Math.max(70, Math.min(r.width - 70, px * k));
+  tip.style.left = left + 'px'; tip.style.top = '-6px';
+});
+
+/* ---------- icons ---------- */
+const I = {
+  people: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="7" r="3"/><path d="M2.5 16c.6-2.8 2.8-4.3 5.5-4.3s4.9 1.5 5.5 4.3"/><path d="M13 4.3a3 3 0 010 5.4M15.5 12.2c1 .7 1.7 2 2 3.8"/></svg>',
+  pulse: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10h3.5l2-5 3 10 2-5H18"/></svg>',
+  alert: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10 3l8 14H2z" stroke-linejoin="round"/><path d="M10 8v4M10 14.5v.01"/></svg>',
+  check: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M6.8 10.2l2.2 2.2 4.2-4.6"/></svg>',
+  rate: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10 2.5a7.5 7.5 0 107.5 7.5H10z"/><path d="M12.5 2.9a7.5 7.5 0 014.6 4.6H12.5z"/></svg>',
+  tOk: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5"/><path d="M4.6 7.2l1.6 1.6 3.2-3.4"/></svg>',
+  tAbn: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="5.5"/><path d="M7 4.2v3.4M7 9.8v.01"/></svg>',
+  tNone: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="5.5"/><path d="M4.5 7h5"/></svg>',
+  chev: '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  refresh: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 11-1.6-3.9"/><path d="M13.5 2.5v3h-3"/></svg>',
+  kebab: '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="13" r="1.4"/></svg>',
+};
+const tag = st => st === 'nomatch' ? `<span class="tag none" title="沒有量測所選的量測項目">${I.tNone}未量測</span>` : st === 'abn' ? `<span class="tag abn">${I.tAbn}異常</span>` : st === 'none' ? `<span class="tag none">${I.tNone}無資料</span>` : `<span class="tag ok">${I.tOk}正常</span>`;
+
+/* ---------- render: shell ---------- */
+function renderTop(){
+  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-selected', b.dataset.view === state.view));
+  $('#navBadge').textContent = carePids().filter(id => STATUS[id].st === 'abn').length || '';
+  const d = new Date(state.refreshedAt);
+  $('#freshTop').innerHTML = `資料更新於 ${pad(d.getHours())}:${pad(d.getMinutes())}<button data-act="refresh" aria-label="重新整理資料" title="重新整理">${I.refresh}</button>`;
+}
+function itemFilter(where){
+  const sel = [...state.items], open = state.ifOpen === where;
+  const label = !sel.length ? '全部' : sel.length <= 2 ? sel.join('、') : `${sel[0]} 等 ${sel.length} 項`;
+  const box = k => `<label><input type="checkbox" data-item="${k}" ${state.items.has(k) ? 'checked' : ''}>${k}<small>${ITEM_SRC(k)}</small></label>`;
+  return `<button class="if-btn ${sel.length ? 'on' : ''}" data-act="ifopen" data-where="${where}" aria-expanded="${open}" aria-haspopup="dialog">量測項目：${label}${sel.length ? '' : ' ▾'}</button>${sel.length ? '' : ''}
+    ${open ? `<div class="if-pop ${where === 'stats' ? 'left' : ''}" role="dialog" aria-label="篩選量測項目">
+      <div class="if-hd">篩選量測項目<button data-act="ifclear">清除</button></div>
+      <div class="if-grid">${ALL_ITEMS.map(box).join('')}</div>
+      <div class="if-ft">${where === 'list' ? '名單只顯示有量測所選項目的成員，健康狀態、異常項目也只看所選項目。' : '統計只計入包含所選項目的量測；異常次數只看所選項目是否異常。'}兩個分頁共用同一組篩選。</div>
+    </div>` : ''}`;
+}
+function render(){
+  renderTop();
+  if (!state.care.length){
+    $('#app').innerHTML = `<div class="empty"><h2>還沒有釘選人群</h2><p>加入後，這裡會依狀態排出需要優先關注的人。</p>
+      <ol><li>用手機號碼或身分證/居留證號搜尋個案</li><li>已綁定家庭的個案，會連同家庭成員一起加入</li><li>名單預設把異常的人排在最前面</li></ol>
+      <button class="btn primary" data-act="add">＋ 加入關懷對象</button></div>`;
+    return;
+  }
+  if (state.view === 'list'){
+    $('#app').innerHTML = `
+  <section class="listcard" aria-labelledby="listTitle">
+    <div class="list-hd">
+      <h2 id="listTitle">釘選人群</h2><span class="meta" id="listMeta"></span><span class="sp"></span>
+      <input class="kw" id="kw" type="search" placeholder="搜尋姓名" aria-label="搜尋姓名">
+      <div class="ifilter" id="ifList">${itemFilter('list')}</div>
+      <label class="sel-lb">量測來源<select class="sel" id="srcSel"><option value="all">全部</option><option value="Pro">Pro</option><option value="Home">Home</option><option value="Watch">Watch</option></select></label>
+    </div>
+    <div id="listNote"></div>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="tbl-wrap"><div class="tbl" id="rows"></div></div>
+    <div class="pager" id="pager"></div>
+  </section>`;
+    $('#kw').value = state.kw; $('#srcSel').value = state.src;
+    renderList();
+    return;
+  }
+  $('#app').innerHTML = `
+  <section class="stats" aria-labelledby="statsTitle">
+    <div class="stats-hd">
+      <h2 id="statsTitle">統計數據</h2>
+      <div class="seg" role="group" aria-label="統計區間">${[['today','今日'],['7d','近 7 日'],['30d','近 30 日'],['custom','自訂']].map(([v, l]) => `<button data-preset="${v}">${l}</button>`).join('')}</div>
+      <div class="daterange"><input type="date" id="dFrom" aria-label="開始日期"><span>至</span><input type="date" id="dTo" aria-label="結束日期"></div>
+      <div class="ifilter" id="ifStats">${itemFilter('stats')}</div>
+      <span class="sp"></span><span class="scope" id="scope"></span>
+    </div>
+    <div id="statsNote"></div>
+    <div class="region-lb">統計總覽</div>
+    <div class="kpis" id="kpis"></div>
+    <div id="chartsWrap" style="display:flex;flex-direction:column;gap:12px">
+      <div class="region-lb">量測分析</div>
+      <div class="charts c2">
+        <section class="card"><div class="card-hd"><h3>量測次數 Top 10 排行榜</h3><span class="sp"></span><span class="muted spec-no" style="font-size:12px">統計 3</span></div><div id="top10"></div></section>
+        <section class="card"><div class="card-hd"><h3>量測人數 / 人次趨勢</h3><span class="sp"></span><span class="muted spec-no" style="font-size:12px">統計 1・2</span></div><div id="trendM"></div></section>
+      </div>
+      <div class="region-lb">健康異常分析</div>
+      <div class="charts">
+        <section class="card"><div class="card-hd"><h3>Home / Pro 七大項目異常<i class="info" title="占比 = 該項目異常次數 ÷ 所有項目異常判定總次數 × 100%">i</i></h3><span class="sp"></span><span class="muted spec-no" style="font-size:12px">統計 4</span></div><div id="itemsDev"></div></section>
+        <section class="card"><div class="card-hd"><h3>Watch 異常<i class="info" title="占比 = 該項目異常次數 ÷ 所有項目異常判定總次數 × 100%">i</i></h3><span class="sp"></span><span class="muted spec-no" style="font-size:12px">統計 5</span></div><div id="itemsWatch"></div></section>
+        <section class="card wide"><div class="card-hd"><h3>異常次數趨勢<i class="info" title="異常次數以量測事件計，一次量測有多項異常只算 1 次">i</i></h3><span class="sp"></span><span class="muted spec-no" style="font-size:12px">統計 6・7</span></div><div id="trendA"></div></section>
+      </div>
+    </div>
+  </section>`;
+  $('#dFrom').max = $('#dTo').max = isoD(NOW);
+  renderStats();
+}
+function rerenderFilter(){
+  const pos = window.scrollY;
+  render();
+  window.scrollTo(0, pos);
+}
+
+/* ---------- 統計概覽 ---------- */
+function statsFor(from, to){ const a = state.from, b = state.to; state.from = from; state.to = to; const r = computeStats(); state.from = a; state.to = b; return r; }
+function prevRange(){
+  const shift = state.preset === 'today' ? DAY : state.preset === '7d' ? 7 * DAY : state.preset === '30d' ? 30 * DAY : Math.ceil((state.to - state.from) / DAY) * DAY;
+  const label = state.preset === 'today' ? '較昨日同時段' : state.preset === '7d' ? '較前 7 日' : state.preset === '30d' ? '較前 30 日' : '較前一區間';
+  return { from: state.from - shift, to: state.to - shift, label };
+}
+const deltaTxt = (cur, prev, label, pp) => {
+  const d = cur - prev;
+  const t = `${label}：${pp ? prev.toFixed(1) + '%' : n0(prev)}`;
+  if (Math.abs(d) < (pp ? 0.05 : 0.5)) return `<span title="${t}">持平</span>`;
+  return `<span title="${t}">${d > 0 ? '↑' : '↓'} ${pp ? Math.abs(d).toFixed(1) + '%' : n0(Math.abs(Math.round(d)))}</span>`;
+};
+function comboChart(id, labels, bars, line, cw){
+  W = cw;
+  const n = labels.length, band = (W - PL - PR) / n;
+  const max = niceMax(Math.max(1, ...bars.values, ...line.values));
+  const x = i => PL + band * (i + .5), y = v => PT + (H - PT - PB) * (1 - v / max);
+  let s = axes(max, v => n0(Math.round(v * 10) / 10));
+  const every = Math.ceil(n / Math.max(4, Math.floor(cw / 80)));
+  labels.forEach((l, i) => { if (i % every === 0) s += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${l}</text>`; });
+  const bw = Math.max(2, Math.min(26, band * .6));
+  bars.values.forEach((v, i) => s += `<rect x="${x(i) - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(0, y(0) - y(v))}" rx="2" fill="${bars.color}"/>`);
+  s += `<polyline points="${line.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}" fill="none" stroke="${line.color}" stroke-width="2.2" stroke-linejoin="round"/>`;
+  if (n <= 31) line.values.forEach((v, i) => s += `<circle cx="${x(i)}" cy="${y(v)}" r="2.8" fill="${line.color}"/>`);
+  s += `<line class="guide" x1="0" x2="0" y1="${PT}" y2="${H - PB}" stroke="#9AA2A2" stroke-dasharray="2 3" visibility="hidden"/>`;
+  CHARTS[id] = { kind: 'combo', n, x, labels, series: [line, bars], fmt: v => n0(v), W: cw, idx: fx => Math.max(0, Math.min(n - 1, Math.floor((fx - PL) / band))) };
+  const out = `<div class="chart" data-chart="${id}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${line.name}與${bars.name}趨勢">${s}</svg><div class="tip" hidden></div></div>`;
+  W = 640;
+  return out;
+}
+const cwOf = el => Math.max(320, Math.round(el.clientWidth || 520));
+function renderStats(){
+  document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', b.dataset.preset === state.preset));
+  $('#dFrom').value = isoD(state.from); $('#dTo').value = isoD(state.to);
+  const pids = carePids(), s = computeStats(), pr = prevRange(), ps = statsFor(pr.from, pr.to);
+  $('#scope').textContent = `統計對象 ${pids.length} 人・箭頭為${pr.label.replace('較', '與')}比較`;
+  $('#scope').title = '關懷名單內的個案及其家庭成員';
+  const pctPeople = pids.length ? s.people / pids.length * 100 : 0;
+  const kpi = (ic, cls, lb, delta, v, unit, sub) => `<div class="kpi"><span class="ic ${cls}">${ic}</span><span class="lb">${lb}<span class="delta">${delta}</span></span><span class="v">${v}<small>${unit}</small></span><div class="sub">${sub}</div></div>`;
+  $('#kpis').innerHTML =
+    kpi(I.people, 'teal', '已量測人數', deltaTxt(s.people, ps.people, pr.label), n0(s.people), `/ ${pids.length} 人`, `<span class="track"><i style="width:${pctPeople}%"></i></span>覆蓋率 ${Math.round(pctPeople)}%`) +
+    kpi(I.pulse, 'grey', '已量測人次', deltaTxt(s.visits, ps.visits, pr.label), n0(s.visits), '次', `平均每人 ${s.people ? (s.visits / s.people).toFixed(1) : 0} 次`) +
+    kpi(I.alert, 'risk', '異常次數', deltaTxt(s.abn, ps.abn, pr.label), n0(s.abn), '次', `占量測人次 ${s.visits ? (s.abn / s.visits * 100).toFixed(1) : '0.0'}%`) +
+    kpi(I.check, 'ok', '已處理次數', deltaTxt(s.done, ps.done, pr.label), n0(s.done), '次', `待處理 ${n0(s.abn - s.done)} 次`) +
+    kpi(I.rate, 'teal', '異常處理率', s.abn && ps.abn ? deltaTxt(s.rate, ps.rate, pr.label, true) : '', s.abn ? s.rate.toFixed(1) : '—', s.abn ? '%' : '', `<span class="track"><i style="width:${s.rate}%"></i></span>${n0(s.done)} / ${n0(s.abn)}`);
+  $('#statsNote').innerHTML = selItems() ? `<div class="filter-note" style="margin:0">只計入包含「${[...state.items].join('、')}」的量測：人次、異常次數與趨勢都只看這些項目<button data-act="ifclear">清除篩選</button></div>` : '';
+  const noData = msg => `<div class="nodata">${msg}${state.preset === 'today' ? '<button class="btn-link" data-preset="7d">改看近 7 日</button>' : ''}</div>`;
+  const max = s.top.length ? s.top[0][1] : 1;
+  $('#top10').innerHTML = s.top.length ? `<div class="hbars">${s.top.map(([pid, c], i) => `<div class="hrow"><span class="no">${i + 1}</span><button class="nm" data-act="locate" data-pid="${pid}" title="在名單中查看">${esc(PBY[pid].name)}</button><span class="tr"><i style="width:${c / max * 100}%;${i === 0 ? 'background:var(--accent)' : ''}"></i></span><span class="val"><b>${n0(c)}</b> 次</span></div>`).join('')}</div>` : noData('此區間內沒有量測資料');
+  const itemBars = (items, data) => {
+    if (!items.some(k => data[k].n)) return noData('此區間內沒有這個來源的量測資料');
+    const totalAb = items.reduce((n, k) => n + data[k].ab, 0);
+    const rows = items.map(k => ({ k, ab: data[k].ab, n: data[k].n })).sort((a, b) => b.ab - a.ab);
+    const nz = rows.filter(r => r.ab), z = rows.filter(r => !r.ab);
+    if (!nz.length) return `<div class="nodata">此區間內各項目皆無異常<br><span style="font-size:12px">共量測 ${n0(rows.reduce((n, r) => n + r.n, 0))} 項次</span></div>`;
+    return `<div class="hbars"><div class="hrow item hd"><span>項目</span><span></span><span>異常次數</span><span>占比</span></div>${nz.map((r, i) => {
+      const pct = r.ab / totalAb * 100;
+      return `<div class="hrow item${i === 0 ? ' top' : ''}" title="${r.k}：異常 ${r.ab} 次，占全部異常 ${pct.toFixed(1)}%（該項共量測 ${r.n} 次）"><span class="nm">${r.k}</span><span class="tr"><i style="width:${r.ab / nz[0].ab * 100}%;background:var(--chart-abn)"></i></span><span class="val"><b>${n0(r.ab)}</b></span><span class="val">${pct.toFixed(1)}%</span></div>`;
+    }).join('')}</div>${z.length ? `<div class="zero-line">其他 ${z.length} 項無異常：${z.map(r => r.k).join('、')}</div>` : ''}<div class="zero-line" style="margin-top:4px">共 ${n0(totalAb)} 次異常判定</div>`;
+  };
+  const pick = items => selItems() ? items.filter(k => state.items.has(k)) : items;
+  const notIn = '<div class="nodata">此來源不含所選的量測項目</div>';
+  $('#itemsDev').innerHTML = pick(HOME_ITEMS).length ? itemBars(pick(HOME_ITEMS), s.dev) : notIn;
+  $('#itemsWatch').innerHTML = pick(WATCH_ITEMS).length ? itemBars(pick(WATCH_ITEMS), s.watch) : notIn;
+  const labels = s.buckets.map(b => b.label);
+  const legend = (series, shapes) => `<div class="legend" style="margin:-4px 0 6px">${series.map((x, i) => `<span><i style="background:${x.color};${shapes && shapes[i] === 'bar' ? 'height:10px;width:10px;vertical-align:-1px' : ''}"></i>${x.name}</span>`).join('')}</div>`;
+  const line = { name: '已量測人數', color: '#00868B', values: s.buckets.map(b => b.ppl.size) }, bars = { name: '已量測人次', color: '#CBD1D1', values: s.buckets.map(b => b.visits) };
+  const sa = [{ name: '異常次數', color: '#E06A5D', values: s.buckets.map(b => b.abn) }, { name: '已處理次數', color: '#00868B', values: s.buckets.map(b => b.done) }];
+  const unitTxt = { hour: '每小時', day: '每日', month: '每月' }[s.unit];
+  $('#trendM').innerHTML = s.visits ? legend([line, bars], ['line', 'bar']) + comboChart('trendM', labels, bars, line, cwOf($('#trendM'))) + `<div class="zero-line">${unitTxt}統計</div>` : noData('此區間內沒有量測資料');
+  $('#trendA').innerHTML = s.visits ? legend(sa) + lineChart('trendA', labels, sa, undefined, cwOf($('#trendA'))) + `<div class="zero-line">${unitTxt}統計</div>` : noData('此區間內沒有量測資料');
+}
+function reloadStats(spin){
+  const st = $('.stats'); if (!st) return;
+  st.classList.add('skel');
+  if (spin){ const b = document.querySelector('[data-act="refresh"]'); if (b) b.classList.add('spin'); }
+  setTimeout(() => { if (spin) state.refreshedAt = Date.now(); renderStats(); st.classList.remove('skel'); if (spin) toast('資料已更新'); }, 300);
+}
+
+/* ---------- 關懷名單 ---------- */
+function hhModel(e){
+  const pids = pidsOf(e), ms = pids.map(mstat);
+  const st = ms.includes('abn') ? 'abn' : ms.some(m => m === 'ok' || m === 'stale') ? 'ok' : 'none';
+  const match = !selItems() || ms.some(m => m !== 'nomatch');
+  const latest = Math.max(0, ...pids.map(id => STATUS[id].latest));
+  const abn = pids.flatMap(abnList);
+  const lastAbn = Math.max(0, ...abn.map(a => a.g.ts));
+  const srcs = ['Pro', 'Home', 'Watch'].filter(x => pids.some(id => STATUS[id].srcs.includes(x)));
+  return { e, key: keyOf(e), pids, ms, st, match, latest, abn, lastAbn, srcs, stale: ms.includes('stale'), main: PBY[pids[0]] };
+}
+function filtered(){
+  const kw = state.kw.trim();
+  let rows = state.care.map(hhModel)
+    .filter(h => h.match)
+    .filter(h => !kw || h.pids.some(id => PBY[id].name.includes(kw)))
+    .filter(h => state.src === 'all' || h.srcs.includes(state.src));
+  const counts = { all: rows.length, abn: rows.filter(h => h.st === 'abn').length, stale: rows.filter(h => h.stale).length, ok: rows.filter(h => h.st === 'ok').length, none: rows.filter(h => h.st === 'none').length };
+  rows = rows.filter(h => state.tab === 'all' || (state.tab === 'stale' ? h.stale : h.st === state.tab));
+  const R = { abn: 0, ok: 1, none: 2 };
+  if (state.sort === 'risk') rows.sort((a, b) => R[a.st] - R[b.st] || b.lastAbn - a.lastAbn || b.latest - a.latest);
+  else if (state.sort === 'latest') rows.sort((a, b) => b.latest - a.latest);
+  else rows.sort((a, b) => b.e.at - a.e.at);
+  return { rows, counts };
+}
+function abnChips(list, withName){
+  if (!list.length) return '<span class="muted">—</span>';
+  const chip = a => `<span class="chip risk" title="${a.k} ${valueOf(a.pid, a.k, a.g)}・${a.lb}・${fmtDT(a.g.ts)}">${a.k}</span>`;
+  const vchip = a => `<span class="chip risk" title="${a.k} ${valueOf(a.pid, a.k, a.g)}・${a.lb}・${fmtDT(a.g.ts)}">${a.k}${a.k === '心電' ? '' : ` <b>${valueOf(a.pid, a.k, a.g).split(' ')[0]}</b>`}</span>`;
+  if (!withName) return `<div class="chips">${list.map(vchip).join('')}</div>`;
+  const by = {}; list.forEach(a => (by[a.pid] = by[a.pid] || []).push(a));
+  return `<div class="chips" style="row-gap:6px">${Object.keys(by).map(pid => `<span class="chips" style="flex-wrap:nowrap;align-items:center"><span class="muted" style="font-size:12px;margin-right:2px">${esc(PBY[pid].rel)}</span>${by[pid].map(chip).join('')}</span>`).join('<span style="width:8px"></span>')}</div>`;
+}
+function whenCell(latest, staleDays){
+  if (!latest) return '<span class="muted">—</span>';
+  return `<div class="when">${rel(latest)}<small>${fmtDT(latest)}</small>${staleDays ? `<span class="stale">${staleDays} 天未量測</span>` : ''}</div>`;
+}
+function srcChips(srcs){ return srcs.length ? `<div class="chips">${srcs.map(x => `<span class="chip out">${x}</span>`).join('')}</div>` : '<span class="muted">—</span>'; }
+function menuHtml(key){ return state.menu === key ? `<div class="menu" role="menu"><button role="menuitem" data-act="end" data-key="${key}" class="danger">結束關懷</button></div>` : ''; }
+function renderList(){
+  const { rows, counts } = filtered();
+  const fams = state.care.filter(e => e.type === 'family').length;
+  $('#listMeta').textContent = `家庭 ${fams} 戶、個人 ${state.care.length - fams} 位，共 ${carePids().length} 人・顯示每位成員最新一次量測`;
+  $('#listNote').innerHTML = selItems() ? `<div class="filter-note">只顯示有量測「${[...state.items].join('、')}」的成員，狀態與異常項目也只看這些項目<button data-act="ifclear">清除篩選</button></div>` : '';
+  $('#tabs').innerHTML = [['all', '全部', ''], ['abn', '異常', 'risk'], ['stale', `逾 ${STALE_DAYS} 天未量測`, 'warn'], ['ok', '正常', ''], ['none', '無資料', '']]
+    .map(([v, l, c]) => `<button role="tab" data-tab="${v}" aria-selected="${state.tab === v}">${l}<span class="badge ${counts[v] && c ? c : ''}">${counts[v]}</span></button>`).join('');
+  const pages = Math.max(1, Math.ceil(rows.length / state.per));
+  if (state.page > pages) state.page = pages;
+  const slice = rows.slice((state.page - 1) * state.per, state.page * state.per);
+  const sortBtn = (k, l) => `<button class="sort" data-sort="${k}" aria-pressed="${state.sort === k}">${l}${state.sort === k ? ' ↓' : ''}</button>`;
+  let html = `<div class="tr-row head"><span></span><span>個案資訊</span><span>親友關係</span><span>量測來源</span><span>${sortBtn('latest', '最新量測')}</span><span>${sortBtn('risk', '健康狀態')}</span><span>異常項目</span><span>操作</span></div>`;
+  if (!slice.length) html += '<div class="empty-row">沒有符合條件的關懷對象</div>';
+  slice.forEach(h => {
+    const flash = state.flashKey === h.key ? ' flash' : '';
+    if (h.e.type === 'family'){
+      const open = state.expanded.has(h.key);
+      const rels = h.pids.map((id, i) => `<span class="chip" title="${esc(PBY[id].name)}">${h.ms[i] === 'abn' ? '<i class="d"></i>' : ''}${esc(PBY[id].rel)}</span>`).join('');
+      const staleMax = Math.max(0, ...h.pids.filter(id => mstat(id) === 'stale').map(id => daysSince(STATUS[id].latest)));
+      html += `<div class="tr-row main${open ? ' open' : ''}${flash}" data-row="${h.key}">
+        <span><button class="chev" data-act="toggle" data-key="${h.key}" aria-expanded="${open}" aria-label="${open ? '收合' : '展開'}家庭成員">${I.chev}</button></span>
+        <div class="who"><b>${esc(h.main.name)}<span class="famtag">家庭 ${h.pids.length} 人</span></b><span class="m">${h.main.g} / ${h.main.age}歲 / ${h.main.h}cm / ${h.main.w}kg</span></div>
+        <div class="chips">${rels}</div>
+        ${srcChips(h.srcs)}
+        ${whenCell(h.latest, 0)}
+        <span>${tag(h.st)}</span>
+        <div>${h.abn.length ? abnChips(h.abn, true) : (h.stale ? `<span class="stale">成員 ${staleMax} 天未量測</span>` : '<span class="muted">—</span>')}</div>
+        <div class="ops"><button class="kebab" data-act="menu" data-key="${h.key}" aria-label="更多操作">${I.kebab}</button>${menuHtml(h.key)}</div>
+      </div>`;
+      if (open) h.pids.forEach((id, i) => {
+        const p = PBY[id], s = STATUS[id];
+        html += `<div class="tr-row member${h.ms[i] === 'nomatch' ? ' dim' : ''}" data-view="${id}"><span></span>
+          <div class="who"><b>${esc(p.name)}</b><span class="m">${p.g} / ${p.age}歲 / ${p.h}cm / ${p.w}kg</span></div>
+          <span>${esc(p.rel)}</span>${srcChips(s.srcs)}${whenCell(s.latest, h.ms[i] === 'stale' ? daysSince(s.latest) : 0)}
+          <span>${tag(pst(id))}</span>${abnChips(abnList(id), false)}
+          <div class="ops"><button class="btn-view" data-act="view" data-pid="${id}">查看</button><span class="ph"></span></div></div>`;
+      });
+    } else {
+      const id = h.pids[0], p = PBY[id], s = STATUS[id];
+      html += `<div class="tr-row main${flash}" data-row="${h.key}" data-view="${id}"><span></span>
+        <div class="who"><b>${esc(p.name)}</b><span class="m">${p.g} / ${p.age}歲 / ${p.h}cm / ${p.w}kg</span></div>
+        <span>本人</span>${srcChips(s.srcs)}${whenCell(s.latest, h.ms[0] === 'stale' ? daysSince(s.latest) : 0)}
+        <span>${tag(pst(id))}</span>${abnChips(abnList(id), false)}
+        <div class="ops"><button class="btn-view" data-act="view" data-pid="${id}">查看</button><button class="kebab" data-act="menu" data-key="${h.key}" aria-label="更多操作">${I.kebab}</button>${menuHtml(h.key)}</div></div>`;
+    }
+  });
+  $('#rows').innerHTML = html;
+  const pg = []; for (let i = 1; i <= pages; i++) pg.push(`<button data-page="${i}" ${i === state.page ? 'aria-current="page"' : ''}>${i}</button>`);
+  $('#pager').innerHTML = `<button data-page="${state.page - 1}" ${state.page === 1 ? 'disabled' : ''} aria-label="上一頁">‹</button>${pg.join('')}<button data-page="${state.page + 1}" ${state.page === pages ? 'disabled' : ''} aria-label="下一頁">›</button>
+    <select id="per" aria-label="每頁筆數">${[5, 10, 20].map(n => `<option value="${n}" ${n === state.per ? 'selected' : ''}>${n} / 頁</option>`).join('')}</select><span>共 ${rows.length} 筆 · 第 ${state.page} / ${pages} 頁</span>`;
+  if (state.flashKey){ const el = document.querySelector(`[data-row="${state.flashKey}"]`); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); state.flashKey = null; }
+}
+
+/* ---------- 加入關懷對象 ---------- */
+let pending = null;
+const addModal = $('#addModal'), q = $('#q');
+function openAdd(){ addModal.hidden = false; q.value = ''; resetSearch(); setTimeout(() => q.focus(), 30); }
+function resetSearch(){ pending = null; $('#qErr').hidden = true; $('#searchForm').classList.remove('err'); $('#qResult').innerHTML = ''; $('#addConfirm').disabled = true; $('#addConfirm').textContent = '加入'; $('#qClear').hidden = !q.value; }
+function showErr(msg){ $('#qErr').textContent = msg; $('#qErr').hidden = false; $('#searchForm').classList.add('err'); }
+const maskPhone = ph => `${ph.slice(0, 4)}-***-${ph.slice(7)}`;
+function doSearch(){
+  resetSearch();
+  const v = q.value.trim().toUpperCase();
+  if (!v) return showErr('請輸入手機號碼或身分證/居留證號');
+  if (!/^09\d{8}$/.test(v) && !/^[A-Z][1289]\d{8}$/.test(v)) return showErr('格式不正確：手機號碼為 09 開頭共 10 碼；身分證/居留證號為 1 個英文字母加 9 碼數字');
+  const p = PEOPLE.find(x => x.phone === v || x.nid === v);
+  if (!p) return showErr('查無此個案。請確認號碼是否正確，或先到「新增個案」建立資料。');
+  const pids = p.fam ? FAM[p.fam] : [p.id], already = pids.filter(inCare), head = PBY[pids[0]];
+  if (already.length === pids.length){
+    $('#qResult').innerHTML = `<div class="result exists"><div class="rh"><div class="nm">${esc(p.name)}<span>${p.g}・${p.age} 歲</span></div><div class="note">${p.fam ? `所屬的「${esc(head.name)}」家庭` : '此個案'}已在關懷名單中，不需要重複加入。</div></div></div>`;
+    $('#addConfirm').disabled = false; $('#addConfirm').textContent = '在名單中查看';
+    pending = { exists: true, key: p.fam || p.id };
+    return;
+  }
+  pending = { type: p.fam ? 'family' : 'person', fam: p.fam, pid: p.id, pids, already };
+  $('#qResult').innerHTML = `<div class="result"><div class="rh"><div class="nm">${esc(p.name)}<span>${p.g}・${p.age} 歲・${maskPhone(p.phone)}</span></div>
+    <div class="note">${p.fam ? `已綁定家庭帳號（主帳號 ${esc(head.name)}），將一併加入以下 ${pids.length} 位成員：` : '個人帳號，未綁定家庭。'}</div></div>
+    ${p.fam ? `<ul class="fam-list">${pids.map(id => { const m = PBY[id]; return `<li><span class="r">${esc(m.rel)}</span><span>${esc(m.name)}</span><span class="muted" style="font-size:12px">${m.g}・${m.age} 歲</span><span class="x">${already.includes(id) ? '已在名單，將併入此家庭' : id === p.id ? '搜尋對象' : ''}</span></li>`; }).join('')}</ul>` : ''}</div>`;
+  $('#addConfirm').disabled = false;
+  $('#addConfirm').textContent = p.fam ? `加入 ${pids.length} 位成員` : '加入';
+}
+$('#searchForm').addEventListener('submit', ev => { ev.preventDefault(); doSearch(); });
+q.addEventListener('input', () => { if (pending || !$('#qErr').hidden || $('#qResult').innerHTML) resetSearch(); $('#qClear').hidden = !q.value; });
+$('#qClear').addEventListener('click', () => { q.value = ''; resetSearch(); q.focus(); });
+function locate(key){
+  const { rows } = (state.tab = 'all', state.kw = '', state.src = 'all', filtered());
+  const idx = rows.findIndex(h => h.key === key);
+  state.page = idx >= 0 ? Math.floor(idx / state.per) + 1 : 1;
+  if (FAM[key]) state.expanded.add(key);
+  state.flashKey = key;
+}
+$('#addConfirm').addEventListener('click', () => {
+  if (!pending) return;
+  const pd = pending; addModal.hidden = true;
+  state.view = 'list';
+  if (pd.exists){ locate(pd.key); render(); return; }
+  if (pd.type === 'family'){
+    state.care = state.care.filter(e => !(e.type === 'person' && pd.pids.includes(e.pid)));
+    state.care.push({ type: 'family', fam: pd.fam, at: Date.now() });
+  } else state.care.push({ type: 'person', pid: pd.pid, at: Date.now() });
+  locate(pd.fam || pd.pid);
+  render();
+  toast(pd.type === 'family' ? `已加入「${PBY[pd.pids[0]].name}」家庭，共 ${pd.pids.length} 位成員` : `已加入 ${PBY[pd.pid].name}`);
+});
+[['0955666777', '家庭・未加入'], ['0988123456', '個人・未加入'], ['H130000003', '證號・個人'], ['0912345678', '已在名單'], ['0911000000', '查無個案'], ['12345', '格式錯誤']]
+  .forEach(([v, l]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = `${v}（${l}）`; b.onclick = () => { q.value = v; $('#qClear').hidden = false; doSearch(); }; $('#testdata').appendChild(b); });
+
+/* ---------- 結束關懷 ---------- */
+let rmKey = null;
+function askRemove(key){
+  const e = state.care.find(x => keyOf(x) === key); if (!e) return;
+  rmKey = key; state.menu = null; renderList();
+  const main = PBY[pidsOf(e)[0]];
+  $('#rmText').innerHTML = `<p style="margin:0 0 8px">確定將「<b>${esc(main.name)}</b>」${e.type === 'family' ? `家庭（${pidsOf(e).length} 位成員）` : ''}移出關懷名單？</p><p style="margin:0;font-size:13px;color:var(--muted)">只會從看板移除，個案與家庭帳號的資料、量測紀錄都不受影響，之後可以再加入。</p>`;
+  $('#rmModal').hidden = false; $('#rmConfirm').focus();
+}
+$('#rmConfirm').addEventListener('click', () => {
+  const e = state.care.find(x => keyOf(x) === rmKey);
+  state.care = state.care.filter(x => keyOf(x) !== rmKey);
+  $('#rmModal').hidden = true; render();
+  if (e) toast(`已結束關懷：${PBY[pidsOf(e)[0]].name}${e.type === 'family' ? ' 家庭' : ''}`);
+});
+
+/* ---------- 設計說明 ---------- */
+$('#docBody').innerHTML = `
+  <div style="display:flex;align-items:center"><h2 style="flex:1">v5 設計說明</h2><button class="icon-btn" data-close aria-label="關閉">×</button></div>
+  <h3>頁籤結構</h3>
+  <ul>
+    <li><b>釘選人群</b>（預設）：要優先關注的人。頁籤上的紅色數字是目前異常人數，切到統計頁也看得到。</li>
+    <li><b>統計數據</b>：需求單 2.3 的全部統計，時間篩選只在這一頁，名單不會被誤以為也有時間範圍。</li>
+    <li>資料更新時間與重新整理放在頂欄，兩個頁籤共用。</li>
+  </ul>
+  <h3>量測項目篩選</h3>
+  <ul>
+    <li>可複選 10 個量測項目（檢測儀 7 項＋Watch 的心率、心率變異性、睡眠；血壓、心電、血氧兩種來源都有）。</li>
+    <li><b>釘選人群</b>：只顯示有量測所選項目的成員；健康狀態、異常項目、異常分頁數字都只看所選項目。家庭展開後，沒量測該項目的成員會淡化顯示。</li>
+    <li><b>統計數據</b>：只計入包含所選項目的量測；異常次數只看所選項目是否異常；異常項目分布只顯示所選項目。</li>
+    <li>兩個頁籤共用同一組篩選，有篩選時會出現提示條，可一鍵清除。</li>
+  </ul>
+  <h3>待確認</h3>
+  <ul>
+    <li>量測項目篩選要不要兩個頁籤各自獨立？目前共用，方便「只看血壓」時名單與統計一致。</li>
+    <li>統計頁加了項目篩選後，已量測人數的意思變成「有量測所選項目的人數」，需和 PM 確認口徑。</li>
+  </ul>`;
+
+/* ---------- toast / clock / events ---------- */
+let toastTimer;
+function toast(msg, kind){
+  let t = $('.toast'); if (!t){ t = document.createElement('div'); t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.className = `toast ${kind || ''}`; t.innerHTML = `<span class="ic">${kind === 'warn' ? '!' : '✓'}</span><span>${esc(msg)}</span>`; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2600);
+}
+function tick(){ const d = new Date(); $('#clock').textContent = `${fmtD(d)} 星期${'日一二三四五六'[d.getDay()]} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+
+
+document.addEventListener('click', ev => {
+  const t = ev.target;
+  const close = t.closest('[data-close]');
+  if (close){ close.closest('.overlay').hidden = true; return; }
+  if (t.classList && t.classList.contains('overlay')){ t.hidden = true; return; }
+  const vw = t.closest('[data-view]');
+  if (vw && vw.closest('.navtabs')){ state.view = vw.dataset.view; state.ifOpen = null; state.menu = null; render(); window.scrollTo(0, 0); return; }
+  if (state.ifOpen && !t.closest('.ifilter')){ state.ifOpen = null; rerenderFilter(); if (!t.closest('[data-act]')) return; }
+  const a = t.closest('[data-act]');
+  if (state.menu && !(a && a.dataset.act === 'menu') && !t.closest('.menu')){ state.menu = null; renderList(); if (!a) return; }
+  if (a){
+    const act = a.dataset.act;
+    if (act === 'add') openAdd();
+    if (act === 'refresh'){ state.refreshedAt = Date.now(); render(); toast('資料已更新'); }
+    if (act === 'toggle'){ const k = a.dataset.key; state.expanded.has(k) ? state.expanded.delete(k) : state.expanded.add(k); renderList(); }
+    if (act === 'menu'){ state.menu = state.menu === a.dataset.key ? null : a.dataset.key; renderList(); }
+    if (act === 'end') askRemove(a.dataset.key);
+    if (act === 'view') toast(`正式版：跳轉至「${PBY[a.dataset.pid].name}」的既有個案詳情頁`);
+    if (act === 'locate'){ const p = PBY[a.dataset.pid]; locate(p.fam && state.care.some(e => e.fam === p.fam) ? p.fam : p.id); state.view = 'list'; render(); }
+    if (act === 'ifopen'){ state.ifOpen = state.ifOpen === a.dataset.where ? null : a.dataset.where; rerenderFilter(); }
+    if (act === 'ifclear'){ state.items.clear(); state.page = 1; rerenderFilter(); }
+    return;
+  }
+  const row = t.closest('.tr-row.main, .tr-row.member');
+  if (row){
+    if (row.dataset.view) toast(`正式版：跳轉至「${PBY[row.dataset.view].name}」的既有個案詳情頁`);
+    else { const k = row.dataset.row; state.expanded.has(k) ? state.expanded.delete(k) : state.expanded.add(k); renderList(); }
+    return;
+  }
+  const tb = t.closest('[data-tab]'); if (tb){ state.tab = tb.dataset.tab; state.page = 1; renderList(); return; }
+  const so = t.closest('[data-sort]'); if (so){ state.sort = so.dataset.sort; renderList(); return; }
+  const pg = t.closest('[data-page]'); if (pg && !pg.disabled){ state.page = +pg.dataset.page; renderList(); return; }
+  const pre = t.closest('[data-preset]');
+  if (pre){ if (pre.dataset.preset === 'custom'){ state.preset = 'custom'; renderStats(); $('#dFrom').focus(); } else { setRange(pre.dataset.preset); reloadStats(); } return; }
+  if (t.closest('#tglCharts')){
+    state.chartsOpen = !state.chartsOpen;
+    try { localStorage.setItem('care-charts-open', state.chartsOpen ? '1' : '0'); } catch (e) {}
+    const b = $('#tglCharts'); b.setAttribute('aria-expanded', state.chartsOpen); b.querySelector('span').textContent = state.chartsOpen ? '收合分析圖表' : '展開分析圖表';
+    $('#chartsWrap').hidden = !state.chartsOpen; renderStats();
+  }
+});
+document.addEventListener('change', ev => {
+  const t = ev.target;
+  if (t.dataset && t.dataset.item){ t.checked ? state.items.add(t.dataset.item) : state.items.delete(t.dataset.item); state.page = 1; rerenderFilter(); const el = document.querySelector(`[data-item="${t.dataset.item}"]`); if (el) el.focus(); return; }
+  if (t.id === 'per'){ state.per = +t.value; state.page = 1; renderList(); }
+  if (t.id === 'srcSel'){ state.src = t.value; state.page = 1; renderList(); }
+  if (t.id === 'dFrom' || t.id === 'dTo'){
+    const f = $('#dFrom').value, to = $('#dTo').value;
+    if (!f || !to) return;
+    const a = new Date(f + 'T00:00').getTime(), b = new Date(to + 'T23:59:59').getTime();
+    if (a > b){ toast('開始日期不能晚於結束日期', 'warn'); renderStats(); return; }
+    if (b - a > 366 * DAY){ toast('自訂區間最長 1 年', 'warn'); renderStats(); return; }
+    state.preset = 'custom'; state.from = a; state.to = Math.min(b, NOW); reloadStats();
+  }
+});
+document.addEventListener('input', ev => { if (ev.target.id === 'kw'){ state.kw = ev.target.value; state.page = 1; renderList(); } });
+let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if ($('#trendM') && state.chartsOpen) renderStats(); }, 200); });
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape'){ if (state.ifOpen){ state.ifOpen = null; rerenderFilter(); } document.querySelectorAll('.overlay').forEach(o => o.hidden = true); if (state.menu){ state.menu = null; renderList(); } } });
+
+$('#openDoc').addEventListener('click', () => { $('#docDrawer').hidden = false; });
+$('#tglSpecNo').addEventListener('click', ev => { const on = document.body.classList.toggle('show-spec'); ev.currentTarget.setAttribute('aria-pressed', on); if (on && !state.chartsOpen) $('#tglCharts').click(); });
+$('#tglEmpty').addEventListener('click', () => { if (state.care.length) state.care = []; else seedCare(); render(); });
+$('#resetAll').addEventListener('click', () => { seedCare(); setRange('today'); render(); toast('已重置為範例資料'); });
+
+seedCare();
+render();
+})();
+</script>
+
+</html>
