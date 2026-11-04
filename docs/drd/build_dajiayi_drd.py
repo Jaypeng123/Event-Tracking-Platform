@@ -266,8 +266,8 @@ E = [
      "②③ 分子（警報）\n④ 分母（警報）\n3.1 ③④ 時間點\n3.2 ①②③④ 分母\n6.0 ①②③ 同上",
      [("popup_name", "handle_form"), "form_type", "form_open_id", "form_open_seq", "detail_visit_id", "patient_id",
       ("alert_event_id", "null, ae_5521", "本次處理的警報事件"), ("referral_id", "null, rf_301", "本次處理的轉診；醫師建議時必帶"), "task_id"],
-     "跨章節共用：3.2 與 6.0 都用本事件。每次打開產生新的 form_open_id。\n"
-     "form_open_seq 需要跨頁面、跨重新整理累計，前端不容易算準：建議由後端記錄開啟次數；做不到時前端送 null，由分析端依時間順序計算"),
+     "跨章節共用：3.2 與 6.0 都用本事件。每次打開產生新的 form_open_id。\n" +
+     TBC + "form_open_seq 需要跨頁面、跨重新整理累計，前端不容易算準：建議由後端記錄開啟次數；做不到時前端送 null，由分析端依時間順序計算"),
     ("3.0 護理師｜完成處置：是否都有被處理", "FORM_02", "表單彈窗", "close_popup",
      "點擊「取消」、右上角關閉，或點擊遮罩關閉時", "計算中途關閉與之後是否復開", "3.2 ②③ 分子（開啟）",
      [("popup_name", "handle_form"), "form_type", "form_open_id", "form_open_seq", "close_method", "has_input", "dwell_seconds"],
@@ -385,38 +385,18 @@ guide = [
     ("優先級", "直接支撐報告指標＝高；輔助診斷＝中；觀察用＝低", "高"),
     ("埋點狀態", "規劃中 → 開發中 → 已開發 → 已驗收；第二階段或決定不做的項目填「暫不開發」", "規劃中"),
     ("備注", "去重規則、空值處理、與工程待確認事項；待確認事項以「【待確認】」開頭並標黃", "提交成功後自動關閉不送"),
+    ("未採用原因（同事版本對照）", "對照同事版本後，評估不建議加入的事件或參數整列以灰字列出，並在此欄寫原因；評估確認後可整列刪除", "已在全域屬性帶入，不需重複列出"),
 ]
 for g in guide:
     ws.append(g)
     style_row(ws, ws.max_row, 3)
 ws.append([])
-ws.append(["報告章節", "編號前綴", "說明"])
+ws.append(["報告章節", "編號前綴", ""])
 for c in range(1, 4):
     ws.cell(ws.max_row, c).fill, ws.cell(ws.max_row, c).font = SEC_FILL, Font(bold=True)
 for ch in CHAPTERS:
     ws.append(ch)
     style_row(ws, ws.max_row, 3)
-ws.append([])
-ws.append(["指標類型與單位", "說明", ""])
-for c in range(1, 4):
-    ws.cell(ws.max_row, c).fill, ws.cell(ws.max_row, c).font = SEC_FILL, Font(bold=True)
-for k, v in [
-    ("主指標", "直接用來判斷有沒有問題，情境的門檻設在它上面"),
-    ("輔助判讀", "不單獨判讀，主指標異常時用來找原因"),
-    ("人", "以 user_id 去重；不同天的人數不能直接相加；只計 user_role = provider"),
-    ("警報", "以 alert_event_id 為單位：同一個案未處理期間的多筆警報合併為一個"),
-    ("轉診", "以 referral_id 為單位"),
-    ("訪問", "以 detail_visit_id 為單位，每次進入個案詳情算一次"),
-    ("開啟", "以 notify_session_id／form_open_id 為單位，每打開一次彈窗算一次"),
-    ("曝光", "項目露出 ≥50% 進入可視範圍即算；載入、捲動、翻頁都計；同一次開啟或瀏覽中，同一項目只算一次"),
-    ("時長", "以伺服器時間計算；看中位數、P75、P90，平均數只當參考"),
-    ("醫療個資", "不送任何填寫內容、姓名、證號；只送 ID、列舉值、字數、是否空白"),
-]:
-    ws.append([k, v, ""])
-    style_row(ws, ws.max_row, 3)
-ws.append([])
-ws.append(["版本", "v0.2｜2026-11-04｜改用 CoDoctor DRD 範本格式；新增用戶屬性（Person Properties）分頁；角色改為 user_role（super_admin / sub_org_admin / provider）＋ provider_type", ""])
-style_row(ws, ws.max_row, 3)
 widths(ws, [34, 100, 46])
 ws.freeze_panes = "A2"
 
@@ -424,20 +404,45 @@ ws.freeze_panes = "A2"
 # Sheet 2：指標對照
 # =====================================================================
 ws = wb.create_sheet("指標對照")
-header(ws, ["報告章節", "指標", "類型／單位", "計算方式", "分子：事件與條件", "分母：事件與條件", "去重／計算規則", "對應事件編號", "對應情境（報告假設）"])
+header(ws, ["報告章節", "指標", "類型／單位", "計算方式", "分子：事件與條件", "分母：事件與條件", "去重／計算規則", "對應事件編號", "對應情境"])
 for m in M:
     ws.append(list(m))
     style_row(ws, ws.max_row, 9)
-widths(ws, [28, 30, 13, 42, 38, 34, 38, 22, 44])
+ws.cell(1, 11, "類型").fill = HDR_FILL
+ws.cell(1, 12, "說明").fill = HDR_FILL
+LEGEND = [
+    ("主指標", "直接用來判斷有沒有問題，情境的門檻設在它上面"),
+    ("輔助判讀", "不單獨判讀，主指標異常時用來找原因"),
+    ("前提", "計算前先篩選的條件，不是指標本身"),
+    ("單位", "說明"),
+    ("人", "以 user_id 去重，同一個人只算一次；只計 user_role = provider；不同天的人數不能直接相加"),
+    ("警報", "以 alert_event_id 為單位：同一個案未處理期間的多筆警報合併為一個"),
+    ("轉診", "以 referral_id 為單位"),
+    ("訪問", "以 detail_visit_id 為單位，每次進入個案詳情算一次"),
+    ("開啟", "以 notify_session_id／form_open_id 為單位，每打開一次彈窗算一次"),
+    ("提交", "以每一次提交為單位"),
+    ("秒／分鐘／字", "時長以伺服器時間計算；看中位數、P75、P90，平均數只當參考"),
+    ("曝光定義", "項目露出 ≥50% 進入可視範圍即算；載入、捲動、翻頁都計；同一次開啟或瀏覽中，同一項目只算一次"),
+]
+for i, (k, v) in enumerate(LEGEND, start=2):
+    ws.cell(i, 11, k); ws.cell(i, 12, v)
+    for c in (11, 12):
+        ws.cell(i, c).alignment, ws.cell(i, c).border = WRAP, BORDER
+    if k == "單位":
+        ws.cell(i, 11).fill = ws.cell(i, 12).fill = HDR_FILL
+for c in (11, 12):
+    ws.cell(1, c).font, ws.cell(1, c).border = HDR_FONT, BORDER
+for i in (5,):
+    ws.cell(i, 11).font = ws.cell(i, 12).font = HDR_FONT
+widths(ws, [28, 30, 13, 42, 38, 34, 38, 22, 44, 3, 14, 50])
 ws.freeze_panes = "C2"
-ws.auto_filter.ref = f"A1:I{ws.max_row}"
 
 # =====================================================================
 # Sheet 3：DRD（一列一屬性，事件層欄位合併）
 # =====================================================================
 ws = wb.create_sheet("DRD")
 H = ["報告章節", "編號", "頁面/區塊", "事件名稱（Event Name）", "觸發時機/事件定義（Trigger）", "目標/數據分析意義", "對應報告指標",
-     "屬性參數（Property）", "屬性定義（Property Definition）", "資料型別（Data Type）", "範例值（Sample Values）", "優先級", "埋點狀態", "備注"]
+     "屬性參數（Property）", "屬性定義（Property Definition）", "資料型別（Data Type）", "範例值（Sample Values）", "優先級", "埋點狀態", "備注", "未採用原因（同事版本對照）"]
 header(ws, H)
 for ch, eid, page, name, trig, goal, metric, props, note in E:
     start = ws.max_row + 1
@@ -448,7 +453,7 @@ for ch, eid, page, name, trig, goal, metric, props, note in E:
             key, sample_o, def_o = (list(p) + [None, None])[:3]
         d, t, s, pri = P[key]
         row = [ch, eid, page, name, trig, goal, metric] if j == 0 else [None] * 7
-        row += [key, def_o or d, t, sample_o if sample_o is not None else s, pri, "規劃中", note if j == 0 else None]
+        row += [key, def_o or d, t, sample_o if sample_o is not None else s, pri, "規劃中", note if j == 0 else None, None]
         ws.append(row)
         style_row(ws, ws.max_row, len(H))
     end = ws.max_row
@@ -457,7 +462,7 @@ for ch, eid, page, name, trig, goal, metric, props, note in E:
             ws.merge_cells(start_row=start, start_column=col, end_row=end, end_column=col)
     if TBC in (note or ""):
         ws.cell(start, 14).fill = TBC_FILL
-widths(ws, [24, 11, 22, 16, 32, 30, 24, 22, 40, 11, 34, 7, 9, 56])
+widths(ws, [24, 11, 22, 16, 32, 30, 24, 22, 40, 11, 34, 7, 9, 56, 24])
 ws.freeze_panes = "C2"
 dv_type = DataValidation(type="list", formula1='"String,Integer,Boolean"', allow_blank=True)
 dv_pri = DataValidation(type="list", formula1='"高,中,低"', allow_blank=True)
@@ -491,30 +496,6 @@ ws.merge_cells(start_row=ws.max_row, start_column=1, end_row=ws.max_row, end_col
 ws.row_dimensions[ws.max_row].height = 48
 widths(ws, [12, 20, 36, 14, 34, 36, 22, 44, 7, 9])
 ws.freeze_panes = "C2"
-
-# =====================================================================
-# Sheet 5：待確認問題
-# =====================================================================
-ws = wb.create_sheet("待確認問題")
-header(ws, ["#", "問題", "影響範圍", "目前預設", "需誰確認", "狀態", "回覆"])
-QS = [
-    ("Q1", "「警報事件 id」與報告中的「任務 id」是否同一個？同一個案未處理期間的多筆警報，是否合併為一個警報事件？", "所有護理師指標的計算單位", "合併為一個警報事件；task_id 先保留為屬性", "產品／後端"),
-    ("Q2", "provider 之下有沒有職類欄位（護理師／個管師／醫師）？", "全部指標的角色拆分", "新增 provider_type", "產品／後端"),
-    ("Q3", "閉環完成率的觀察窗多長？", "3.0 ①、6.0 ①", "7 天", "產品"),
-    ("Q4", "轉診醫師提交後，警報是否立即消除？", "3.0 ①", "是，resolve_type = referral", "產品"),
-    ("Q5", "曝光是否要加停留門檻？", "1.0、4.0", "露出 ≥50% 即算，不加停留門檻", "研究"),
-    ("Q6", "心電區塊要用可視範圍還是滑鼠停留來量？", "2.1 ③", "可視範圍", "研究／前端"),
-    ("Q7", "醫師端的「待處理異常」是指有待處理轉診，還是有未消除的警報？", "5.0 ①", "有待處理轉診", "產品"),
-    ("Q8", "表單「第幾次打開」能否由後端記錄？", "3.2 ①③④", "後端記錄；做不到時由分析端計算", "工程"),
-    ("Q9", "頁籤、列表、頁面代碼、心電區塊、心電篩選值的完整清單", "DETAIL_01、TOOL_03、TOOL_04、EXPOSE_03", "請提供最新設計稿或規格", "設計／前端"),
-    ("Q10", "「自訂計劃未測量列表」是否納入警報曝光？", "1.0 ③", "不納入，只記錄 NOTIFY_02 的點擊", "研究"),
-    ("Q11", "一個警報事件同時含高、低風險時，alert_level 取最高等級？", "1.0 ③、3.2 ⑤", "取最高", "產品"),
-]
-for q in QS:
-    ws.append(list(q) + ["待回覆", ""])
-    style_row(ws, ws.max_row, 7)
-widths(ws, [6, 60, 28, 40, 14, 10, 40])
-ws.freeze_panes = "A2"
 
 wb.save(OUT)
 print("saved", OUT)
