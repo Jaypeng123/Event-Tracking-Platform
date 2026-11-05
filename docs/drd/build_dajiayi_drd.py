@@ -42,7 +42,7 @@ P = {
     "popup_name": ("視窗名稱", "string", "notification_center", "高"),
     "popup_visit_id": ("這次打開視窗的編號；每打開一次產生一個，視窗內的事件都帶同一個", "string", "po_2b9x7q", "高"),
     "button_name": ("按鈕名稱", "string", "", "高"),
-    "entry_source": ("從哪裡進來", "string", "nav_menu, notification, alert_list, doctor_pending_list, patient_list", "高"),
+    "entry_source": ("從哪裡進來", "string", "nav_menu, notification, alert_list, doctor_pending_list, patient_list, workspace, other", "高"),
     "position": ("第幾個，從 1 開始", "Integer", "{{number}}, e.g. 3", "中"),
     "total_records": ("資料筆數", "Integer", "{{number}}, e.g. 12", "中"),
     "duration": ("停留秒數", "Integer", "{{seconds}}, e.g. 8", "高"),
@@ -135,25 +135,25 @@ E = [
     # ---- 待處理列表
     ("待處理列表", "view_page", "待處理列表畫面載入完成時",
      "紀錄進入待處理列表的次數與從哪裡進來",
-     [("page_name", "pending_list"), "list_type", ("total_records", "{{number}}, e.g. 37", "列表的總筆數"), "entry_source"],
+     [("page_name", "pending_list"), ("list_type", "high_risk, abnormal_report, low_risk, custom_plan_unmeasured, doctor_pending"), ("total_records", "{{number}}, e.g. 37", "列表的總筆數"), ("entry_source", "nav_menu, notification, workspace", "從哪裡進入列表")],
      "醫師的「待醫師處理列表」也用這個事件（list_type = doctor_pending）"),
     ("待處理列表／列表分頁", "click_button", "點擊列表分頁（檢測高風險／異常上報／檢測低風險等）時",
      "紀錄切換列表分頁的次數",
      [("button_name", "list_tab_switch"), ("page_name", "pending_list"), ("list_type", "high_risk, abnormal_report, low_risk, custom_plan_unmeasured", "切換後的列表")], ""),
     ("待處理列表／列表項目", "item_impression", "列表項目露出一半以上進入畫面時",
      "紀錄哪些警報、轉診在列表中被看到",
-     [("page_name", "pending_list"), "list_type", "alert_id", "referral_id", "patient_id", "alert_level", "position"],
+     [("page_name", "pending_list"), ("list_type", "high_risk, abnormal_report, low_risk, custom_plan_unmeasured, doctor_pending"), "alert_id", "referral_id", "patient_id", "alert_level", "position"],
      "每個項目在同一次瀏覽中只送一次；載入、捲動、翻頁看到的都要送"),
     ("待處理列表／列表項目", "click_button", "點擊列表中的個案列時",
      "紀錄從列表點進個案詳情的次數",
-     [("button_name", "list_row"), ("page_name", "pending_list"), "list_type", "alert_id", "referral_id", "patient_id", "alert_level", "position"], ""),
+     [("button_name", "list_row"), ("page_name", "pending_list"), ("list_type", "high_risk, abnormal_report, low_risk, custom_plan_unmeasured, doctor_pending"), "alert_id", "referral_id", "patient_id", "alert_level", "position"], ""),
     ("待處理列表／查看按鈕", "click_button", "點擊列表中的「查看」按鈕時",
      "紀錄從列表點進個案詳情的次數",
-     [("button_name", "view_detail"), ("page_name", "pending_list"), "list_type", "alert_id", "referral_id", "patient_id", "alert_level", "position"], ""),
+     [("button_name", "view_detail"), ("page_name", "pending_list"), ("list_type", "high_risk, abnormal_report, low_risk, custom_plan_unmeasured, doctor_pending"), "alert_id", "referral_id", "patient_id", "alert_level", "position"], ""),
     # ---- 個案詳情
     ("個案詳情", "view_page", "個案詳情畫面載入完成時",
      "紀錄進入個案詳情的次數、從哪裡進來，以及個案當下有沒有待處理的警報或轉診",
-     [("page_name", "patient_detail"), "patient_id", "entry_source",
+     [("page_name", "patient_detail"), "patient_id", ("entry_source", "notification, alert_list, doctor_pending_list, patient_list, other", "從哪裡進入個案詳情"),
       ("alert_id", "null, ae_5521", "個案目前還沒處理的警報編號；沒有時為 null"), ("referral_id", "null, rf_301", "個案目前還沒處理的轉診編號；沒有時為 null"),
       ("alert_items", "null, blood_pressure,ecg", "還沒處理的警報項目；沒有時為 null"), "tabs_with_data"],
      "不論從哪裡進來，都要帶警報與轉診編號"),
@@ -363,6 +363,130 @@ for i, (k, v) in enumerate(LEG):
             cell.fill = HEAD_FILL
 for i, w in enumerate([24, 26, 12, 44, 40, 20, 56], 1):
     ws3.column_dimensions[get_column_letter(i)].width = w
+
+# ---------------- 代碼對照表
+CODES = [
+    ("page_name", [("login", "登入頁", ""), ("pending_list", "待處理列表", "包含醫師的「待醫師處理列表」"), ("patient_detail", "個案詳情", "")]),
+    ("popup_name", [("notification_center", "小鈴鐺通知", "頁面右上角點小鈴鐺打開的通知視窗"),
+                    ("todo_popup", "待辦事項視窗", "進入個案詳情時自動跳出"),
+                    ("care_record_detail", "處理紀錄詳情", "處理紀錄頁籤中點單筆紀錄打開"),
+                    ("care_record_form", "照護記錄視窗", "個案詳情點「撰寫照護記錄」打開"),
+                    ("doctor_advice_form", "醫師建議視窗", "個案詳情點「醫師建議」打開")]),
+    ("button_name", [("notify_tab_switch", "通知分頁", "小鈴鐺通知內的「異常提醒／轉診提醒」"),
+                     ("alert_source_filter", "來源篩選", "小鈴鐺通知內的「全部／CoDoctor 檢測儀／CoDoctor Watch」"),
+                     ("goto_list", "前往列表", "小鈴鐺通知內的「前往○○列表」"),
+                     ("notification_card", "通知卡片", "小鈴鐺通知內的每一則警報或轉診"),
+                     ("list_tab_switch", "列表分頁", "待處理列表上方的分頁"),
+                     ("list_row", "個案列", "待處理列表中的每一列"),
+                     ("view_detail", "「查看」按鈕", "待處理列表每一列右側"),
+                     ("todo_view_all", "「全部內容」", "個案詳情的待辦區塊"),
+                     ("data_source_switch", "Home／Pro 切換", "檢測儀頁籤的數據來源"),
+                     ("time_range", "時間範圍快捷選項", "個案詳情圖表上方的今日、近 7 天等"),
+                     ("custom_range_confirm", "自訂日期「確認」", "自訂日期選擇器"),
+                     ("cancel", "「取消」", "照護記錄、醫師建議視窗下方"),
+                     ("close", "「×」", "照護記錄、醫師建議視窗右上角")]),
+    ("tab_name", [("health_plan", "健康計畫", ""), ("care_records", "處理紀錄", ""), ("patient_reports", "個案上報紀錄", ""),
+                  ("vital_blood_pressure", "生理體徵｜血壓", "其他生理項目同樣用 vital_ 加生理項目代碼，例：vital_spo2"),
+                  ("vital_ecg", "生理體徵｜心電", "頁籤完整清單待設計確認")]),
+    ("list_type", [("notification", "小鈴鐺通知", "不是列表，代表在小鈴鐺通知中被看到"),
+                   ("high_risk", "檢測高風險列表", ""), ("abnormal_report", "異常上報列表", ""), ("low_risk", "檢測低風險列表", ""),
+                   ("custom_plan_unmeasured", "自訂計劃未測量列表", ""), ("doctor_pending", "待醫師處理列表", "")]),
+    ("filter_type", [("alert_source", "小鈴鐺通知的來源篩選", ""), ("data_source", "檢測儀數據來源", ""), ("time_range", "時間範圍", ""),
+                     ("ecg_lead", "心電導程篩選", ""), ("ecg_abnormal", "心電異常篩選", "")]),
+    ("filter_value", [("all", "全部", "來源篩選"), ("monitor", "CoDoctor 檢測儀", "來源篩選"), ("watch", "CoDoctor Watch", "來源篩選"),
+                      ("home", "Home", "檢測儀數據來源"), ("pro", "Pro", "檢測儀數據來源"),
+                      ("today", "今日", "時間範圍"), ("last_7d", "近 7 天", "時間範圍"), ("last_30d", "近 30 天", "時間範圍（預設）"), ("last_1y", "近 1 年", "時間範圍"),
+                      ("custom_14", "自訂日期", "custom_ 加天數，例：custom_14 代表 14 天"),
+                      ("I", "導程 I", "導程完整清單待設計確認"), ("II", "導程 II", ""), ("III", "導程 III", ""),
+                      ("af", "心房顫動", "暫定，異常條件清單待設計確認"), ("pvc", "早期心室收縮", "暫定")]),
+    ("notify_tab", [("abnormal_alert", "異常提醒", ""), ("referral", "轉診提醒", "")]),
+    ("entry_source", [("nav_menu", "左側選單", ""), ("notification", "小鈴鐺通知", ""), ("workspace", "工作台", ""),
+                      ("alert_list", "待處理列表", ""), ("doctor_pending_list", "待醫師處理列表", ""), ("patient_list", "個案列表", ""), ("other", "其他", "")]),
+    ("user_role", [("org_admin", "機構管理員", "分析時排除"), ("admin", "管理員", "分析時排除"), ("doctor", "醫師", ""),
+                   ("frontline_doctor", "一線醫師", ""), ("frontline_staff", "一線人員", "")]),
+    ("alert_level", [("high_risk", "檢測高風險", ""), ("low_risk", "檢測低風險", ""), ("abnormal_report", "異常上報", "")]),
+    ("metric", [("blood_pressure", "血壓", "alert_items 也用這組代碼"), ("ecg", "心電", ""), ("spo2", "血氧", ""), ("blood_glucose", "血糖", ""),
+                ("heart_rate", "心率", ""), ("body_temp", "體溫", "完整清單待確認")]),
+    ("resolve_type", [("care_record", "照護記錄", ""), ("referral", "轉診醫師", "")]),
+    ("device_source", [("monitor_home", "CoDoctor 檢測儀（Home）", ""), ("monitor_pro", "CoDoctor 檢測儀（Pro）", ""), ("watch", "CoDoctor Watch", "")]),
+    ("session_start_type", [("login", "登入", ""), ("resume", "閒置後重新操作", "")]),
+    ("block_name", [("ecg_summary", "心電摘要", "暫定，區塊清單待設計確認"), ("ecg_chart", "心電圖", ""), ("ecg_record_list", "心電紀錄列表", "")]),
+    ("todo_types", [("referral_opinion", "轉診意見", ""), ("doctor_advice", "醫師建議", ""), ("follow_up", "追蹤內容", "")]),
+    ("result", [("success", "成功", ""), ("fail", "失敗", "")]),
+    ("result_type", [("false_alarm", "誤報", "待確認照護記錄是否有欄位能區分"), ("handled", "真異常已處置", "")]),
+]
+
+
+def _events_using(key, value):
+    ids = []
+    for n, (_, _, _, _, props, _) in enumerate(E, start=1):
+        for p in props:
+            k = p if isinstance(p, str) else p[0]
+            if k != key and not (key == "metric" and k == "alert_items"):
+                continue
+            sample = P[k][2] if isinstance(p, str) or len(p) < 2 or p[1] is None else p[1]
+            vals = [v.strip() for v in sample.replace(",", ", ").split(", ")]
+            if value in vals:
+                ids.append(f"DJY_{n:02d}")
+                break
+    return "、".join(ids) or "—"
+
+
+ws4 = wb.create_sheet("代碼對照表", index=2)
+H4 = ["屬性參數 (Property)", "代碼值 (Value)", "中文名稱", "畫面位置／說明", "使用事件（DRD 編號）"]
+style_header(ws4, H4)
+for key, vals in CODES:
+    start = ws4.max_row + 1
+    for v, zh, where in vals:
+        ws4.append([key, v, zh, where, _events_using(key, v)])
+        r = ws4.max_row
+        for c in range(1, len(H4) + 1):
+            cell = ws4.cell(r, c)
+            cell.font, cell.alignment, cell.border = BODY_FONT, WRAP, CELL_BORDER
+    if ws4.max_row > start:
+        ws4.merge_cells(start_row=start, start_column=1, end_row=ws4.max_row, end_column=1)
+for i, w in enumerate([22, 24, 22, 44, 36], 1):
+    ws4.column_dimensions[get_column_letter(i)].width = w
+
+# ---------------- 埋點共用規則
+RULES = [
+    ("命名", "事件名稱", "英文小寫加底線，動詞在前；同一種動作全文件用同一個事件名稱", "view_page、view_popup、close_popup、click_button、item_impression、leave_tab、leave_page、submit_form、apply_filter、view_block、session_start"),
+    ("命名", "屬性名稱", "英文小寫加底線；同一個意思全文件只用一個屬性名稱，屬性值請查「代碼對照表」", "page_name、button_name、total_records、duration"),
+    ("全域屬性", "每筆事件都要帶", "DRD 的 DJY_01 列出的屬性，所有事件都要帶，各事件不再重複列", "user_id、user_role、org_id、session_id、page_visit_id、platform_version"),
+    ("時間", "事件時間", "以系統收到事件的時間為準；時區一律 +08:00", "2026-11-05T09:30:12+08:00"),
+    ("時間", "停留秒數 duration", "從畫面顯示到離開的秒數，四捨五入到整數；切到其他瀏覽器分頁的時間不算", "8"),
+    ("編號", "page_visit_id", "每進入一個頁面產生一個新的（重新整理也算新的一次），頁面內的事件都帶同一個", "pv_5h2k8m（建議用 UUID）"),
+    ("編號", "popup_visit_id", "每打開一次視窗產生一個新的，視窗內的事件（含關閉、提交）都帶同一個", "po_2b9x7q（建議用 UUID）"),
+    ("編號", "session_id", "登入成功，或閒置超過 30 分鐘後再次操作時產生新的；最後一個動作後閒置 30 分鐘就算這次上線結束，不另外送事件", "ss_9k3m2p（建議用 UUID）"),
+    ("被看到", "曝光（item_impression）", "項目露出一半以上進入畫面才算；載入、捲動、翻頁後看到的都要送；同一次瀏覽或打開中，同一筆只送一次", "往回捲到已送過的卡片不再送"),
+    ("離開", "離開類事件", "切換頁籤、離開頁面、切到其他瀏覽器分頁、關閉瀏覽器時都要送（可用 visibilitychange、pagehide）", "leave_tab、leave_page"),
+    ("結果", "提交類事件", "等系統回傳結果後才送，成功、失敗都送；前端欄位檢核沒通過、沒有呼叫系統時不送", "submit_form"),
+    ("重複", "不要重複送", "同一個按鈕連點、畫面重新整理資料時不要重送；點選目前已經選中的選項不送", "已在「近 30 天」又點一次「近 30 天」不送"),
+    ("格式", "空值", "取不到值時送 null，不要送空字串，也不要用 0 代替", "alert_id: null"),
+    ("格式", "多個值", "用逗號分隔，不加空格", "blood_pressure,ecg"),
+    ("格式", "布林值與數字", "布林值用小寫 true／false；數字不加千分位", "true、1000"),
+    ("隱私", "不送個資與填寫內容", "不送姓名、身分證、電話等個資，也不送照護記錄、醫師建議的文字內容；只送編號、代碼和字數", "text_length: 42"),
+    ("後端", "後端事件", "DJY_02～DJY_05 由後端記錄；也可以改用資料表提供給分析端", "alert_created、alert_resolved"),
+    ("角色", "所有角色都要送", "管理員的事件也照常送，分析時再排除", "user_role = admin"),
+]
+ws5 = wb.create_sheet("埋點共用規則", index=3)
+H5 = ["類別", "規則", "說明", "範例"]
+style_header(ws5, H5)
+start, prev = 2, None
+for cat, rule, desc, ex in RULES:
+    ws5.append([cat, rule, desc, ex])
+    r = ws5.max_row
+    for c in range(1, len(H5) + 1):
+        cell = ws5.cell(r, c)
+        cell.font, cell.alignment, cell.border = BODY_FONT, WRAP, CELL_BORDER
+    if cat != prev:
+        if prev is not None and r - 1 > start:
+            ws5.merge_cells(start_row=start, start_column=1, end_row=r - 1, end_column=1)
+        prev, start = cat, r
+if ws5.max_row > start:
+    ws5.merge_cells(start_row=start, start_column=1, end_row=ws5.max_row, end_column=1)
+for i, w in enumerate([12, 24, 60, 44], 1):
+    ws5.column_dimensions[get_column_letter(i)].width = w
 
 
 # ---------------- 依內容設定列高（避免線上版文字被切掉）
