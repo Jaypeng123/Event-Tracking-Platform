@@ -238,9 +238,6 @@ PP = [
     ("使用者身分", "user_id", "u_12345abc", "string", "每個帳號的唯一編號", "登入成功時設定", "登出時清空", "串起同一個人的所有行為", "高", "規劃中"),
     ("使用者身分", "user_role", "org_admin / admin / doctor / frontline_doctor / frontline_staff", "string", "帳號角色：機構管理員、管理員、醫師、一線醫師、一線人員", "登入成功時設定；角色變更時更新", "登出時清空", "排除管理員帳號；區分一線人員與醫師的行為", "高", "規劃中"),
     ("機構", "org_id", "org_001", "string", "目前所在的機構", "登入後取得機構時設定；切換機構時更新", "登出時清空", "依機構與場域拆開分析", "高", "規劃中"),
-    ("機構", "is_multi_org_user", "true, false", "boolean", "是否屬於一個以上的機構", "登入後依機構清單判斷", "機構數變成 1 時改為 false", "比較單機構與多機構帳號的使用差異", "低", "規劃中"),
-    ("裝置", "platform_version", "7.0.3", "string", "平台版本號", "每次載入平台時更新", "不重置", "判斷數據變化是否跟改版有關", "中", "規劃中"),
-    ("裝置", "browser", "chrome_130", "string", "瀏覽器名稱與版本", "每次載入平台時更新", "不重置", "排查特定瀏覽器的問題", "低", "規劃中"),
 ]
 
 
@@ -311,14 +308,30 @@ for i, w in enumerate([12, 20, 40, 14, 34, 34, 22, 34, 8, 10], 1):
     ws2.column_dimensions[get_column_letter(i)].width = w
 
 # ---------------- 指標對照
-import json, math
+import json, math, re
+
+_TIER = re.compile(r"^(低|中|高|短|長|少|多|縮短|差不多|拉長)（")
+
+
+def number_tiers(text):
+    """級距每一行前面加 1. 2. 3.；遇到非級距的行就重新起算"""
+    out, n = [], 0
+    for line in (text or "").split("\n"):
+        if _TIER.match(line):
+            n += 1
+            out.append(f"{n}. {line}")
+        else:
+            n = 0 if not line.startswith("・") else n
+            out.append(line)
+    return "\n".join(out)
+
 M = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dajiayi_metrics.json"), encoding="utf-8"))
 ws3 = wb.create_sheet("指標對照")
 H3 = ["報告章節", "指標名稱", "類型／單位", "計算方式", "補充說明", "使用事件（DRD 編號）", "判讀級距與行動"]
 style_header(ws3, H3)
 prev, start = None, 2
 for m in M:
-    ws3.append([m["chapter"], m["name"], m["type"], m["calc"], m["note"], m["events"], m["tiers"]])
+    ws3.append([m["chapter"], m["name"], m["type"], m["calc"], m["note"], m["events"], number_tiers(m["tiers"])])
     r = ws3.max_row
     for c in range(1, len(H3) + 1):
         cell = ws3.cell(r, c)
@@ -360,7 +373,7 @@ def _w(ch):
 def _lines(text, width):
     if not text:
         return 1
-    cap = max(1, int(width * 1.1) - 1)
+    cap = max(1, int(width * 0.95) - 2)
     return sum(max(1, math.ceil(sum(_w(c) for c in line) / cap)) for line in str(text).split("\n"))
 
 
@@ -382,7 +395,7 @@ def fit_rows(ws):
                 continue
             w = ws.column_dimensions[get_column_letter(cell.column)].width or 10
             lines = max(lines, _lines(cell.value, w))
-        need[r] = lines * 15 + 6
+        need[r] = lines * 18 + 8
     for r, h in need.items():
         ws.row_dimensions[r].height = h
     # 合併儲存格：高度不夠時加在最後一列
@@ -391,7 +404,7 @@ def fit_rows(ws):
             continue
         r1, c1 = span
         width = sum((ws.column_dimensions[get_column_letter(c)].width or 10) for c in range(c0, c1 + 1))
-        h = _lines(ws.cell(r0, c0).value, width) * 15 + 6
+        h = _lines(ws.cell(r0, c0).value, width) * 18 + 8
         have = sum(ws.row_dimensions[r].height or 21 for r in range(r0, r1 + 1))
         if h > have:
             ws.row_dimensions[r1].height = (ws.row_dimensions[r1].height or 21) + (h - have)
