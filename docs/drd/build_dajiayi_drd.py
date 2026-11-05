@@ -7,7 +7,7 @@ from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "大家醫平台_埋點DRD_v0.2.xlsx")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "大家醫平台_埋點DRD_v0.3.xlsx")
 TBC = "【待確認】"
 HDR_FILL = PatternFill("solid", fgColor="1F3A5F")
 HDR_FONT = Font(bold=True, color="FFFFFF")
