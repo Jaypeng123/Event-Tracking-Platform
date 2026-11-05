@@ -69,8 +69,7 @@ CHAPTERS = [
 P = {
     # 全域
     "user_id": ("登入後的使用者唯一識別碼", "String", "u_10293", "高"),
-    "user_role": ("帳號權限角色；分析時只計 provider（醫護人員），排除管理者帳號", "String", "super_admin, sub_org_admin, provider", "高"),
-    "provider_type": ("醫護人員職類；user_role = provider 時才有值", "String", "nurse, case_manager, doctor, null", "高"),
+    "user_role": ("帳號角色；分析時排除機構管理員與管理員", "String", "org_admin（機構管理員）, admin（管理員）, doctor（醫師）, frontline_doctor（一線醫師）, frontline_staff（一線人員）", "高"),
     "org_id": ("使用者當下所選機構的識別碼", "String", "org_001", "高"),
     "page_name": ("頁面名稱", "String", "patient_detail", "高"),
     "session_id": ("本次上線的識別碼；登入或閒置 30 分鐘後回到平台時產生", "String", "ss_9k3m2p", "高"),
@@ -168,8 +167,8 @@ E = [
     ("0.0 全域屬性", "GLOBAL_01", "Global property 全域屬性", "所有事件", "每一筆事件發送時帶入",
      "辨識操作者與機構，讓「按人」計算的指標能去重、各章節能依角色與機構拆分",
      "全部指標的去重與拆分依據",
-     ["user_id", "user_role", "provider_type", "org_id", "session_id", "page_name", "platform_version", "browser", "viewport_height"],
-     "分析時只計 user_role = provider；護理師與醫師以 provider_type 區分。" + TBC + "provider 之下是否有職類欄位（護理師／個管師／醫師）？若沒有，醫師端指標改以「是否為受轉診醫師」判斷。\n"
+     ["user_id", "user_role", "org_id", "session_id", "page_name", "platform_version", "browser", "viewport_height"],
+     "分析時排除 org_admin、admin；警報相關指標（護理師端）計 frontline_staff、frontline_doctor，轉診相關指標（醫師端）計 doctor。" + TBC + "一線醫師（frontline_doctor）是否也處理警報、應歸在護理師端指標？"
      "多機構帳號的 org_id 以當下所選機構為準；場域類型（日照、居家、HaH、遠距中心）由後台機構主檔依 org_id 對應，不另外埋點。\n"
      "事件時間一律以收集端收到的伺服器時間計算時長；時區 +08:00"),
 
@@ -335,13 +334,13 @@ M = [
      "—", "—", "沒有人上線期間產生、且尚未有人上線的警報不列入分母，另列「等待上線中的警報數」；不使用固定的 24 小時等時間門檻，避免把護理師還沒上線誤判成沒看到", "SERVER_01、GLOBAL_02", "—"),
     ("1.0 護理師｜發現異常：警報是否被看到", "① 警報曝光率（整體）", "主指標／警報",
      "護理師上線時已存在的警報中，在被處理前至少被護理師曝光 1 次的比例；另計：重複曝光率＝兩個入口都曝光過 ÷ 已曝光",
-     "item_impression（EXPOSE_02、EXPOSE_04）\nitem_type = alert\nprovider_type ∈ nurse, case_manager\n曝光時間早於 alert_resolved", "alert_created\n" + OPP,
+     "item_impression（EXPOSE_02、EXPOSE_04）\nitem_type = alert\nuser_role ∈ frontline_staff, frontline_doctor\n曝光時間早於 alert_resolved", "alert_created\n" + OPP,
      "跨入口重複曝光只算 1 次；沒有曝光卻已被處理的警報另外列出", "分子：EXPOSE_02、04\n分母：SERVER_01＋GLOBAL_02",
      P3("護理師上線了，大部分警報卻沒被看到 → 優先改善提醒機制（登入時主動提示待處理異常、加強通知提示），並確認是否警報量過多",
         "有相當比例沒被看到 → 拆開兩個入口，找出曝光不足的入口並優化引導",
         "多數警報有被看到 → 看重複曝光率，重複曝光也在高級距時考慮把入口單一化；未曝光的警報逐筆檢查原因")),
     ("1.0 護理師｜發現異常：警報是否被看到", "② 警報曝光率（小鈴鐺通知）", "主指標／警報", "護理師上線時已存在的警報中，在小鈴鐺通知被曝光的比例",
-     "item_impression\nlist_name = notification_alert\nprovider_type ∈ nurse, case_manager", "alert_created\n" + OPP, "同入口重複曝光只算 1 次", "分子：EXPOSE_02\n分母：SERVER_01＋GLOBAL_02",
+     "item_impression\nlist_name = notification_alert\nuser_role ∈ frontline_staff, frontline_doctor", "alert_created\n" + OPP, "同入口重複曝光只算 1 次", "分子：EXPOSE_02\n分母：SERVER_01＋GLOBAL_02",
      P3("小鈴鐺不是主要管道 → 看列表曝光率；列表也在低級距時，加強通知提示（例如登入時即時彈出）",
         "通知與列表並用 → 維持設計，持續觀察兩個入口的分工",
         "小鈴鐺是主要管道 → 維持通知設計，可評估列表入口是否需要精簡")),
@@ -395,7 +394,7 @@ M = [
         "要花很久才決定點哪一則 → 檢視小鈴鐺通知排序與資訊呈現，讓最需要處理的警報在最上方") + "\n" + TBC + "10／30 秒的級距"),
     ("1.2 護理師｜發現異常：警報是否引導進入詳情", "① 警報介入率", "主指標／警報",
      "護理師上線時已存在的警報中，有護理師進入個案詳情的比例；依進入來源拆分；另計：曝光後介入率＝已曝光且已介入的警報 ÷ 已曝光的警報",
-     "view_page page_name = patient_detail\nalert_event_id ∈ 分母\nprovider_type ∈ nurse, case_manager", "alert_created\n" + OPP,
+     "view_page page_name = patient_detail\nalert_event_id ∈ 分母\nuser_role ∈ frontline_staff, frontline_doctor", "alert_created\n" + OPP,
      "同一警報多次進入只算 1 次；任何入口都算，再依 entry_source 拆分", "分子：ENTER_03\n分母：SERVER_01＋GLOBAL_02",
      P3("多數警報沒人點進詳情 → 先看曝光率：曝光也低就先改善曝光；曝光高就訪談為什麼不點（不知道可以點，或想在外層直接處理）",
         "部分警報沒有介入 → 依入口拆分，找出介入偏低的入口優化點擊引導",
@@ -408,7 +407,7 @@ M = [
         "部分會先處理高風險 → 拆入口看是哪個入口沒有把高風險放在前面",
         "分級與排序有引導先處理高風險 → 維持")),
     ("2.0 護理師｜排查異常：主要查看哪些健康資訊", "① 單一頁籤有效查看率", "主指標／訪問", "有效查看該頁籤的詳情訪問數 ÷ 護理師進入、個案有待處理異常、且該頁籤有資料的詳情訪問數",
-     "leave_tab\ntab_name = health_plan / care_records / patient_reports\ndwell_seconds ≥ 5 且 has_data = true", "view_page patient_detail\nhas_pending_alert = true\ntabs_with_data 含該頁籤\nprovider_type ∈ nurse, case_manager",
+     "leave_tab\ntab_name = health_plan / care_records / patient_reports\ndwell_seconds ≥ 5 且 has_data = true", "view_page patient_detail\nhas_pending_alert = true\ntabs_with_data 含該頁籤\nuser_role ∈ frontline_staff, frontline_doctor",
      "以 detail_visit_id 去重；排除該頁籤剛好是預設頁籤的訪問", "分子：DETAIL_01\n分母：ENTER_03",
      P3("排查時很少用 → 訪談原因，評估是否整合到其他頁籤或收合",
         "使用頻率符合現有層級 → 維持設計",
@@ -466,7 +465,7 @@ M = [
         "多數警報有處理完 → 未完成的逐筆檢查，接著看 3.1 處理所需上線次數")),
     ("3.0 護理師｜完成處置：是否都有被處理", "② 照護記錄填寫發起率", "主指標／警報",
      "有打開照護記錄的警報數 ÷ 有護理師進入個案詳情、且沒有以轉診處理的警報數",
-     "view_popup popup_name = handle_form\nform_type = care_record", "view_page patient_detail（alert_event_id 有值）\nprovider_type ∈ nurse, case_manager\n排除 resolve_type = referral 的警報（後端）",
+     "view_popup popup_name = handle_form\nform_type = care_record", "view_page patient_detail（alert_event_id 有值）\nuser_role ∈ frontline_staff, frontline_doctor\n排除 resolve_type = referral 的警報（後端）",
      "同一警報只算 1 次；轉診醫師表單已優化、不埋點", "分子：FORM_01\n分母：ENTER_03＋SERVER_02",
      P3("多數護理師沒找到處理入口 → 訪談是否不清楚處理機制，加強宣導與按鈕引導",
         "部分護理師沒有發起 → 拆機構與警報等級，找出落差較大的族群", "處理入口清楚 → 維持現有設計")),
@@ -645,7 +644,7 @@ LEGEND = [
     ("輔助判讀", "不單獨判讀，主指標異常時用來找原因"),
     ("前提", "計算前先篩選的條件，不是指標本身"),
     ("單位", "說明"),
-    ("人", "以 user_id 去重，同一個人只算一次；只計 user_role = provider；不同天的人數不能直接相加"),
+    ("人", "以 user_id 去重，同一個人只算一次；排除 org_admin、admin；不同天的人數不能直接相加"),
     ("警報", "以 alert_event_id 為單位：同一個案未處理期間的多筆警報合併為一個"),
     ("轉診", "以 referral_id 為單位"),
     ("訪問", "以 detail_visit_id 為單位，每次進入個案詳情算一次"),
@@ -723,8 +722,7 @@ HP = ["屬性分類", "屬性名稱 (Key)", "範例值 (Sample Values)", "資料
 header(ws, HP)
 PP = [
     ("使用者身分", "user_id", "u_12345abc", "String", "系統發給每個帳號的唯一識別碼", "登入成功時設定", "登出時清空", "串接同一位使用者的所有行為，「按人」計算的指標以此去重", "高", "規劃中"),
-    ("使用者身分", "user_role", "super_admin / sub_org_admin / provider", "String", "帳號的權限角色", "登入成功、取得帳號權限時設定；權限變更時更新", "登出時清空", "分析時排除管理者帳號，只計醫護人員（provider）的行為", "高", "規劃中"),
-    ("使用者身分", "provider_type", "nurse / case_manager / doctor", "String", "醫護人員的職類；user_role = provider 時才有值", "登入成功時依帳號資料設定", "登出時清空", "報告的指標分成護理師與醫師兩條線，需要用職類區分。" + TBC + "帳號資料中是否有這個欄位？", "高", "規劃中"),
+    ("使用者身分", "user_role", "org_admin / admin / doctor / frontline_doctor / frontline_staff", "String", "帳號角色：機構管理員、管理員、醫師、一線醫師、一線人員", "登入成功、取得帳號權限時設定；角色變更時更新", "登出時清空", "排除管理員帳號；區分警報處理端（一線人員、一線醫師）與轉診端（醫師）的指標", "高", "規劃中"),
     ("機構", "org_id", "org_001", "String", "使用者當下所選機構的識別碼", "登入後取得機構時設定；多機構帳號切換機構時更新", "登出時清空", "依機構與場域（日照、居家、HaH、遠距中心）拆分指標；場域由後台機構主檔對應", "高", "規劃中"),
     ("機構", "is_multi_org_user", "true, false", "Boolean", "帳號是否關聯一個以上的機構", "登入後依後台機構清單判定", "關聯機構數變為 1 時改為 false", "必要時區分單機構與多機構帳號的使用差異", "低", "規劃中"),
     ("裝置", "platform_version", "7.0.3", "String", "平台前端版本號", "每次載入平台時更新", "不重置", "判斷數據變化是否與改版有關", "高", "規劃中"),
