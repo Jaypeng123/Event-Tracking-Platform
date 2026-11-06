@@ -455,6 +455,44 @@ for _e in events:  # 生理項目清單已確認：拿掉黃底
         if VITALS in plain(_p["sample"]):
             _p["y"].discard("sample")
 
+# ---- 時間：用看得懂的日期時間，不用 Unix 秒
+UID_EG = "{{string}}, e.g. 3f2b8c1e-9a4d-4e7b-b1c2-5d6e7f8a9b0c"
+DT_EG = "{{datetime}}, e.g. 2026-11-05 09:30:12"
+for _e in events:
+    for _p in _e["props"]:
+        k = plain(_p["key"])
+        smp = plain(_p["sample"])
+        if k == "event_time":
+            _p["type"], _p["sample"] = G("string"), G(DT_EG)
+            _p["def"] = G("事件發生的日期時間（台灣時間，格式：年-月-日 時:分:秒）")
+        elif k == "alert_time":
+            _p["type"], _p["sample"] = G("string"), G(DT_EG)
+            _p["def"] = G("警報產生的日期時間（同一個警報編號有多個項目時，取第一個項目的時間；格式同 event_time）")
+        elif k in ("session_id", "popup_visit_id", "detail_visit_id"):
+            _p["sample"] = G(UID_EG)
+            d = plain(_p["def"])
+            if "亂數" not in d:
+                _p["def"] = [_p["def"]] + [G("；由系統自動產生、不會重複的亂數編號")] if not isinstance(_p["def"], list) else _p["def"] + [G("；由系統自動產生、不會重複的亂數編號")]
+        elif k in ("user_id", "org_id", "patient_id", "doctor_user_id", "alert_id", "referral_id") and "{{" not in smp:
+            parts = [x.strip() for x in smp.split(",")]
+            ex = [x for x in parts if x != "null"]
+            if ex:
+                _p["sample"] = G(("null, " if "null" in parts else "") + "{{string}}, e.g. " + ex[0])
+
+# ---- 屬性排序：全文件統一（後端事件、全域屬性維持原樣）
+ORDER = ["button_name", "page_name", "popup_name", "popup_visit_id", "detail_visit_id",
+         "patient_id", "alert_id", "referral_id",
+         "notification_tab", "exposure_entry", "list_name", "entry_source", "block_name", "open_type", "device_type",
+         "filter_type", "filter_value",
+         "alert_level", "alert_items", "has_alert", "metric",
+         "is_abnormal_item", "has_data", "todo_types",
+         "position", "total_records", "open_seq", "has_input", "text_length", "is_empty",
+         "duration", "duration_from_detail_view"]
+for _e in events:
+    if _e["id"] in ("DJY_01", "DJY_02", "DJY_03", "DJY_04", "DJY_05"):
+        continue
+    _e["props"].sort(key=lambda q: ORDER.index(plain(q["key"])) if plain(q["key"]) in ORDER else 99)
+
 # =====================================================================
 # 4) 重新編號
 IDMAP, n = {}, 0
@@ -781,23 +819,26 @@ for a, b, c, d in old_rules:
     if b == "事件名稱":
         row[3] = G("、".join(front))
     elif b == "事件時間":
-        row[2] = G("以 event_time（事件發生當下，Unix 秒）為準；時區 +08:00")
-        row[3] = G("1793330000")
+        row[2] = G("以 event_time（事件發生當下的日期時間，台灣時間）為準；格式：年-月-日 時:分:秒")
+        row[3] = G("2026-11-05 09:30:12")
     elif b == "停留秒數 duration":
         row[2] = [c, R("；duration_from_<起點> 代表從某個起點到這個事件的秒數，例：duration_from_detail_view＝從進入個案詳情到打開表單")]
         row[3] = [d, R("、duration_from_detail_view: 95")]
+    elif b in ("popup_visit_id", "session_id"):
+        row[2] = [c, G("；由系統自動產生、不會重複的亂數編號")]
+        row[3] = G("3f2b8c1e-9a4d-4e7b-b1c2-5d6e7f8a9b0c")
     elif b == "離開類事件":
         row[3] = G("leave_page")
     elif b == "提交類事件":
         row[2] = G("只在系統回傳成功後送；失敗、前端欄位檢核沒通過、沒有呼叫系統時都不送")
     rules.append(row)
     if b == "session_id":
-        rules.append([a, R("detail_visit_id"), R("每進入一次個案詳情產生一個新的；離開個案詳情或閒置超過 30 分鐘後再操作就換新的；個案詳情內的事件（頁籤、篩選、待辦、照護記錄、醫師建議）都帶同一個"),
-                      R("dv_7f3k2a（建議用 UUID）")])
+        rules.append([a, R("detail_visit_id"), R("每進入一次個案詳情產生一個新的；離開個案詳情或閒置超過 30 分鐘後再操作就換新的；個案詳情內的事件（頁籤、篩選、待辦、照護記錄、醫師建議）都帶同一個；由系統自動產生、不會重複的亂數編號"),
+                      R("3f2b8c1e-9a4d-4e7b-b1c2-5d6e7f8a9b0c")])
     if b == "格式" or b == "空值":
         pass
 rules.insert(next(i for i, x in enumerate(rules) if x[1] == "布林值與數字") + 1,
-             ["格式", R("Sample Values"), R("只寫會記在埋點平台上的值：列舉值寫完整清單（用「, 」分隔），其他寫 {{string}}／{{number}}／{{seconds}}／{{timestamp}} 加一個例子；不寫中文說明，說明放在屬性定義或備註"),
+             ["格式", R("Sample Values"), R("只寫會記在埋點平台上的值：列舉值寫完整清單（用「, 」分隔），其他寫 {{string}}／{{number}}／{{seconds}}／{{datetime}} 加一個例子；不寫中文說明，說明放在屬性定義或備註"),
               R("lead_1, lead_3, lead_12")])
 ridx = wb.sheetnames.index("埋點共用規則")
 rw = {k: v.width for k, v in wr.column_dimensions.items()}
