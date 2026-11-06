@@ -18,16 +18,17 @@
   --amber:#d98612;      /* 低風險橘 */
   --amber-soft:#fcefdb;
   --code-bg:#eef4f4;
+  --blue:#2f5f9e;--blue-soft:#e3ecf7;--plum:#7a4a8c;--plum-soft:#f1e8f4;
   --f-display:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
   --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --paper:#0d1619;--slide:#132126;--ink:#e3ecee;--muted:#9bb0b6;--line:#2a3d43;
-  --teal:#3fbdb5;--teal-soft:#183a3a;--alert:#f07067;--alert-soft:#3b2120;--amber:#f0a540;--amber-soft:#3a2b16;--code-bg:#1b2d33;color-scheme:dark}}
+  --teal:#3fbdb5;--teal-soft:#183a3a;--alert:#f07067;--alert-soft:#3b2120;--amber:#f0a540;--amber-soft:#3a2b16;--code-bg:#1b2d33;--blue:#86afe6;--blue-soft:#1c2c42;--plum:#c9a0d8;--plum-soft:#2f2236;color-scheme:dark}}
 :root[data-theme="dark"]{
   --paper:#0d1619;--slide:#132126;--ink:#e3ecee;--muted:#9bb0b6;--line:#2a3d43;
-  --teal:#3fbdb5;--teal-soft:#183a3a;--alert:#f07067;--alert-soft:#3b2120;--amber:#f0a540;--amber-soft:#3a2b16;--code-bg:#1b2d33;color-scheme:dark}
+  --teal:#3fbdb5;--teal-soft:#183a3a;--alert:#f07067;--alert-soft:#3b2120;--amber:#f0a540;--amber-soft:#3a2b16;--code-bg:#1b2d33;--blue:#86afe6;--blue-soft:#1c2c42;--plum:#c9a0d8;--plum-soft:#2f2236;color-scheme:dark}
 
 *{box-sizing:border-box}
 body{background:var(--paper);color:var(--ink);font-family:var(--f-body);line-height:1.55;
@@ -110,6 +111,42 @@ td .id{font:500 .9cqw/1 var(--f-mono);color:var(--muted);display:block;margin-bo
 .formula{font:500 1.35cqw/1.5 var(--f-body);background:var(--code-bg);border-radius:5px;padding:1cqw 1.4cqw}
 .formula .over{display:block;border-top:1.5px solid var(--ink);margin-top:.3em;padding-top:.3em}
 
+
+/* 目的陳述、六步、元素標籤 */
+.statement{font:500 2cqw/1.6 var(--f-display);border-left:.4cqw solid var(--teal);padding:.4cqw 0 .4cqw 1.6cqw;max-width:52em}
+.statement b{color:var(--teal);font-weight:900}
+.steps6{display:grid;grid-template-columns:repeat(6,1fr);gap:.8cqw}
+.steps6 .st{border:1px solid var(--line);border-radius:5px;padding:1cqw;display:flex;flex-direction:column;gap:.6cqw;min-width:0}
+.steps6 .st .k{font:600 1cqw/1.2 var(--f-mono);color:var(--muted)}
+.steps6 .st .t{font:700 1.3cqw/1.4 var(--f-display)}
+.steps6 .st.hot{background:var(--teal-soft);border-color:var(--teal)}
+.steps6 .st.hot .k{color:var(--teal)}
+.chip{display:inline-block;font:700 .95em/1.3 var(--f-body);padding:.05em .45em;margin:0 .15em;border-radius:3px;white-space:nowrap}
+.c-act{background:var(--teal-soft);color:var(--teal)}
+.c-obj{background:var(--blue-soft);color:var(--blue)}
+.c-time{background:var(--amber-soft);color:var(--amber)}
+.c-ctx{background:var(--plum-soft);color:var(--plum)}
+.c-cond{background:var(--alert-soft);color:var(--alert)}
+.c-link{background:var(--code-bg);color:var(--ink);outline:1px solid var(--line)}
+.box>.chip{align-self:flex-start;margin:0;font-size:1.1cqw}
+.frac{display:grid;gap:0;font:500 1.7cqw/1.9 var(--f-display);background:var(--code-bg);border-radius:5px;padding:1cqw 1.6cqw}
+.frac .row{display:grid;grid-template-columns:4.5cqw 1fr;align-items:baseline}
+.frac .row+.row{border-top:1.5px solid var(--ink);margin-top:.4cqw;padding-top:.4cqw}
+.frac .lbl{font:600 1cqw/1 var(--f-mono);color:var(--muted)}
+.calc{display:flex;flex-direction:column;font-size:1.25cqw}
+.calc div{display:flex;justify-content:space-between;gap:1cqw;padding:.35cqw 0;border-bottom:1px dashed var(--line)}
+.calc b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.calc .sum{border-bottom:none;border-top:1.5px solid var(--ink);font-weight:700}
+.bars{display:flex;flex-direction:column;gap:.8cqw;margin-top:.4cqw}
+.bar{display:grid;grid-template-columns:10cqw 1fr 7cqw;gap:1cqw;align-items:center;font-size:1.15cqw}
+.bar .track{height:1.3cqw;background:var(--code-bg);border-radius:2px;position:relative;
+  background-image:linear-gradient(90deg,transparent calc(30% - 1px),var(--line) calc(30% - 1px),var(--line) 30%,transparent 30%,transparent calc(60% - 1px),var(--line) calc(60% - 1px),var(--line) 60%,transparent 60%)}
+.bar .fillbar{position:absolute;left:0;top:0;bottom:0;border-radius:2px}
+.fillbar.hi{background:var(--teal)}.fillbar.mid{background:var(--amber)}.fillbar.lo{background:var(--alert)}
+.bar .val{font:500 1.05cqw/1 var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
+.scale{display:grid;grid-template-columns:30fr 30fr 40fr 0;margin-left:11cqw;margin-right:8cqw;font:500 .9cqw/1 var(--f-mono);color:var(--muted)}
+.scale span:last-child{text-align:right;white-space:nowrap;transform:translateX(-100%)}
+
 /* 導覽列 */
 .nav{display:flex;align-items:center;justify-content:center;gap:12px;font-family:var(--f-mono);color:var(--muted)}
 .nav button{font:600 14px/1 var(--f-mono);color:var(--ink);background:var(--slide);border:1px solid var(--line);border-radius:4px;padding:9px 14px;cursor:pointer}
@@ -138,6 +175,13 @@ td .id{font:500 .9cqw/1 var(--f-mono);color:var(--muted);display:block;margin-bo
   .timeline{grid-template-columns:62px 1fr;font-size:13px}.timeline .time{font-size:12px}.timeline .ev{grid-column:2;text-align:left;font-size:12px}.timeline .gap{font-size:12px;grid-column:2}
   .tier{font-size:13px;padding:10px 12px}.tier b{font-size:15px}
   .formula{font-size:15px;padding:12px 14px}
+  .statement{font-size:17px;border-left-width:3px;padding-left:12px}
+  .steps6{grid-template-columns:1fr 1fr;gap:8px}.steps6 .st{padding:10px}.steps6 .st .k{font-size:11px}.steps6 .st .t{font-size:14px}
+  .box>.chip{font-size:13px}
+  .frac{font-size:16px;padding:12px 14px}.frac .row{grid-template-columns:44px 1fr}.frac .lbl{font-size:11px}
+  .calc{font-size:14px}.calc div{padding:5px 0}
+  .bars{gap:10px}.bar{grid-template-columns:96px 1fr 64px;font-size:13px;gap:8px}.bar .track{height:12px}.bar .val{font-size:12px}
+  .scale{display:none}
   .nav,.hint{display:none}
 }
 @media (prefers-reduced-motion: no-preference){
@@ -152,16 +196,16 @@ td .id{font:500 .9cqw/1 var(--f-mono);color:var(--muted);display:block;margin-bo
 <!-- 1 封面 -->
 <section class="slide cover" id="s1" aria-label="封面"><div class="inner">
   <div class="eyebrow">設計部門分享 · 2026 年 11 月</div>
-  <h1>大家醫埋點：<br><span>從設計問題到 DRD</span></h1>
+  <h1>大家醫埋點：<br><span>從護理師的目標到 DRD</span></h1>
   <svg class="ecg" viewBox="0 0 1000 70" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0 40 H300 L320 40 L332 30 L344 40 H420 L432 46 L446 8 L462 62 L476 40 H560"/>
     <path class="spike" d="M560 40 H600 L612 46 L628 2 L646 66 L660 40 H690"/>
     <path d="M690 40 H1000"/>
   </svg>
-  <p class="lead">回顧 10/13 的埋點規劃報告，說明我們為什麼要埋點、指標怎麼拆成開發看得懂的 DRD，並用「發現異常」「排查異常」兩個案例走一遍。</p>
+  <p class="lead">護理師在平台上要完成什麼？我們怎麼把「有沒有完成」拆成可以量測的指標、再拆成開發要埋的事件，最後用數據驗證並決定設計怎麼改。</p>
   <div class="meta">
+    <div><b>10/13</b>埋點規劃報告</div>
     <div><b>37</b>個事件</div>
-    <div><b>5</b>種角色</div>
     <div><b>2</b>個案例</div>
     <div><b>v0.6</b>DRD 版本</div>
   </div>
@@ -170,83 +214,63 @@ td .id{font:500 .9cqw/1 var(--f-mono);color:var(--muted);display:block;margin-bo
 <!-- 2 今天的內容 -->
 <section class="slide" id="s2" aria-label="今天的內容" hidden><div class="inner">
   <div class="eyebrow">今天的內容</div>
-  <h2>四個部分，約 20 分鐘</h2>
+  <h2>從目的出發，一路走到數據怎麼用</h2>
   <div class="grid g4" style="margin-top:1cqw">
-    <div class="box"><span class="num">1</span><h3>回顧專案</h3><p class="small">大家醫是什麼、誰在用、我們想釐清哪些問題</p></div>
-    <div class="box fill"><span class="num">2</span><h3>為什麼要埋點</h3><p class="small">埋點的目的，以及指標怎麼定</p></div>
-    <div class="box"><span class="num">3</span><h3>指標怎麼變成 DRD</h3><p class="small">四步拆解法與 DRD 的讀法</p></div>
-    <div class="box"><span class="num">4</span><h3>兩個案例</h3><p class="small">發現異常、排查異常，從問題一路拆到事件</p></div>
+    <div class="box fill"><span class="num">1</span><h3>護理師的目的</h3><p class="small">護理師在平台上要完成什麼，我們想釐清哪些問題</p></div>
+    <div class="box"><span class="num">2</span><h3>為什麼要埋點</h3><p class="small">埋點要回答什麼，指標由哪幾個部分組成</p></div>
+    <div class="box"><span class="num">3</span><h3>指標怎麼拆成 DRD</h3><p class="small">指標裡的每個名詞，對應到哪種事件與屬性</p></div>
+    <div class="box"><span class="num">4</span><h3>兩個案例</h3><p class="small">發現異常、排查異常：拆解 → 計算 → 應用</p></div>
   </div>
   <p class="small" style="margin-top:auto">DRD（Data Requirement Document）：給開發的埋點需求表，寫清楚「什麼時候送哪一筆資料、帶哪些欄位」。</p>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>02</span></div></section>
 
-<!-- 3 大家醫是什麼 -->
-<section class="slide" id="s3" aria-label="大家醫是什麼" hidden><div class="inner">
-  <div class="eyebrow">1 · 回顧專案</div>
-  <h2>大家醫：機構收案與慢病長期照護的平台</h2>
-  <p class="lead">負責個案納管、長期生理體徵監測、體徵風險警示，以及異常事件的追蹤處置。</p>
+<!-- 3 護理師的目的 -->
+<section class="slide" id="s3" aria-label="護理師在平台上的目的" hidden><div class="inner">
+  <div class="eyebrow">1 · 護理師的目的</div>
+  <h2>護理師在平台上，是平台的核心業務執行者</h2>
+  <div class="statement">個案的生理數據一出現異常，護理師要<b>及時發現</b>、<b>判斷是誤報還是真異常</b>、<b>處置並記錄</b>，必要時轉介醫師，最後<b>消除這筆警報</b>。</div>
   <div class="grid g3">
-    <div class="box"><h3>服務場域</h3><ul class="clean small">
-      <li>日間照護／社區照護</li><li>慢病居家護理</li><li>院內與在宅住院（HaH）</li><li>遠距中心（Call center）</li></ul></div>
-    <div class="box"><h3>數據從哪裡來</h3><ul class="clean small">
-      <li><b>CoDoctor 檢測儀</b>：血壓、心電、血氧、血糖、尿酸等 9 項</li>
-      <li><b>CoDoctor Watch</b>：血壓、心電、心率變異性、睡眠、步數等</li>
-      <li>數據自動上傳，超出標準就產生<b>警報</b></li></ul></div>
-    <div class="box"><h3>誰在用</h3><ul class="clean small">
-      <li><b>一線人員</b>（護理師、個管師）：看警報、排查、寫照護記錄</li>
-      <li><b>醫師</b>：接收轉診、給醫師建議</li>
-      <li><b>機構管理員</b>：也會在工作台看警報</li></ul></div>
+    <div class="box"><span class="tag">訪談整理</span><h3>遠端監控數據</h3><p class="small">每天看個案的量測數據與趨勢，找出異常與未測量的個案。</p></div>
+    <div class="box"><span class="tag">訪談整理</span><h3>處理異常</h3><p class="small">寫照護記錄、排下次訪視或追蹤；需要醫師判斷時轉介醫師。</p></div>
+    <div class="box"><span class="tag">訪談整理</span><h3>留下紀錄</h3><p class="small">處置結果要記在平台上，交班時下一位護理師才接得上。</p></div>
   </div>
+  <p class="small" style="margin-top:auto">所以這次埋點要驗證的目的只有一個：<b>每一筆異常，都有被護理師看到、判斷、處置，並且留下紀錄。</b></p>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>03</span></div></section>
 
-<!-- 4 角色流程 -->
-<section class="slide" id="s4" aria-label="角色的核心流程" hidden><div class="inner">
-  <div class="eyebrow">1 · 回顧專案</div>
-  <h2>警報發生後，護理師和醫師各自要完成的事</h2>
-  <div class="role">
-    <div class="who">護理師</div>
-    <div class="flow">
-      <div class="step"><span class="n">01</span>完成個案收案</div><span class="arrow">→</span>
-      <div class="step on"><span class="n">02 · 案例一</span>發現異常</div><span class="arrow">→</span>
-      <div class="step on"><span class="n">03 · 案例二</span>排查異常（看個案詳情）</div><span class="arrow">→</span>
-      <div class="step"><span class="n">04</span>完成異常處置並記錄</div><span class="arrow">→</span>
-      <div class="step"><span class="n">05</span>待辦與未測量追蹤</div>
-    </div>
+<!-- 4 核心流程 -->
+<section class="slide" id="s4" aria-label="護理師的核心流程" hidden><div class="inner">
+  <div class="eyebrow">1 · 護理師的目的</div>
+  <h2>一筆警報，從出現到消除的流程</h2>
+  <div class="flow">
+    <div class="step"><span class="n">起點</span>系統判定數據異常，產生警報</div><span class="arrow">→</span>
+    <div class="step on"><span class="n">02 發現異常 · 案例一</span>從小鈴鐺通知或待處理列表看到警報</div><span class="arrow">→</span>
+    <div class="step on"><span class="n">03 排查異常 · 案例二</span>進個案詳情看數據，判斷誤報或真異常</div><span class="arrow">→</span>
+    <div class="step"><span class="n">04 完成處置</span>撰寫照護記錄、轉診醫師或其他處理</div><span class="arrow">→</span>
+    <div class="step"><span class="n">終點</span>完成異常個案處理，消除警報</div>
   </div>
-  <div class="role">
-    <div class="who">醫師</div>
-    <div class="flow">
-      <div class="step"><span class="n">01</span>接收轉診個案</div><span class="arrow">→</span>
-      <div class="step"><span class="n">02</span>評估病情（看個案詳情）</div><span class="arrow">→</span>
-      <div class="step"><span class="n">03</span>完成轉診處置並記錄</div>
-    </div>
+  <div class="grid g2" style="margin-top:.6cqw">
+    <div class="box"><h3>處置的三條路</h3><ul class="clean small">
+      <li><b>自行處置</b>：撰寫照護記錄，處置結果記在平台上</li>
+      <li><b>轉診處置</b>：轉給醫師，由醫師給醫師建議</li>
+      <li><b>其他處理</b>：設定下次追蹤、制定測量計畫（依護理師判斷）</li></ul></div>
+    <div class="box"><h3>這次先不分析的</h3><ul class="clean small">
+      <li>個案收案、待辦與未測量追蹤：非核心流程，先聚焦處理異常</li>
+      <li>轉診醫師表單：已經有明確的優化方向</li></ul></div>
   </div>
-  <p class="small">護理師判斷需要醫師時會轉診，醫師在「待醫師處理」和小鈴鐺通知的「轉診提醒」收到。這次 DRD 涵蓋護理師 02～04 與醫師 01～03；收案和待辦追蹤之後再規劃。</p>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>04</span></div></section>
 
 <!-- 5 想釐清的問題 -->
-<section class="slide" id="s5" aria-label="想釐清的問題" hidden><div class="inner">
-  <div class="eyebrow">1 · 回顧專案</div>
-  <h2>上次報告把角色目標，翻成可以量測的問題</h2>
-  <div class="grid g2">
-    <div class="tbl-wrap"><table>
-      <thead><tr><th>護理師流程</th><th>想釐清的問題</th></tr></thead>
-      <tbody>
-        <tr><td>發現異常</td><td>異常是否能有效被護理師看到？是否引導點進個案詳情？</td></tr>
-        <tr><td>排查異常</td><td>排查時主要看哪些健康資訊？哪些行為影響排查效率？</td></tr>
-        <tr><td>完成處置</td><td>是否所有異常都有被處理？沒完成的卡在哪個階段？</td></tr>
-        <tr><td>處理時間</td><td>從發現到消除異常要多久？哪一段特別久？</td></tr>
-      </tbody></table></div>
-    <div class="tbl-wrap"><table>
-      <thead><tr><th>醫師流程</th><th>想釐清的問題</th></tr></thead>
-      <tbody>
-        <tr><td>接收轉診</td><td>轉診是否有效被醫師看到？是否引導點進個案詳情？</td></tr>
-        <tr><td>評估病情</td><td>提出處置建議前，主要查閱哪些資訊？</td></tr>
-        <tr><td>完成處置</td><td>轉診是否都有被處理？沒完成的卡在哪一段？</td></tr>
-        <tr><td>處理時間</td><td>從接到轉診到完成要多久？</td></tr>
-      </tbody></table></div>
-  </div>
-  <p class="small" style="margin-top:auto">每個問題底下再定指標，目前共約 55 個，分成主指標、輔助判讀與背景數據。</p>
+<section class="slide" id="s5" aria-label="從目的到想釐清的問題" hidden><div class="inner">
+  <div class="eyebrow">1 · 護理師的目的</div>
+  <h2>把每一步的目標，翻成可以量測的問題</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:18%">流程</th><th>想釐清的問題</th><th style="width:32%">對應的設計</th></tr></thead>
+    <tbody>
+      <tr><td><b>02 發現異常</b></td><td>異常是否能有效被護理師看到？<br>是否有效引導點進個案詳情？<br>看通知時，是否有其他操作影響查看效率？</td><td>小鈴鐺通知、待處理列表、來源篩選、前往列表按鈕</td></tr>
+      <tr><td><b>03 排查異常</b></td><td>護理師排查時，主要會看哪些健康資訊？<br>哪些行為會影響排查和取得資訊的效率？</td><td>個案詳情的頁籤、生理項目 tab、時間範圍、心電區塊</td></tr>
+      <tr><td><b>04 完成處置</b></td><td>是否所有異常都有被處理？沒完成的卡在哪個階段？<br>從發現到消除要多久？哪一段特別久？<br>哪些行為影響處理完成？</td><td>撰寫照護記錄按鈕與彈窗</td></tr>
+    </tbody></table></div>
+  <p class="small" style="margin-top:auto">今天用 02、03 各一個問題當案例，把它從問題一路拆到資料、計算和應用。</p>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>05</span></div></section>
 
 <!-- 6 為什麼要埋點 -->
@@ -254,123 +278,148 @@ td .id{font:500 .9cqw/1 var(--f-mono);color:var(--muted);display:block;margin-bo
   <div class="eyebrow">2 · 為什麼要埋點</div>
   <h2>我們知道流程「應該」怎麼走，但不知道實際怎麼走</h2>
   <div class="grid g3">
-    <div class="box fill"><h3>驗證設計有沒有效</h3><p class="small">例如：小鈴鐺通知真的讓護理師一上線就看到警報嗎？還是大家其實都從列表進去？</p></div>
-    <div class="box fill"><h3>找出卡在哪一步</h3><p class="small">警報沒被處理時，是沒看到、看到沒點、點了沒寫、還是寫了沒送出？不同斷點，要改的設計完全不同。</p></div>
-    <div class="box fill"><h3>讓改版有依據</h3><p class="small">每個指標都先寫好「落在哪個級距就做什麼」，改版前後拿同一個指標比較，不靠感覺。</p></div>
+    <div class="box fill"><h3>驗證目的有沒有達成</h3><p class="small">每一筆異常，真的都有被看到、被處理嗎？比例是多少？</p></div>
+    <div class="box fill"><h3>找出卡在哪一步</h3><p class="small">沒處理的警報，是沒看到、看到沒點、點了沒寫，還是寫了沒送出？不同斷點，要改的設計完全不同。</p></div>
+    <div class="box fill"><h3>讓改版有依據</h3><p class="small">每個指標先寫好「落在哪個級距就做什麼」，改版前後拿同一個指標比較。</p></div>
   </div>
-  <div class="box alert" style="margin-top:auto"><h3>原則：每一筆資料都要能回答一個設計問題</h3><p class="small">埋點不是收越多越好。指標用不到的就不埋，例如轉診醫師表單已經優化、照護記錄沒有欄位能區分誤報，這兩塊這次都不埋。</p></div>
+  <div class="grid g4" style="margin-top:auto">
+    <div class="box"><span class="num">前提</span><p class="small">只算有機會被處理的，例如「護理師上線時已存在的警報」。下班時間產生、還沒人上線的不算。</p></div>
+    <div class="box"><span class="num">公式</span><p class="small">分子、分母各是什麼，寫成可以算的式子。</p></div>
+    <div class="box"><span class="num">級距</span><p class="small">固定三級 ≤30%／31–60%／≥61%，或兩級 ≤50%／≥51%。</p></div>
+    <div class="box"><span class="num">應用</span><p class="small">每一級都對應一個設計動作，數據出來直接決策。</p></div>
+  </div>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>06</span></div></section>
 
-<!-- 7 指標怎麼定 -->
-<section class="slide" id="s7" aria-label="指標怎麼定" hidden><div class="inner">
-  <div class="eyebrow">2 · 為什麼要埋點</div>
-  <h2>每個指標都有四個部分</h2>
-  <div class="grid g4">
-    <div class="box"><span class="num">前提</span><h3>只算有機會被處理的</h3><p class="small">例：「護理師上線時已存在的警報」。下班期間產生、還沒人上線的警報不算。</p></div>
-    <div class="box"><span class="num">公式</span><h3>算法寫清楚</h3><p class="small">例：被看到的警報 ÷ 護理師上線時已存在的警報。</p></div>
-    <div class="box"><span class="num">級距</span><h3>固定三級或兩級</h3><p class="small">比率：≤30%／31–60%／≥61%；沒有中間行動的用 ≤50%／≥51%。</p></div>
-    <div class="box"><span class="num">行動</span><h3>結果出來要做什麼</h3><p class="small">每一級都對應一個設計動作，結果出來直接決策。</p></div>
+<!-- 7 拆解方法 -->
+<section class="slide" id="s7" aria-label="拆解方法" hidden><div class="inner">
+  <div class="eyebrow">3 · 指標怎麼拆成 DRD</div>
+  <h2>從目的到應用，一共六步</h2>
+  <div class="steps6">
+    <div class="st"><span class="k">1 目的</span><span class="t">每筆異常都被處理</span></div>
+    <div class="st"><span class="k">2 問題</span><span class="t">異常有被看到嗎？</span></div>
+    <div class="st"><span class="k">3 指標</span><span class="t">被看到的警報 ÷ 上線時已存在的警報</span></div>
+    <div class="st hot"><span class="k">4 元素</span><span class="t">對象、動作、時間、情境、條件</span></div>
+    <div class="st hot"><span class="k">5 DRD</span><span class="t">事件與屬性</span></div>
+    <div class="st"><span class="k">6 計算與應用</span><span class="t">落在哪一級，就做哪個設計動作</span></div>
   </div>
-  <div class="box" style="margin-top:auto">
-    <h3>為什麼不用「24 小時內」當門檻？</h3>
-    <p class="small">護理師有排班，晚上產生的警報要到隔天上班才可能被看到。用固定時數會把「沒上班」誤判成「沒看到」，所以改用「上線」當基準：同一個 <code>session_id</code> 的第一筆到最後一筆事件，就是一次上線。</p>
+  <div class="grid g2" style="margin-top:auto">
+    <div class="box"><h3>1～3 是上次 Figma 報告做的</h3><p class="small">從護理師的流程訂出問題和指標，並寫好每個級距的後續動作。</p></div>
+    <div class="box fill"><h3>4～5 是這次 DRD 做的</h3><p class="small">把指標裡的每個名詞拆成「平台可以記下來的一件事」，再對應到事件和屬性，交給開發。</p></div>
   </div>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>07</span></div></section>
 
-<!-- 8 四步拆解 -->
-<section class="slide" id="s8" aria-label="四步拆解" hidden><div class="inner">
-  <div class="eyebrow">3 · 指標怎麼變成 DRD</div>
-  <h2>四步拆解：從一個問題，拆到要埋的事件</h2>
-  <div class="chain">
-    <div class="link"><span class="k">STEP 1 · 問題</span><span class="t">異常是否能有效被護理師看到？</span><span class="d">來自角色目標</span></div>
-    <div class="link"><span class="k">STEP 2 · 指標</span><span class="t">被看到的警報 ÷ 護理師上線時已存在的警報</span><span class="d">定前提、公式、級距、行動</span></div>
-    <div class="link"><span class="k">STEP 3 · 需要的事實</span><span class="t">警報何時產生？護理師何時上線？哪一筆在哪裡被看到？</span><span class="d">把公式裡每個名詞拆成「可以被記錄的一件事」</span></div>
-    <div class="link"><span class="k">STEP 4 · 事件與屬性</span><span class="t"><code>alert_created</code> · <code>session_id</code> · <code>item_impression</code></span><span class="d">每件事對應一個事件，帶上能串起來的編號</span></div>
-  </div>
-  <div class="box fill" style="margin-top:auto">
-    <h3>關鍵：用編號把事件串起來</h3>
-    <p class="small"><code>alert_id</code> 串起同一筆警報從產生、被看到、被點、到被處理；<code>detail_visit_id</code> 串起同一次進入個案詳情裡的所有操作；<code>popup_visit_id</code> 串起同一次打開的視窗。沒有這些編號，事件只是一堆各自獨立的點擊。</p>
-  </div>
+<!-- 8 元素對照 -->
+<section class="slide" id="s8" aria-label="指標的元素對到 DRD" hidden><div class="inner">
+  <div class="eyebrow">3 · 指標怎麼拆成 DRD</div>
+  <h2>指標裡的名詞，可以拆成六種元素</h2>
+  <div class="tbl-wrap"><table class="el">
+    <thead><tr><th style="width:13%">元素</th><th style="width:27%">它在問什麼</th><th style="width:22%">DRD 裡寫在哪</th><th>例子</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip c-act">動作</span></td><td>發生了什麼事？看到、點進去、提交</td><td>事件名稱</td><td><code>item_impression</code> <code>view_page</code> <code>submit_form</code></td></tr>
+      <tr><td><span class="chip c-obj">對象</span></td><td>是哪一筆警報、哪個個案？</td><td>屬性 <code>_id</code></td><td><code>alert_id</code> <code>patient_id</code></td></tr>
+      <tr><td><span class="chip c-time">時間</span></td><td>什麼時候發生？停留多久？</td><td>全域屬性、<code>duration</code></td><td><code>event_time</code> <code>duration</code></td></tr>
+      <tr><td><span class="chip c-ctx">情境</span></td><td>在哪裡發生？是什麼類型？</td><td>屬性 <code>_name</code> <code>_type</code></td><td><code>notification_tab</code> <code>list_name</code> <code>alert_type</code></td></tr>
+      <tr><td><span class="chip c-cond">條件</span></td><td>怎樣才算數？</td><td>觸發時機、備註</td><td>完整出現在畫面 ≥2 秒才算看到</td></tr>
+      <tr><td><span class="chip c-link">串連</span></td><td>哪些動作屬於同一次？</td><td>「這一次」的編號</td><td><code>session_id</code> 一次上線、<code>detail_visit_id</code> 一次進個案詳情</td></tr>
+    </tbody></table></div>
+  <p class="small">命名規則：事件名稱用互動類型，同一種動作全文件同一個名字；是哪個按鈕、哪個列表交給屬性區分。Sample Values 只寫平台上真的會記的值。</p>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>08</span></div></section>
 
-<!-- 9 DRD 讀法 -->
-<section class="slide" id="s9" aria-label="DRD 怎麼讀" hidden><div class="inner">
-  <div class="eyebrow">3 · 指標怎麼變成 DRD</div>
-  <h2>DRD 一列怎麼讀，命名怎麼定</h2>
-  <div class="tbl-wrap"><table>
-    <thead><tr><th>編號</th><th>頁面／區塊</th><th>事件名稱</th><th>觸發時機</th><th>屬性</th><th>Sample Values</th></tr></thead>
-    <tbody><tr><td class="mono">DJY_13</td><td>待處理列表／列表項目</td><td class="ev"><code>item_impression</code></td><td>列表個案完整出現在畫面 ≥2 秒</td><td><code>list_name</code></td><td class="mono">high_risk, abnormal_report, low_risk …</td></tr></tbody>
-  </table></div>
+<!-- 9 案例一 拆元素 -->
+<section class="slide" id="s9" aria-label="案例一：拆解" hidden><div class="inner">
+  <div class="eyebrow">4 · 案例一：發現異常</div>
+  <h2>異常是否能有效被護理師看到？</h2>
+  <div class="frac">
+    <div class="row"><span class="lbl">分子</span><span>在被處理<span class="chip c-time">之前</span>，至少被<span class="chip c-ctx">一線人員</span><span class="chip c-act">看到</span> 1 次的<span class="chip c-obj">警報</span></span></div>
+    <div class="row"><span class="lbl">分母</span><span><span class="chip c-ctx">一線人員</span><span class="chip c-link">上線</span>時<span class="chip c-time">已存在</span>的<span class="chip c-obj">警報</span></span></div>
+  </div>
   <div class="grid g3">
-    <div class="box"><h3>事件名稱：用互動類型</h3><p class="small">同一種動作全文件同一個名字：<code>view_page</code> <code>item_impression</code> <code>click_button</code> <code>apply_filter</code> <code>submit_form</code>。是哪個按鈕、哪個列表，交給屬性區分。</p></div>
-    <div class="box"><h3>屬性：後綴說明意思</h3><p class="small"><code>_id</code> 某一筆或某一次的編號、<code>_name</code> 名稱、<code>_type</code> 類型、<code>duration</code> 停留秒數。每筆事件都另外帶全域屬性：<code>user_id</code> <code>user_role</code> <code>org_id</code> <code>event_time</code> <code>session_id</code>。</p></div>
-    <div class="box"><h3>Sample Values：平台上真的會記的值</h3><p class="small">列舉值寫完整清單，其他寫 <code>{{string}}</code> 加一個例子。不寫中文說明，例如導程寫 <code>lead_1, lead_3, lead_12</code>，不寫「單導、三導」。</p></div>
+    <div class="box"><span class="chip c-act">動作「看到」</span><p class="small">兩條路徑：小鈴鐺通知的卡片、待處理列表的個案列，都是 <code>item_impression</code>。</p></div>
+    <div class="box"><span class="chip c-cond">條件「怎樣算看到」</span><p class="small">完整出現在畫面、持續 ≥2 秒；同一個個案多筆警報只算 1 次。</p></div>
+    <div class="box"><span class="chip c-link">串連「上線」</span><p class="small">不用「24 小時內」。同一個 <code>session_id</code> 的第一筆到最後一筆事件就是一次上線，下班時間不會被算成沒看到。</p></div>
   </div>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>09</span></div></section>
 
-<!-- 10 案例一 -->
-<section class="slide" id="s10" aria-label="案例一：發現異常" hidden><div class="inner">
+<!-- 10 案例一 DRD -->
+<section class="slide" id="s10" aria-label="案例一：DRD" hidden><div class="inner">
   <div class="eyebrow">4 · 案例一：發現異常</div>
-  <h2>異常是否能有效被護理師看到？</h2>
-  <div class="grid g2" style="align-items:start">
-    <div class="grid">
-      <div class="formula">警報曝光率 ＝ 在被處理前，至少被護理師看到 1 次的警報
-        <span class="over">護理師上線時已存在的警報</span></div>
-      <div class="box"><h3>什麼叫「看到」</h3><ul class="clean small">
-        <li>卡片<b>完整出現在畫面中、持續 ≥2 秒</b>才算</li>
-        <li>載入、捲動、翻頁後看到的都算；同一次只送一次</li>
-        <li>同一個個案有多筆警報，只算 1 次</li></ul></div>
-    </div>
-    <div class="grid">
-      <div class="box fill"><span class="tag">路徑 A</span><h3>小鈴鐺通知「最新通知」</h3><p class="small">分「異常提醒、轉診提醒、追蹤提醒」三個 tab。曝光要記<b>當下所在的 tab</b>：護理師看異常提醒、醫師看轉診提醒，分開計算。</p></div>
-      <div class="box fill"><span class="tag">路徑 B</span><h3>待處理列表</h3><p class="small">7 個分頁：檢測高風險、異常上報、自訂計畫未測量、月度高風險（未處理／已處理）、月度低風險、檢測低風險。</p></div>
-      <p class="small">兩條路徑合計時，同一筆警報兩邊都看過只算 1 次，另外算「重複曝光率」判斷入口是否重疊。</p>
-    </div>
-  </div>
+  <h2>對到 DRD：三個事件就能算</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>公式裡的名詞</th><th>事件</th><th>關鍵屬性</th><th>用來做什麼</th></tr></thead>
+    <tbody>
+      <tr><td>警報、已存在</td><td class="ev"><span class="id">DJY_02 · 後端</span><code>alert_created</code></td><td><code>alert_id</code> <code>alert_time</code> <code>alert_type</code></td><td>每一筆警報的編號與產生時間，分母的來源</td></tr>
+      <tr><td>一線人員、上線</td><td class="ev"><span class="id">DJY_01 · 全域</span>每筆事件都帶</td><td><code>user_role</code> <code>session_id</code> <code>event_time</code></td><td>判斷警報產生後，有沒有一線人員上線過</td></tr>
+      <tr><td>看到（路徑 A）</td><td class="ev"><span class="id">DJY_07</span><code>item_impression</code></td><td><code>alert_id</code> <code>notification_tab</code> <code>position</code></td><td>在小鈴鐺通知哪個 tab、排第幾個被看到</td></tr>
+      <tr><td>看到（路徑 B）</td><td class="ev"><span class="id">DJY_13</span><code>item_impression</code></td><td><code>alert_id</code> <code>list_name</code> <code>position</code></td><td>在待處理列表哪個分頁被看到</td></tr>
+      <tr><td>處理之前</td><td class="ev"><span class="id">DJY_03 · 後端</span><code>alert_resolved</code></td><td><code>alert_id</code></td><td>處理時間點，只算處理前的曝光</td></tr>
+    </tbody></table></div>
+  <p class="small">每個事件都帶 <code>alert_id</code>，同一筆警報從產生、被看到到被處理，才能串成一條線。</p>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>10</span></div></section>
 
-<!-- 11 案例一 DRD -->
-<section class="slide" id="s11" aria-label="案例一的 DRD" hidden><div class="inner">
+<!-- 11 案例一 計算與應用 -->
+<section class="slide" id="s11" aria-label="案例一：計算與應用" hidden><div class="inner">
   <div class="eyebrow">4 · 案例一：發現異常</div>
-  <h2>拆成 DRD：三個事件就能算出曝光率</h2>
-  <div class="tbl-wrap"><table>
-    <thead><tr><th>公式裡的名詞</th><th>事件</th><th>關鍵屬性</th><th>這個屬性回答什麼</th></tr></thead>
-    <tbody>
-      <tr><td>警報產生</td><td class="ev"><span class="id">DJY_02 · 後端</span><code>alert_created</code></td><td><code>alert_id</code> <code>alert_time</code> <code>alert_type</code></td><td>哪一筆、什麼時候、是高風險／低風險／異常上報</td></tr>
-      <tr><td>護理師上線</td><td class="ev"><span class="id">DJY_01 · 全域</span>每筆事件都帶</td><td><code>session_id</code> <code>event_time</code> <code>user_role</code></td><td>警報產生後，有沒有一線人員上線過</td></tr>
-      <tr><td>在小鈴鐺通知被看到</td><td class="ev"><span class="id">DJY_07</span><code>item_impression</code></td><td><code>alert_id</code> <code>notification_tab</code> <code>position</code></td><td>在哪個 tab、排第幾個時被看到</td></tr>
-      <tr><td>在待處理列表被看到</td><td class="ev"><span class="id">DJY_13</span><code>item_impression</code></td><td><code>alert_id</code> <code>list_name</code> <code>position</code></td><td>在哪個列表分頁被看到</td></tr>
-    </tbody></table></div>
-  <p class="small">警報曝光率的級距與後續動作</p>
-  <div class="tiers">
-    <div class="tier lo"><b>≤30%</b>上線了卻大多沒看到 → 優先改善提醒機制，例如登入時主動提示待處理異常</div>
-    <div class="tier mid"><b>31–60%</b>有相當比例沒看到 → 拆開兩條路徑，找出曝光不足的入口</div>
-    <div class="tier hi"><b>≥61%</b>多數有看到 → 看重複曝光率，評估入口是否單一化</div>
+  <h2>拿到數據後：怎麼算、怎麼用</h2>
+  <div class="grid g2" style="grid-template-columns:1fr 1.15fr;align-items:start">
+    <div class="box"><span class="tag amber">示意數字，非真實資料</span>
+      <div class="calc">
+        <div><span>一週產生的警報</span><b>40</b></div>
+        <div><span>護理師上線時已存在（分母）</span><b>32</b></div>
+        <div><span>在小鈴鐺通知被看到</span><b>14</b></div>
+        <div><span>在待處理列表被看到</span><b>15</b></div>
+        <div><span>兩邊都看過（只算一次）</span><b>5</b></div>
+        <div class="sum"><span>至少被看到一次（分子）</span><b>24</b></div>
+      </div>
+      <div class="formula">警報曝光率 ＝ 24 ÷ 32 ＝ <b>75%</b></div>
+    </div>
+    <div class="grid">
+      <div class="box fill"><h3>整體 75%：落在「高」</h3><p class="small">多數警報有被看到 → 把沒被看到的 8 筆逐筆找原因：是在哪個分頁、排在第幾個、為什麼沒被看到。</p></div>
+      <div class="box"><h3>拆開兩條路徑看</h3><p class="small">小鈴鐺 14 ÷ 32 ＝ 44%、列表 15 ÷ 32 ＝ 47%，各自都只有一半，但重疊很少。代表兩個入口<b>互補</b>，不能拿掉任何一個。</p></div>
+      <div class="box alert"><h3>如果整體只有 25%：落在「低」</h3><p class="small">護理師上線了，大部分警報卻沒被看到 → 優先改提醒機制，例如登入時主動提示待處理異常。</p></div>
+    </div>
   </div>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>11</span></div></section>
 
-<!-- 12 案例二 -->
-<section class="slide" id="s12" aria-label="案例二：排查異常" hidden><div class="inner">
+<!-- 12 案例二 拆元素 -->
+<section class="slide" id="s12" aria-label="案例二：拆解" hidden><div class="inner">
   <div class="eyebrow">4 · 案例二：排查異常</div>
   <h2>護理師排查異常時，主要看哪些健康資訊？</h2>
-  <p class="lead">個案詳情有 Header 頁籤（健康計畫、處理紀錄、個案上報紀錄）、14 個生理項目 tab、心電頁 4 個區塊。我們想知道哪些真的被看、看多久，作為資訊層級與版面調整的依據。</p>
-  <div class="grid g2">
-    <div class="box"><h3>單一頁籤有效查看率</h3><p class="small">有效查看該頁籤的詳情訪問 ÷ 個案有待處理異常、且該頁籤有資料的詳情訪問。排除剛好是預設頁籤的訪問。</p></div>
-    <div class="box"><h3>處理前資訊查看率</h3><p class="small">只看「有提交照護記錄」的那幾次訪問，提交前看過哪些頁籤。回答「做處置判斷時靠哪些資訊」。</p></div>
-    <div class="box"><h3>異常排查時長</h3><p class="small">打開照護記錄的時間 − 進入個案詳情的時間，兩個 <code>event_time</code> 相減，不另外埋。</p></div>
-    <div class="box"><h3>個案詳情停留時長</h3><p class="small">離開個案詳情時記整段停留秒數。個案詳情是另開瀏覽器分頁，關閉分頁時也要送。</p></div>
+  <p class="small">指標：處理前資訊查看率（依頁籤、生理項目分別算）。只看真的有完成處置的那幾次，才能回答「做判斷時靠哪些資訊」。</p>
+  <div class="frac">
+    <div class="row"><span class="lbl">分子</span><span><span class="chip c-time">提交前</span><span class="chip c-act">看過</span>這個<span class="chip c-ctx">頁籤</span>的<span class="chip c-link">詳情訪問</span></span></div>
+    <div class="row"><span class="lbl">分母</span><span>有<span class="chip c-act">提交照護記錄</span>、個案有<span class="chip c-obj">待處理警報</span>的<span class="chip c-link">詳情訪問</span></span></div>
   </div>
-  <p class="small" style="margin-top:auto">這些指標的單位都是「一次個案詳情訪問」，所以每個事件都帶 <code>detail_visit_id</code>，把同一次排查的動作串在一起。</p>
+  <div class="grid g3">
+    <div class="box"><span class="chip c-link">串連「詳情訪問」</span><p class="small">一次進入個案詳情產生一個 <code>detail_visit_id</code>，裡面的看頁籤、打開表單、提交都帶同一個。</p></div>
+    <div class="box"><span class="chip c-cond">條件「看過」</span><p class="small">停留 ≥2 秒才算。快速點過去的不算，避免把「找路」當成「在看」。</p></div>
+    <div class="box"><span class="chip c-time">時間「停留多久」</span><p class="small">切換時開始計時，到下一個操作或離開時停止，這時才送出並帶 <code>duration</code>。</p></div>
+  </div>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>12</span></div></section>
 
-<!-- 13 案例二 停留秒數 -->
-<section class="slide" id="s13" aria-label="停留秒數怎麼記" hidden><div class="inner">
+<!-- 13 案例二 DRD -->
+<section class="slide" id="s13" aria-label="案例二：DRD" hidden><div class="inner">
+  <div class="eyebrow">4 · 案例二：排查異常</div>
+  <h2>對到 DRD：五個事件，一個編號串起來</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>公式裡的名詞</th><th>事件</th><th>關鍵屬性</th><th>用來做什麼</th></tr></thead>
+    <tbody>
+      <tr><td>詳情訪問、待處理警報</td><td class="ev"><span class="id">DJY_18</span><code>view_page</code></td><td><code>detail_visit_id</code> <code>alert_id</code> <code>entry_source</code></td><td>這次訪問的起點，個案當下有沒有待處理警報</td></tr>
+      <tr><td>看過哪個頁籤</td><td class="ev"><span class="id">DJY_20</span><code>view_page</code></td><td><code>page_name</code> <code>has_data</code> <code>duration</code></td><td>健康計畫、處理紀錄、個案上報紀錄各看多久</td></tr>
+      <tr><td>看過哪個生理項目</td><td class="ev"><span class="id">DJY_21</span><code>apply_filter</code></td><td><code>filter_value</code> <code>is_abnormal_item</code> <code>duration</code></td><td>看的是不是這次警報的異常項目</td></tr>
+      <tr><td>打開照護記錄</td><td class="ev"><span class="id">DJY_30</span><code>view_popup</code></td><td><code>popup_visit_id</code> <code>open_seq</code></td><td>排查時長的終點</td></tr>
+      <tr><td>提交照護記錄、提交前</td><td class="ev"><span class="id">DJY_33</span><code>submit_form</code></td><td><code>alert_id</code> <code>text_length</code></td><td>篩出有完成處置的訪問；用時間判斷哪些頁籤是在提交前看的</td></tr>
+    </tbody></table></div>
+  <p class="small">另外，離開個案詳情時會送一筆 <code>leave_page</code>（DJY_19），記整段停留秒數。</p>
+</div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>13</span></div></section>
+
+<!-- 14 案例二 一次排查 -->
+<section class="slide" id="s14" aria-label="案例二：一次排查的紀錄" hidden><div class="inner">
   <div class="eyebrow">4 · 案例二：排查異常</div>
   <h2>一次排查，平台上會留下這些紀錄</h2>
   <div class="grid g2" style="grid-template-columns:1.45fr 1fr;align-items:start">
     <div class="timeline">
       <span class="time">09:31:05</span><span>從小鈴鐺通知點進個案 A 的個案詳情</span><span class="ev">view_page</span>
-      <span class="time">09:31:07</span><span>點「血壓」tab</span><span class="ev"></span>
+      <span class="time">09:31:07</span><span>點「血壓」tab（這次的異常項目）</span><span class="ev"></span>
       <span class="gap">看了 48 秒</span>
       <span class="time">09:31:55</span><span>點「心電」tab → 送出血壓那一筆</span><span class="ev">apply_filter · 48s</span>
       <span class="gap">看了 1 秒（不到 2 秒不送）</span>
@@ -381,78 +430,72 @@ td .id{font:500 .9cqw/1 var(--f-mono);color:var(--muted);display:block;margin-bo
       <span class="time">09:34:30</span><span>關閉分頁</span><span class="ev">leave_page · 205s</span>
     </div>
     <div class="grid">
-      <div class="box fill"><h3>停留秒數的規則</h3><ul class="clean small">
-        <li>切換時開始計時，到下一個操作、離開或切到別的瀏覽器分頁時停止</li>
-        <li>停止時才送出，帶上 <code>duration</code></li>
-        <li>不到 2 秒不送，過濾快速點過去的</li>
-        <li>切到其他瀏覽器分頁的時間不算</li></ul></div>
-      <div class="box"><h3>從這次可以算出</h3><ul class="clean small">
+      <div class="box fill"><h3>這次訪問算出來的</h3><ul class="clean small">
+        <li>有提交照護記錄 → 算進分母</li>
+        <li>提交前看過：血壓、處理紀錄 → 這兩個各記一次分子</li>
+        <li>心電只看 1 秒，不算看過</li></ul></div>
+      <div class="box"><h3>順便可以算出</h3><ul class="clean small">
         <li>排查時長：09:33:31 − 09:31:05 ＝ 2 分 26 秒</li>
-        <li>有效查看：血壓、處理紀錄</li>
         <li>個案詳情停留：205 秒</li></ul></div>
     </div>
   </div>
-</div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>13</span></div></section>
-
-<!-- 14 案例二 DRD -->
-<section class="slide" id="s14" aria-label="案例二的 DRD" hidden><div class="inner">
-  <div class="eyebrow">4 · 案例二：排查異常</div>
-  <h2>拆成 DRD：六個事件，一個編號串起來</h2>
-  <div class="tbl-wrap"><table>
-    <thead><tr><th>要知道的事</th><th>事件</th><th>關鍵屬性</th><th>這個屬性回答什麼</th></tr></thead>
-    <tbody>
-      <tr><td>進入個案詳情</td><td class="ev"><span class="id">DJY_18</span><code>view_page</code></td><td><code>detail_visit_id</code> <code>entry_source</code> <code>alert_id</code></td><td>從哪裡進來、這個個案當下有沒有待處理警報</td></tr>
-      <tr><td>看了哪個 Header 頁籤</td><td class="ev"><span class="id">DJY_20</span><code>view_page</code></td><td><code>page_name</code> <code>has_data</code> <code>duration</code></td><td>哪個頁籤、有沒有資料、看了多久</td></tr>
-      <tr><td>看了哪個生理項目</td><td class="ev"><span class="id">DJY_21</span><code>apply_filter</code></td><td><code>filter_value</code> <code>is_abnormal_item</code> <code>duration</code></td><td>看的是不是這次的異常項目</td></tr>
-      <tr><td>打開照護記錄</td><td class="ev"><span class="id">DJY_30</span><code>view_popup</code></td><td><code>popup_visit_id</code> <code>open_seq</code></td><td>第幾次打開，和排查時長的終點</td></tr>
-      <tr><td>提交照護記錄</td><td class="ev"><span class="id">DJY_33</span><code>submit_form</code></td><td><code>alert_id</code> <code>text_length</code></td><td>處置完成，用來篩出「真的有處理」的訪問</td></tr>
-      <tr><td>離開個案詳情</td><td class="ev"><span class="id">DJY_19</span><code>leave_page</code></td><td><code>duration</code></td><td>整段停留多久</td></tr>
-    </tbody></table></div>
-  <p class="small">單一頁籤有效查看率的級距與後續動作</p>
-  <div class="tiers">
-    <div class="tier lo"><b>≤30%</b>排查時很少看 → 訪談原因，評估整合或收合</div>
-    <div class="tier mid"><b>31–60%</b>使用頻率符合現有層級 → 維持設計</div>
-    <div class="tier hi"><b>≥61%</b>經常需要 → 提高資訊層級，減少查找步驟</div>
-  </div>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>14</span></div></section>
 
-<!-- 15 討論中定下的原則 -->
-<section class="slide" id="s15" aria-label="討論中定下的原則" hidden><div class="inner">
-  <div class="eyebrow">回顧討論過程</div>
-  <h2>和團隊來回討論後，定下的幾個原則</h2>
-  <div class="grid g2">
-    <div class="box"><h3>不同角色的畫面，拆成不同事件</h3><p class="small">「待處理」給一線人員、裡面是警報；「待醫師處理」給醫師、裡面是轉診。合在一起會讓曝光率的基準混在一起。</p></div>
-    <div class="box"><h3>能用時間相減的，就不另外記</h3><p class="small">每筆事件都有 <code>event_time</code>，排查時長、填寫時長都能用兩個事件的時間相減算出來。</p></div>
-    <div class="box"><h3>名稱要說出真正的意思</h3><p class="small"><code>alert_level</code> 的值其實是高風險、低風險、異常上報，是類型不是等級，改成 <code>alert_type</code>；單純轉診時沒有警報，記 <code>null</code>。</p></div>
-    <div class="box"><h3>用不到的不埋</h3><p class="small">轉診醫師表單已優化、處理結果沒有欄位區分誤報，這兩塊這次不埋，指標也標「不埋點」。</p></div>
+<!-- 15 案例二 計算與應用 -->
+<section class="slide" id="s15" aria-label="案例二：計算與應用" hidden><div class="inner">
+  <div class="eyebrow">4 · 案例二：排查異常</div>
+  <h2>拿到數據後：每個頁籤各落在哪一級</h2>
+  <div class="grid g2" style="grid-template-columns:1.1fr 1fr;align-items:start">
+    <div class="box"><span class="tag amber">示意數字，非真實資料</span>
+      <p class="small">一個月內，有提交照護記錄的詳情訪問共 <b>50</b> 次</p>
+      <div class="bars">
+        <div class="bar"><span class="name">異常的生理項目</span><span class="track"><span class="fillbar hi" style="width:90%"></span></span><span class="val">45 · 90%</span></div>
+        <div class="bar"><span class="name">處理紀錄</span><span class="track"><span class="fillbar hi" style="width:76%"></span></span><span class="val">38 · 76%</span></div>
+        <div class="bar"><span class="name">個案上報紀錄</span><span class="track"><span class="fillbar mid" style="width:40%"></span></span><span class="val">20 · 40%</span></div>
+        <div class="bar"><span class="name">健康計畫</span><span class="track"><span class="fillbar lo" style="width:18%"></span></span><span class="val">9 · 18%</span></div>
+      </div>
+      <div class="scale"><span>0</span><span>30%</span><span>60%</span><span>100%</span></div>
+    </div>
+    <div class="grid">
+      <div class="box fill"><h3>高（≥61%）：處理紀錄 76%</h3><p class="small">做判斷時幾乎都會看 → 把最近一次處理紀錄的摘要，直接放進照護記錄彈窗當參考。</p></div>
+      <div class="box"><h3>中（31–60%）：個案上報紀錄 40%</h3><p class="small">部分判斷會用到 → 維持現有層級。</p></div>
+      <div class="box alert"><h3>低（≤30%）：健康計畫 18%</h3><p class="small">做判斷時很少用 → 先訪談原因；確認後可降低層級或收合，讓常用資訊更好找。</p></div>
+    </div>
   </div>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>15</span></div></section>
 
-<!-- 16 下一步 -->
-<section class="slide" id="s16" aria-label="下一步" hidden><div class="inner">
-  <div class="eyebrow">下一步</div>
-  <h2>DRD 交給開發前，還有 4 件事要確認</h2>
-  <div class="grid g2" style="align-items:start">
-    <div class="box alert"><h3>待確認</h3><ul class="clean small">
-      <li>機構管理員也會處理警報，分析時要不要算進來？</li>
-      <li>醫師的「轉診提醒」有沒有「前往待醫師處理列表」按鈕？</li>
-      <li>一線醫師看得到待醫師處理列表嗎？</li>
-      <li>待醫師處理列表上的按鈕名稱</li></ul></div>
-    <div class="box"><h3>接下來的流程</h3>
-      <div class="flow" style="flex-direction:column">
-        <div class="step"><span class="n">1</span>和開發逐列確認 DRD 與共用規則</div>
-        <div class="step"><span class="n">2</span>開發排期、上線埋點</div>
-        <div class="step"><span class="n">3</span>收集資料，檢查資料是否完整</div>
-        <div class="step on"><span class="n">4</span>第一次指標報告，依級距決定設計動作</div>
-      </div></div>
+<!-- 16 原則 -->
+<section class="slide" id="s16" aria-label="討論中定下的原則" hidden><div class="inner">
+  <div class="eyebrow">回顧討論過程</div>
+  <h2>拆 DRD 時，團隊定下的幾個原則</h2>
+  <div class="grid g2">
+    <div class="box"><h3>每一筆資料都要能回答一個問題</h3><p class="small">指標用不到的就不埋。轉診醫師表單已有優化方向、照護記錄沒有欄位能區分誤報，這兩塊這次不埋。</p></div>
+    <div class="box"><h3>能用時間相減的，就不另外記</h3><p class="small">每筆事件都有 <code>event_time</code>，排查時長、填寫時長都用兩個事件的時間相減算出。</p></div>
+    <div class="box"><h3>不同角色的畫面，拆成不同事件</h3><p class="small">「待處理」裡是警報、給一線人員；「待醫師處理」裡是轉診、給醫師。合在一起，曝光率的基準會混在一起。</p></div>
+    <div class="box"><h3>名稱要說出真正的意思</h3><p class="small"><code>alert_level</code> 的值是高風險、低風險、異常上報，是類型不是等級，改成 <code>alert_type</code>；沒有警報時記 <code>null</code>。</p></div>
   </div>
-  <p class="small" style="margin-top:auto">完整內容：DRD v0.6（DRD、指標對照、代碼對照表、埋點共用規則四個分頁）。</p>
 </div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>16</span></div></section>
+
+<!-- 17 下一步 -->
+<section class="slide" id="s17" aria-label="下一步" hidden><div class="inner">
+  <div class="eyebrow">下一步</div>
+  <h2>從 DRD 到第一份數據報告</h2>
+  <div class="flow">
+    <div class="step"><span class="n">1</span>和開發逐列確認 DRD 與共用規則</div><span class="arrow">→</span>
+    <div class="step"><span class="n">2</span>開發排期、上線埋點</div><span class="arrow">→</span>
+    <div class="step"><span class="n">3</span>收集資料，檢查資料是否完整</div><span class="arrow">→</span>
+    <div class="step on"><span class="n">4</span>第一次指標報告，依級距決定設計動作</div>
+  </div>
+  <div class="box alert" style="margin-top:1cqw"><h3>交給開發前還要確認</h3><ul class="clean small">
+    <li>機構管理員也會處理警報，分析時要不要算進來？</li>
+    <li>醫師的「轉診提醒」有沒有「前往待醫師處理列表」按鈕？一線醫師看得到待醫師處理列表嗎？</li></ul></div>
+  <p class="small" style="margin-top:auto">完整內容：DRD v0.6（DRD、指標對照、代碼對照表、埋點共用規則四個分頁）。</p>
+</div><div class="foot"><span>大家醫平台 · 埋點規劃</span><span>17</span></div></section>
 
 </div>
 <nav class="nav" aria-label="投影片切換">
   <button type="button" id="prev" aria-label="上一張">← 上一張</button>
-  <span class="count" id="count">1 / 16</span>
+  <span class="count" id="count">1 / 17</span>
   <button type="button" id="next" aria-label="下一張">下一張 →</button>
 </nav>
 <p class="hint">可用鍵盤 ← → 切換</p>
