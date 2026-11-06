@@ -159,7 +159,8 @@ def note_add(e, text):
         e["note"] = ([base] if base else []) + [R(sep + text)]
 
 
-VITALS = "blood_pressure, blood_glucose, ecg, spo2, heart_rate, body_temp, weight"
+VITALS = ("blood_pressure, ecg, spo2, body_temp, news2_score, blood_glucose, uric_acid, total_cholesterol, body_fat, "
+          "multi_vitals, hrv, sleep, exercise, steps")
 DV = lambda: newp("detail_visit_id", "這次進入個案詳情的編號（同 DJY_17）", "string", "dv_7f3k2a", "高")
 
 # =====================================================================
@@ -190,7 +191,6 @@ p["y"].add("sample")
 p = prop(e, "alert_time")
 p["type"] = G("Integer")
 p["def"] = G("警報產生時間（同一個警報編號有多個項目時，取第一個項目的時間；Unix 秒）")
-note_add(e, "生理項目完整清單待確認")
 e = ev("DJY_03")
 e["note"] = ["由後端記錄；處理人帶在 user_id\n", G("埋在照護記錄或醫師建議提交時")]
 prop(e, "resolve_type")["y"].add("sample")
@@ -290,6 +290,16 @@ reorder(e, ["page_name", "patient_id", "detail_visit_id", "filter_type", "filter
             "has_data", "duration"])
 e["note"] = G("filter_type 的值要用英文代碼（vital_item），不能寫中文；停留秒數的算法同 Header 頁籤（待確認）")
 
+DT = lambda: newp("device_type", "生理項目所在的設備區塊（同一個生理項目，例如血壓、心電，檢測儀和 Watch 都有）", "string", "monitor, watch", "高")
+addp(ev("DJY_19"), "detail_visit_id", DT())
+addp(ev("DJY_24"), "metric", DT())
+addp(ev("DJY_25"), "metric", DT())
+# 生理項目清單已確認：拿掉黃底
+for _e in events:
+    for _p in _e["props"]:
+        if VITALS in plain(_p["sample"]):
+            _p["y"].discard("sample")
+
 # ---- DJY_20 待辦事項視窗
 e = ev("DJY_20")
 addp(e, "patient_id", DV())
@@ -322,7 +332,7 @@ p["y"].add("def")
 p = prop(e, "duration")
 p["def"], p["pri"], p["pri_tag"] = G("切換前停留在原本時間範圍的秒數"), "中", "R"
 p["y"].add("def")
-reorder(e, ["page_name", "patient_id", "detail_visit_id", "filter_type", "filter_value", "metric", "total_records", "duration"])
+reorder(e, ["page_name", "patient_id", "detail_visit_id", "filter_type", "filter_value", "metric", "device_type", "total_records", "duration"])
 e["trig"] = G("點擊「今日／近 7 天／近 30 天／近 1 年」、圖表更新後")
 
 # ---- DJY_25 自訂日期：清掉重複的 filter_type／filter_value
@@ -339,7 +349,7 @@ p["y"].add("sample")
 p = prop(e, "filter_value")
 p["def"] = G("自訂的天數，格式 custom_天數")
 p["sample"] = G("custom_{{number}}, e.g. custom_14")
-reorder(e, ["page_name", "patient_id", "detail_visit_id", "filter_type", "filter_value", "metric"])
+reorder(e, ["page_name", "patient_id", "detail_visit_id", "filter_type", "filter_value", "metric", "device_type"])
 e["trig"] = G("在自訂日期選擇器按下「確認」、圖表更新後")
 e["note"] = G("原本列了兩次 filter_type／filter_value，其中 custom_range_confirm 是按鈕名稱，已整併成一組")
 
@@ -439,6 +449,11 @@ p = prop(e, "is_empty")
 p["def"] = G("是否所有欄位都沒填就提交（照護記錄 DJY_35 已拿掉這個屬性，兩邊要一致：建議都改用 text_length = 0 判斷，或兩邊都保留）")
 p["y"].add("def")
 e["note"] = ["不送填寫內容，只送字數", R("；要帶 popup_visit_id 才能和打開視窗串起來算填寫時長")]
+
+for _e in events:  # 生理項目清單已確認：拿掉黃底
+    for _p in _e["props"]:
+        if VITALS in plain(_p["sample"]):
+            _p["y"].discard("sample")
 
 # =====================================================================
 # 4) 重新編號
@@ -571,10 +586,22 @@ ZH = {  # 新代碼或需要修改的中文名稱／說明
     ("filter_value", "off"): ("關閉篩選", "filter_type = pending_abnormal"),
     ("notification_tab", "tracking"): ("追蹤提醒", "內容與對應角色待確認"),
     ("exposure_entry", "notification"): ("小鈴鐺通知", "固定帶這個值"),
-    ("生理項目", "blood_pressure"): ("血壓", "alert_items、metric、filter_value（vital_item）共用這組代碼"),
-    ("生理項目", "blood_glucose"): ("血糖", ""),
-    ("生理項目", "body_temp"): ("體溫", ""),
-    ("生理項目", "weight"): ("體重", "完整清單待確認"),
+    ("生理項目", "blood_pressure"): ("血壓", "檢測儀、Watch 都有；alert_items、metric、filter_value（vital_item）共用這組代碼，哪一種設備看 device_type"),
+    ("生理項目", "ecg"): ("心電", "檢測儀、Watch 都有"),
+    ("生理項目", "spo2"): ("血氧", "檢測儀"),
+    ("生理項目", "body_temp"): ("體溫", "檢測儀"),
+    ("生理項目", "news2_score"): ("NEWS2 評分", "檢測儀"),
+    ("生理項目", "blood_glucose"): ("血糖", "檢測儀"),
+    ("生理項目", "uric_acid"): ("尿酸", "檢測儀"),
+    ("生理項目", "total_cholesterol"): ("總膽固醇", "檢測儀"),
+    ("生理項目", "body_fat"): ("體脂", "檢測儀"),
+    ("生理項目", "multi_vitals"): ("多合一徵象", "Watch"),
+    ("生理項目", "hrv"): ("心率變異性", "Watch"),
+    ("生理項目", "sleep"): ("睡眠", "Watch"),
+    ("生理項目", "exercise"): ("運動", "Watch"),
+    ("生理項目", "steps"): ("步數", "Watch"),
+    ("device_type", "monitor"): ("CoDoctor 檢測儀", "生理項目 tab 所在的設備區塊"),
+    ("device_type", "watch"): ("CoDoctor Watch", "生理項目 tab 所在的設備區塊"),
     ("resolve_type", "doctor_advice"): ("醫師建議", "待確認"),
     ("block_name", "ecg_summary"): ("心電摘要", "區塊完整清單待確認"),
     ("todo_types", "doctor_message"): ("醫師留言", "原本的 doctor_advice 改名，避免和 resolve_type 的 doctor_advice 混淆"),
@@ -582,7 +609,7 @@ ZH = {  # 新代碼或需要修改的中文名稱／說明
     ("open_type", "manual"): ("手動打開", ""),
 }
 ENUM_KEYS = ["user_role", "page_name", "popup_name", "button_name", "list_name", "notification_tab", "exposure_entry",
-             "entry_source", "filter_type", "filter_value", "alert_level", "生理項目", "resolve_type", "device_source",
+             "entry_source", "filter_type", "filter_value", "alert_level", "生理項目", "device_type", "resolve_type", "device_source",
              "block_name", "todo_types", "open_type"]
 VSET = set(VITALS.split(", "))
 codes = {}  # (key, value) -> set(event ids)
