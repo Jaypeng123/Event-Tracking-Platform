@@ -334,6 +334,56 @@ for eid in ("DJY_24", "DJY_25", "DJY_26"):
     prop(ev(eid), "metric")["sample"] = G(VITALS)
 
 # =====================================================================
+# 2.5) 依表格順序重新編號（建議刪除的事件不佔編號）
+IDMAP = {}
+n_ = 0
+for e in events:
+    old = plain(e["id"])
+    if e["strike"]:
+        e["id"] = S(old + "（已刪除）")
+        continue
+    n_ += 1
+    new = f"DJY_{n_:02d}"
+    IDMAP[old] = new
+    if isinstance(e["id"], tuple) and e["id"][0] == "R":
+        e["id"] = R(new)
+    elif new != old:
+        e["id"] = G(new)
+ID_RE = re.compile(r"DJY_\d{2}")
+for _old in ("DJY_06", "DJY_07", "DJY_09", "DJY_10", "DJY_15", "DJY_18"):  # 團隊刪除或建議刪除的事件
+    IDMAP.setdefault(_old, "已刪除事件")
+
+
+def remap(t):
+    return ID_RE.sub(lambda m: IDMAP.get(m.group(0), m.group(0)), t)
+
+
+def remap_cell(cell):
+    v = cell.value
+    if isinstance(v, CellRichText):
+        changed = False
+        for i, b in enumerate(v):
+            if isinstance(b, TextBlock):
+                nt = remap(b.text)
+                if nt != b.text:
+                    b.text, changed = nt, True
+            elif isinstance(b, str):
+                nt = remap(b)
+                if nt != b:
+                    v[i], changed = nt, True
+        return changed
+    if isinstance(v, str) and ID_RE.search(v):
+        nv = remap(v)
+        if nv != v:
+            ids = nv.split("、")
+            if all(ID_RE.fullmatch(x) for x in ids) and len(ids) > 1:  # 純編號清單：重新排序
+                nv = "、".join(sorted(ids, key=lambda x: int(x[4:])))
+            cell.value = nv
+            return True
+    return False
+
+
+# =====================================================================
 # 3) 寫出 DRD
 wb = src
 idx = wb.sheetnames.index("DRD")
@@ -635,6 +685,28 @@ def fit_rows(ws):
         if h > have:
             ws.row_dimensions[r1].height = (ws.row_dimensions[r1].height or 21) + (h - have)
 
+
+# 全部分頁的編號引用同步
+for sh in wb.worksheets:
+    for row in sh.iter_rows(min_row=2):
+        for cell in row:
+            if sh.title == "DRD" and cell.column == 1:
+                continue
+            if cell.value is None:
+                continue
+            col = cell.font.color.rgb if cell.font and cell.font.color and cell.font.color.type == "rgb" else None
+            if remap_cell(cell) and not isinstance(cell.value, CellRichText) and col not in ("00" + RED, "FF" + RED, "00" + GREEN, "FF" + GREEN):
+                f = copy.copy(cell.font)
+                cell.font = Font(name=f.name or FONT, size=f.sz or 11, color=GREEN, strike=f.strike)
+print("ID map:", {k: v for k, v in IDMAP.items() if k != v})
+# 檢查：剩下的編號都要是存在的事件
+alive = {plain(e["id"]) for e in events}
+for sh in wb.worksheets:
+    for row in sh.iter_rows(min_row=2):
+        for cell in row:
+            for m in ID_RE.findall(str(cell.value or "")):
+                if m not in alive:
+                    print("WARN", sh.title, cell.coordinate, m)
 
 for sh in (wb["DRD"], wb["代碼對照表"], wb["指標對照"], wb["埋點共用規則"]):
     fit_rows(sh)
