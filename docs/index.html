@@ -1526,7 +1526,7 @@ const Store = {
           window.claude.use('downloads').then(d => { this.dl = d; }).catch(() => {});
         }
       } catch (e) { this.db = null; }
-      this.remote = !this.db && typeof window.LUMI_REMOTE_URL === 'string' && /^https:\/\//.test(window.LUMI_REMOTE_URL) ? window.LUMI_REMOTE_URL : null;
+      this.remote = !this.db && typeof window.LUMI_REMOTE_URL === 'string' && /^(https:\/\/|\/)/.test(window.LUMI_REMOTE_URL) && !(location.protocol === 'file:' && window.LUMI_REMOTE_URL[0] === '/') ? window.LUMI_REMOTE_URL : null;
       this.mode = this.db ? 'cloud' : this.remote ? 'remote' : 'local';
       renderStorePill();
     })();
